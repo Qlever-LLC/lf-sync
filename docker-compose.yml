@@ -1,0 +1,15 @@
+services:
+  service:
+    build:
+      context: .
+    image: Qlever-LLC/oada-service-template
+    restart: unless-stopped
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED
+      - NODE_ENV=${NODE_ENV:-development}
+      - DEBUG=${DEBUG-*:error,*:warn,*:info}
+      # Connect to host if DOMAIN not set.
+      # You should really not rely on this though. Set DOMAIN.
+      - DOMAIN=${DOMAIN:-host.docker.internal}
+      # TODO: Nicer way to deal with tokens?
+      - TOKEN=${TOKEN:-god}
