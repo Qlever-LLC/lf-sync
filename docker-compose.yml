@@ -2,7 +2,7 @@ services:
   service:
     build:
       context: .
-    image: Qlever-LLC/oada-service-template
+    image: Qlever-LLC/lf-sync
     restart: unless-stopped
     environment:
       - NODE_TLS_REJECT_UNAUTHORIZED

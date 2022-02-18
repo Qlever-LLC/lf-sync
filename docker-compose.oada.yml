@@ -2,5 +2,5 @@
 services:
   serivce:
     extends:
-      file: ./services/Qlever-LLC/oada-service-template/docker-compose.yml
+      file: ./services/Qlever-LLC/lf-sync/docker-compose.yml
       service: service

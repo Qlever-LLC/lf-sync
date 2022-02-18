@@ -19,9 +19,11 @@
 import config from './config.js';
 
 import { OADAClient, connect } from '@oada/client';
+import { ListWatch } from '@oada/list-lib';
 
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
+const { toLF } = config.get('syncs');
 
 /**
  * Shared OADA client instance?
@@ -35,12 +37,16 @@ async function run(token: string) {
   // Connect to the OADA API
   const conn = oada
     ? oada.clone(token)
-    : (oada = await connect({ token, domain: `https://${domain}` }));
+    : (oada = await connect({ token, domain }));
 
-  /**
-   * Now do your service stuff...
-   */
-  await conn.head({ path: '/bookmarks' });
+  for (const sync of toLF) {
+    new ListWatch({
+      conn,
+      name: 'foo',
+      path: sync.fromFolder,
+      async onItem() {},
+    });
+  }
 }
 
 await Promise.all(tokens.map(async (token) => run(token)));

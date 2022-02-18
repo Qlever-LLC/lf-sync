@@ -15,10 +15,66 @@
  * limitations under the License.
  */
 
+/* eslint-disable @typescript-eslint/ban-types */
+/* eslint-disable @typescript-eslint/consistent-type-assertions */
+
+import assert from 'node:assert';
+import { join } from 'node:path';
+
 import convict from 'convict';
 import { config as load } from 'dotenv';
 
 load();
+
+interface FolderSync {
+  fromFolder: string;
+  toFolder: string;
+}
+function sync(value: unknown): asserts value is FolderSync {
+  assert(
+    value &&
+      typeof value === 'object' &&
+      'fromFolder' in value &&
+      'toFolder' in value
+  );
+}
+
+function assertArray<T>(
+  check: (value: unknown) => asserts value is T
+): (value: unknown) => asserts value is T[] | readonly T[] {
+  return (value) => {
+    if (!Array.isArray(value)) {
+      throw new TypeError('Expected an array');
+    }
+
+    for (const v of value) {
+      check(v);
+    }
+  };
+}
+
+convict.addFormat({
+  name: 'sync',
+  validate: assertArray(sync),
+  coerce(value: unknown) {
+    const array = Array.isArray(value)
+      ? value
+      : typeof value === 'string'
+      ? value.split(',')
+      : [value];
+    return array.map((item: unknown) => {
+      if (typeof item === 'string') {
+        const [fromFolder, toFolder] = item.split(':');
+        return {
+          fromFolder,
+          toFolder,
+        };
+      }
+
+      return item;
+    });
+  },
+});
 
 const config = convict({
   oada: {
@@ -37,9 +93,81 @@ const config = convict({
       arg: 'token',
     },
   },
-  /**
-   * Add more config stuff when needed
-   */
+  laserfiche: {
+    repository: {
+      doc: 'Laserfiche repository',
+      default: null as unknown as string,
+      format: String,
+      env: 'CWS_REPO',
+      arg: 'cws-repo',
+    },
+    baseFolder: {
+      doc: 'Top Laserfiche folder to use',
+      default: '/FSQA/trellis/trading-partners' as `/${string}`,
+      format: String,
+      env: 'FOLDER',
+      arg: 'folder',
+    },
+    cws: {
+      login: {
+        username: {
+          doc: 'CWS login user name',
+          nullable: true,
+          default: null,
+          format: String,
+          env: 'CWS_USER',
+          arg: 'cws-user',
+        } as convict.SchemaObj<string | null>,
+        password: {
+          doc: 'CWS login password',
+          nullable: true,
+          default: null,
+          format: String,
+          env: 'CWS_PASSWORD',
+          arg: 'cws-password',
+        } as convict.SchemaObj<string | null>,
+        serverName: {
+          doc: 'CWS server name',
+          nullable: true,
+          default: null,
+          format: String,
+          env: 'CWS_SERVER',
+          arg: 'cws-server',
+        } as convict.SchemaObj<string | null>,
+      },
+      token: {
+        doc: 'CWS API token',
+        nullable: true,
+        default: null,
+        format: String,
+        env: 'CWS_TOKEN',
+        arg: 'cws-token',
+      } as convict.SchemaObj<string | null>,
+      apiRoot: {
+        doc: 'CWS API root URL',
+        default: 'http://localhost/CWSAPI/',
+        format: String,
+        env: 'CWS_API',
+        arg: 'cws-api',
+      },
+    },
+  },
+  syncs: {
+    toLF: {
+      doc: 'Folders to sync from OADA to Laserfiche',
+      format: 'sync',
+      default: [] as FolderSync[],
+      env: 'TO_LF',
+      arg: 'to-lf',
+    },
+    fromLF: {
+      doc: 'Folders to sync from Laserfiche to OADA',
+      format: 'sync',
+      default: [] as FolderSync[],
+      env: 'FROM_LF',
+      arg: 'from-lf',
+    },
+  },
 });
 
 /**
@@ -47,5 +175,11 @@ const config = convict({
  * Warn if extra options found.
  */
 config.validate({ allowed: 'warn' });
+
+// Normalize the folder path
+config.set(
+  'laserfiche.baseFolder',
+  join('/', config.get('laserfiche.baseFolder') ?? '') as `/${string}`
+);
 
 export default config;

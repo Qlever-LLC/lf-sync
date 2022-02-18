@@ -42,7 +42,15 @@
   "eslint.packageManager": "yarn",
   "licenser.author": "Qlever LLC",
   "licenser.license": "AL2",
-  "cSpell.words": ["Buildx", "codeql", "Snyk", "sonarjs", "trellisfw"],
+  "cSpell.words": [
+    "Buildx",
+    "codeql",
+    "FSQA",
+    "ksuid",
+    "Snyk",
+    "sonarjs",
+    "trellisfw"
+  ],
   "eslint.format.enable": true,
   "eslint.lintTask.enable": true,
   "eslint.useESLintClass": true

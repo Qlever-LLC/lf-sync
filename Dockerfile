@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ARG NODE_VER=16-alpine
-ARG SERVICE=Qlever-LLC/oada-service-template
+ARG SERVICE=Qlever-LLC/lf-sync
 
 FROM node:$NODE_VER AS install
 ARG SERVICE
