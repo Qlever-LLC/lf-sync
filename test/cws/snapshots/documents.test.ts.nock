@@ -1,0 +1,297 @@
+[
+  [
+    "createDocument",
+    [
+      {
+        "body": "--form-data-boundary-rvcveuracsbs6122\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.create.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-rvcveuracsbs6122--\r\n\r\n",
+        "method": "POST",
+        "path": "/CWSAPI/api/CreateDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:08 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-rvcveuracsbs6122",
+          "host": "localhost"
+        },
+        "response": {
+          "LaserficheEntryID": 1513876
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      },
+      {
+        "body": {
+          "LaserficheEntryId": 1513876
+        },
+        "method": "DELETE",
+        "path": "/CWSAPI/api/DeleteDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:09 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "application/json",
+          "host": "localhost"
+        },
+        "response": "",
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      }
+    ]
+  ],
+  [
+    "createGenericDocument",
+    [
+      {
+        "body": "--form-data-boundary-ihkvcsc653p3ight\r\nContent-Disposition: form-data; name=\"DocumentName\"\r\n\r\ntest.generic.txt\r\n--form-data-boundary-ihkvcsc653p3ight--\r\n\r\n",
+        "method": "POST",
+        "path": "/CWSAPI/api/CreateGenericDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:09 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-ihkvcsc653p3ight",
+          "host": "localhost"
+        },
+        "response": {
+          "ExceptionMessage": "Processing of the HTTP request resulted in an exception. Please see the HTTP response returned by the 'Response' property of this exception for details.",
+          "ExceptionType": "System.Web.Http.HttpResponseException",
+          "Message": "An error has occurred.",
+          "StackTrace": "   at System.Web.Http.ModelBinding.FormatterParameterBinding.ReadContentAsync(HttpRequestMessage request, Type type, IEnumerable`1 formatters, IFormatterLogger formatterLogger, CancellationToken cancellationToken)\r\n   at System.Web.Http.ModelBinding.FormatterParameterBinding.ReadContentAsync(HttpRequestMessage request, Type type, IEnumerable`1 formatters, IFormatterLogger formatterLogger)\r\n   at System.Web.Http.ModelBinding.FormatterParameterBinding.<ExecuteBindingAsyncCore>d__0.MoveNext()\r\n--- End of stack trace from previous location where exception was thrown ---\r\n   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)\r\n   at System.Web.Http.Controllers.HttpActionBinding.<ExecuteBindingAsyncCore>d__0.MoveNext()\r\n--- End of stack trace from previous location where exception was thrown ---\r\n   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)\r\n   at System.Web.Http.Controllers.ActionFilterResult.<ExecuteAsync>d__2.MoveNext()\r\n--- End of stack trace from previous location where exception was thrown ---\r\n   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)\r\n   at System.Web.Http.Filters.AuthorizationFilterAttribute.<ExecuteAuthorizationFilterAsyncCore>d__2.MoveNext()\r\n--- End of stack trace from previous location where exception was thrown ---\r\n   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)\r\n   at System.Web.Http.Controllers.AuthenticationFilterResult.<ExecuteAsync>d__0.MoveNext()\r\n--- End of stack trace from previous location where exception was thrown ---\r\n   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)\r\n   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)\r\n   at System.Web.Http.Controllers.ExceptionFilterResult.<ExecuteAsync>d__0.MoveNext()"
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 500
+      }
+    ]
+  ],
+  [
+    "retrieveDocument",
+    [
+      {
+        "body": "--form-data-boundary-77za7or8y2k7lgww\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.retrieve.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-77za7or8y2k7lgww--\r\n\r\n",
+        "method": "POST",
+        "path": "/CWSAPI/api/CreateDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:09 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-77za7or8y2k7lgww",
+          "host": "localhost"
+        },
+        "response": {
+          "LaserficheEntryID": 1513881
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      },
+      {
+        "body": "",
+        "method": "GET",
+        "path": "/CWSAPI/api/RetrieveDocument?LaserficheEntryId=1513881",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:10 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "host": "localhost"
+        },
+        "response": {
+          "CreationTime": "2022-02-24T14:18:10",
+          "Creator": "MYSMITHFIELD\\ALeyton",
+          "ElectronicDocumentSize": 0,
+          "Extension": "",
+          "FieldDataList": [
+          ],
+          "HasTags": false,
+          "IsElectronicDocument": false,
+          "LaserficheEntryID": 1513881,
+          "LastModifiedTime": "2022-02-24T14:18:10",
+          "MimeType": "",
+          "Name": "test.retrieve.txt",
+          "Owner": "MYSMITHFIELD\\ALeyton",
+          "PageCount": 0,
+          "ParentID": 1513594,
+          "Path": "\\FSQA\\trellis\\trading-partners\\test.retrieve.txt",
+          "RetrieveDocumentContentURL": "http://localhost/CWSAPI/api/RetrieveDocumentContent?LaserficheEntryID=1513881",
+          "TemplateName": "",
+          "Volume": "DEFAULT",
+          "VolumeSource": ""
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      },
+      {
+        "body": {
+          "LaserficheEntryId": 1513881
+        },
+        "method": "DELETE",
+        "path": "/CWSAPI/api/DeleteDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:10 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "application/json",
+          "host": "localhost"
+        },
+        "response": "",
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      }
+    ]
+  ],
+  [
+    "searchDocument",
+    [
+      {
+        "body": {
+          "LaserficheSearchPhrase": "{[General]:[Document]=\"search text\", [Date]=\"*\"} & {LF:Name=\"*\", Type=\"F\"}"
+        },
+        "method": "POST",
+        "path": "/CWSAPI/api/SearchDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:10 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "application/json",
+          "host": "localhost"
+        },
+        "response": [
+        ],
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      }
+    ]
+  ]
+]

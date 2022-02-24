@@ -1,0 +1,79 @@
+/**
+ * Copyright 2022 Qlever LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { Entry, EntryId, getEntryId } from './entries.js';
+import cws from './api.js';
+
+export interface MetadataFieldSingle {
+  Name: string;
+  IsMulti: false;
+  Value: string;
+}
+export interface MetadataFieldMulti {
+  Name: string;
+  IsMulti: true;
+  Values: readonly string[];
+}
+export type FieldList = Array<MetadataFieldMulti | MetadataFieldSingle>;
+export type Metadata = Record<string, string | readonly string[]>;
+
+export function toFieldList(
+  metadata: Metadata | FieldList
+): Array<Omit<MetadataFieldSingle | MetadataFieldMulti, 'IsMulti'>> {
+  return Array.isArray(metadata)
+    ? metadata
+    : Object.entries(metadata).map(([name, value]) =>
+        Array.isArray(value)
+          ? { Name: name, Values: value }
+          : { Name: name, Value: value }
+      );
+}
+
+export async function getMetadata(entry: Entry | EntryId) {
+  const entryId = getEntryId(entry);
+  return cws
+    .get('api/GetMetadata', { searchParams: { LaserficheEntryId: entryId } })
+    .json<{
+      ID: EntryId;
+      TemplateName: string;
+      LaserficheFieldList: FieldList;
+    }>();
+}
+
+export async function setMetadata(
+  entry: Entry | EntryId,
+  metadata: Metadata | FieldList,
+  template?: string
+) {
+  const entryId = getEntryId(entry);
+  return cws.post('api/SetMetadata', {
+    json: {
+      LaserficheEntryId: entryId,
+      LaserficheTemplateName: template,
+      LaserficheFieldList: toFieldList(metadata),
+    },
+  });
+}
+
+export async function setTemplate(entry: Entry | EntryId, template: string) {
+  const entryId = getEntryId(entry);
+  return cws.post('api/SetTemplate', {
+    json: {
+      LaserficheEntryId: entryId,
+      LaserficheTemplateName: template,
+    },
+  });
+}

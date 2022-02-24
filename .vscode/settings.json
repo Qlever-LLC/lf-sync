@@ -9,6 +9,7 @@
     ".DS_Store": true,
     "dist": true,
     ".test": true,
+    "coverage": true,
     "*.tsbuildinfo": true,
     ".actrc": true,
     "act": true,
@@ -32,6 +33,7 @@
     ".DS_Store": true,
     "dist": true,
     ".test": true,
+    "coverage": true,
     "*.tsbuildinfo": true,
     ".actrc": true,
     "act": true,
@@ -53,5 +55,12 @@
   ],
   "eslint.format.enable": true,
   "eslint.lintTask.enable": true,
-  "eslint.useESLintClass": true
+  "eslint.useESLintClass": true,
+  "coverage-gutters.coverageBaseDir": "coverage",
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": true,
+  "coverage-gutters.coverageReportFileName": "coverage/**/*.html",
+  "coverage-gutters.showGutterCoverage": false,
+  "ponicode.testSettings.testLocation.locationType": "Custom",
+  "ponicode.testSettings.testLocation.path": "{rootDir}/test/{filePath}/{fileName}.test.{ext}"
 }

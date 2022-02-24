@@ -1,0 +1,75 @@
+[
+  [
+    "retrieveDocumentContents",
+    [
+      {
+        "body": "--form-data-boundary-2d9c05gyld90kdrf\r\nContent-Disposition: form-data; name=\"File\"\r\n\r\ntest test\r\n--form-data-boundary-2d9c05gyld90kdrf\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-2d9c05gyld90kdrf--\r\n\r\n",
+        "method": "POST",
+        "path": "/CWSAPI/api/CreateDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:08 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-2d9c05gyld90kdrf",
+          "host": "localhost"
+        },
+        "response": {
+          "LaserficheEntryID": 1513878
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      },
+      {
+        "body": "",
+        "method": "GET",
+        "path": "/CWSAPI/api/RetrieveDocumentContent?LaserficheEntryId=1513878",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Thu, 24 Feb 2022 20:18:09 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept-encoding": "gzip, deflate, br",
+          "host": "localhost"
+        },
+        "response": "",
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 400
+      }
+    ]
+  ]
+]
