@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,18 +15,33 @@
  * limitations under the License.
  */
 
-import { Entry, FolderEntry, FolderId, getEntryId } from './entries.js';
+/**
+ * Module for dealing with Folder Entries in CWS
+ *
+ * @packageDocumentation
+ */
+
+import {
+  Entry,
+  EntryIdLike,
+  FolderEntry,
+  FolderId,
+  getEntryId,
+} from './entries.js';
 import { FieldList, Metadata, toFieldList } from './metadata.js';
 import { Path, normalizePath } from './paths.js';
 import cws from './api.js';
 
+/**
+ * The ID for the root folder `\\`
+ */
 export const ROOT_ID = 1 as FolderId;
 
 /**
  * Get a list of folders and documents directly underneath the specified folder
  *
  * @param path the Laserfiche folder path
- * @returns a Promise of an array of entries
+ * @returns a Promise of an array of child entries
  */
 export async function browse(path: Path = '/') {
   return cws
@@ -37,11 +53,17 @@ export async function browse(path: Path = '/') {
     .json<Entry[]>();
 }
 
-export async function retrieveFolder(document: FolderEntry | FolderId) {
-  const documentId = getEntryId(document);
+/**
+ * Retrieves folder information
+ *
+ * @param folder A `FolderEntry` or the `EntryID` of a `FolderEntry`
+ * @returns All the info in Laserfiche about the folder entry
+ */
+export async function retrieveFolder(folder: EntryIdLike<FolderEntry>) {
+  const id = getEntryId(folder);
   return cws
     .get('api/RetrieveFolder', {
-      searchParams: { LaserficheEntryId: documentId },
+      searchParams: { LaserficheEntryId: id },
     })
     .json<FolderEntry>();
 }
@@ -71,14 +93,14 @@ export async function createFolder({
     .json<{ LaserficheEntryID: FolderId }>();
 }
 
-export async function getFolderContents(folder: FolderEntry | FolderId) {
-  const folderId = getEntryId(folder);
-  return cws.get(`api/folders/${folderId}/contents`).json<Entry[]>();
+export async function getFolderContents(folder: EntryIdLike<FolderEntry>) {
+  const id = getEntryId(folder);
+  return cws.get(`api/folders/${id}/contents`).json<Entry[]>();
 }
 
-export async function deleteFolder(folder: FolderEntry | FolderId) {
+export async function deleteFolder(folder: EntryIdLike<FolderEntry>) {
   const id = getEntryId(folder);
-  return cws.delete('api/DeleteFolder', {
+  return cws.delete<void>('api/DeleteFolder', {
     json: {
       LaserficheEntryId: id,
     },

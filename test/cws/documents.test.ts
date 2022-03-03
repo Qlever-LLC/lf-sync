@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,11 +41,9 @@ test('createDocument', async (t) => {
 });
 
 test.failing('createGenericDocument', async (t) => {
-  // Const file = Buffer.from('test test');
   const body = await createGenericDocument({
     type: 'file',
     name: 'test.generic.txt',
-    // File,
   });
   t.truthy(body.LaserficheEntryID);
   try {

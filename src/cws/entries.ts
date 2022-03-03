@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +17,10 @@
 
 import type { Opaque } from 'type-fest';
 
+import { Path, normalizePath } from './paths.js';
 import cws from './api.js';
 
-export type EntryId<T = Entry> = Opaque<number, T>;
+export type EntryId<T extends BaseEntry = Entry> = Opaque<number, T>;
 interface BaseEntry {
   LaserficheEntryID: EntryId<BaseEntry>;
   Name: string;
@@ -39,15 +41,18 @@ export interface FolderEntry extends BaseEntry {
 }
 
 export type Entry = FolderEntry | DocumentEntry;
+export type EntryIdLike<T extends BaseEntry = Entry> =
+  | Pick<T, 'LaserficheEntryID'>
+  | EntryId<T>;
 
-export function getEntryId<T extends BaseEntry>(
-  entry: T | EntryId<T>
-): T['LaserficheEntryID'] {
-  return typeof entry === 'number' ? entry : entry.LaserficheEntryID;
+export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
+  return typeof entry === 'number'
+    ? entry
+    : (entry.LaserficheEntryID as EntryId<T>);
 }
 
 export async function retrieveEntry<E extends Entry>(
-  entry: E | EntryId<E> | string
+  entry: EntryIdLike<E> | string
 ) {
   if (typeof entry === 'string') {
     return cws
@@ -57,8 +62,8 @@ export async function retrieveEntry<E extends Entry>(
       .json<E>();
   }
 
-  const entryId = getEntryId(entry);
-  return cws.get(`api/Entry/${Number(entryId)}`).json<E>();
+  const id = getEntryId(entry);
+  return cws.get(`api/Entry/${Number(id)}`).json<E>();
 }
 
 /**
@@ -86,4 +91,29 @@ export async function searchEntries(
       },
     })
     .json<Array<{ EntryId: EntryId }>>();
+}
+
+export async function indexEntry(entry: EntryIdLike) {
+  const id = getEntryId(entry);
+  return cws.put<void>(`api/Entry/${id}/index`);
+}
+
+export async function migrateEntry(entry: EntryIdLike, volume: string) {
+  const entryId = getEntryId(entry);
+  return cws.put<void>('api/Entry/Migrate', {
+    json: {
+      LaserficheEntryID: entryId,
+      DestinationVolumeName: volume,
+    },
+  });
+}
+
+export async function moveEntry(entry: EntryIdLike, path: Path) {
+  const entryId = getEntryId(entry);
+  return cws.put<void>('api/Entry/Move', {
+    json: {
+      LaserficheEntryID: entryId,
+      DestinationParentPath: normalizePath(path),
+    },
+  });
 }

@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +15,7 @@
  * limitations under the License.
  */
 
-import { Entry, EntryId, getEntryId } from './entries.js';
+import { Entry, EntryId, EntryIdLike, getEntryId } from './entries.js';
 import cws from './api.js';
 
 export interface MetadataFieldSingle {
@@ -42,37 +43,39 @@ export function toFieldList(
       );
 }
 
-export async function getMetadata(entry: Entry | EntryId) {
-  const entryId = getEntryId(entry);
+export async function getMetadata<E extends Entry = Entry>(
+  entry: EntryIdLike<E>
+) {
+  const id = getEntryId(entry);
   return cws
-    .get('api/GetMetadata', { searchParams: { LaserficheEntryId: entryId } })
+    .get('api/GetMetadata', { searchParams: { LaserficheEntryId: id } })
     .json<{
-      ID: EntryId;
+      ID: EntryId<E>;
       TemplateName: string;
       LaserficheFieldList: FieldList;
     }>();
 }
 
 export async function setMetadata(
-  entry: Entry | EntryId,
+  entry: EntryIdLike,
   metadata: Metadata | FieldList,
   template?: string
 ) {
-  const entryId = getEntryId(entry);
-  return cws.post('api/SetMetadata', {
+  const id = getEntryId(entry);
+  return cws.post<void>('api/SetMetadata', {
     json: {
-      LaserficheEntryId: entryId,
+      LaserficheEntryId: id,
       LaserficheTemplateName: template,
       LaserficheFieldList: toFieldList(metadata),
     },
   });
 }
 
-export async function setTemplate(entry: Entry | EntryId, template: string) {
-  const entryId = getEntryId(entry);
-  return cws.post('api/SetTemplate', {
+export async function setTemplate(entry: EntryIdLike, template: string) {
+  const id = getEntryId(entry);
+  return cws.post<void>('api/SetTemplate', {
     json: {
-      LaserficheEntryId: entryId,
+      LaserficheEntryId: id,
       LaserficheTemplateName: template,
     },
   });

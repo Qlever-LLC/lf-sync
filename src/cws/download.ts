@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +15,16 @@
  * limitations under the License.
  */
 
-import { DocumentEntry, DocumentId, getEntryId } from './entries.js';
+import { DocumentEntry, EntryIdLike, getEntryId } from './entries.js';
 import cws from './api.js';
 
 export async function retrieveDocumentContent(
-  document: DocumentEntry | DocumentId
+  document: EntryIdLike<DocumentEntry>
 ) {
-  const documentId = getEntryId(document);
+  const id = getEntryId(document);
   return cws
     .get('api/RetrieveDocumentContent', {
-      searchParams: { LaserficheEntryId: documentId },
+      searchParams: { LaserficheEntryId: id },
     })
     .buffer();
 }

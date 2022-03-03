@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +15,36 @@
  * limitations under the License.
  */
 
+/**
+ * Module for dealing with Document Entries in CWS
+ *
+ * @packageDocumentation
+ */
+
+import { Blob } from 'node:buffer';
+
 import { FormData } from 'formdata-node';
 
-import { DocumentEntry, DocumentId, getEntryId } from './entries.js';
+import {
+  DocumentEntry,
+  DocumentId,
+  EntryIdLike,
+  getEntryId,
+} from './entries.js';
 import { FieldList, Metadata, toFieldList } from './metadata.js';
 import { Path, normalizePath } from './paths.js';
 import cws from './api.js';
 
+/**
+ * Can be used to set template and field data at time of creation
+ * with one transaction, or the setting of template and field data can be done
+ * separately through the below setMetadata and setTemplate calls.
+ *
+ * Also, while this function can upload smaller files,
+ * we recommend larger files be uploaded using the chunking methods.
+ *
+ * @returns The LaserficheEntryID of the newly created document
+ */
 export async function createDocument({
   path,
   name,
@@ -34,7 +58,7 @@ export async function createDocument({
   volume?: string;
   template?: string;
   metadata?: Metadata | FieldList;
-  file?: unknown;
+  file?: Buffer | Blob;
 }) {
   const form = new FormData();
   const parameters = {
@@ -45,7 +69,7 @@ export async function createDocument({
     LaserficheFieldList: metadata && toFieldList(metadata),
   };
   if (file !== undefined) {
-    form.set('File', file);
+    form.set('File', Buffer.isBuffer(file) ? new Blob([file]) : file, name);
   }
 
   form.set('Parameters', JSON.stringify(parameters));
@@ -53,7 +77,7 @@ export async function createDocument({
     .post('api/CreateDocument', {
       body: form,
     })
-    .json<DocumentEntry>();
+    .json<{ LaserficheEntryID: DocumentId }>();
 }
 
 export async function createGenericDocument({
@@ -77,9 +101,9 @@ export async function createGenericDocument({
     .json<{ LaserficheEntryID: DocumentId }>();
 }
 
-export async function deleteDocument(document: DocumentEntry | DocumentId) {
+export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {
   const id = getEntryId(document);
-  return cws.delete('api/DeleteDocument', {
+  return cws.delete<void>('api/DeleteDocument', {
     json: {
       LaserficheEntryId: id,
     },
@@ -113,11 +137,11 @@ export async function searchDocument(
     .json<DocumentEntry[]>();
 }
 
-export async function retrieveDocument(document: DocumentEntry | DocumentId) {
-  const documentId = getEntryId(document);
+export async function retrieveDocument(document: EntryIdLike<DocumentEntry>) {
+  const id = getEntryId(document);
   return cws
     .get('api/RetrieveDocument', {
-      searchParams: { LaserficheEntryId: documentId },
+      searchParams: { LaserficheEntryId: id },
     })
     .json<DocumentEntry>();
 }

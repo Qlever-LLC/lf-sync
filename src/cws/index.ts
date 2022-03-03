@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,5 +18,6 @@
 export * from './entries.js';
 export * from './documents.js';
 export * from './download.js';
+export * from './upload.js';
 export * from './folders.js';
 export * from './metadata.js';

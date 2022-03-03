@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +15,12 @@
  * limitations under the License.
  */
 
+/**
+ * Creates an authenticated REST connection to CWS
+ *
+ * @packageDocumentation
+ */
+
 import config from '../config.js';
 
 import got from 'got';
@@ -25,17 +32,20 @@ const {
 
 const client = got.extend({
   prefixUrl: apiRoot,
+  https: {
+    rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
+  },
 });
 
 /**
  * Perform the username/password login with CWS to get a token
  */
 async function getToken() {
+  // "Password" is base64 encoded JSON string of login info
   const auth = Buffer.from(
     JSON.stringify({ repositoryName: repository, ...login })
   ).toString('base64');
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const { access_token, token_type } = await client
+  const { access_token: accessToken, token_type: type } = await client
     .post('api/ConnectionToLaserfiche', {
       headers: { Authorization: `basic ${auth}` },
       form: { grant_type: 'password' },
@@ -47,11 +57,11 @@ async function getToken() {
       api_version: string;
     }>();
 
-  return `${token_type} ${access_token}`;
+  return `${type} ${accessToken}`;
 }
 
 /**
- * Connection to the configured CWS API
+ * Authenticated connection to the configured CWS API
  */
 export const cws = client.extend({
   headers: { Authorization: token ?? (await getToken()) },

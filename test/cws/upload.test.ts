@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-import { Blob } from 'node:buffer';
+import { PassThrough, Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 import test from 'ava';
 
@@ -23,30 +24,18 @@ import setup from '../setup.js';
 
 import { createDocument, deleteDocument } from '../../dist/cws/documents.js';
 import { retrieveDocumentContent } from '../../dist/cws/download.js';
+import { streamUpload } from '../../dist/cws/upload.js';
 
 setup();
 
-test('retrieveDocumentContents Blob', async (t) => {
-  const file = new Blob(['test test']);
-  const body = await createDocument({
-    path: '/',
-    name: 'test.txt',
-    file,
-  });
-  const document = await retrieveDocumentContent(body.LaserficheEntryID);
-  t.is(document.toString(), 'test test');
-  try {
-    await deleteDocument(body.LaserficheEntryID);
-  } catch {}
-});
-
-test('retrieveDocumentContents Buffer', async (t) => {
+test('stream upload', async (t) => {
   const file = Buffer.from('test test');
   const body = await createDocument({
     path: '/',
     name: 'test.txt',
-    file,
   });
+  const upload = streamUpload(body.LaserficheEntryID);
+  await pipeline(Readable.from(file), upload, new PassThrough());
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
   t.is(document.toString(), 'test test');
   try {
