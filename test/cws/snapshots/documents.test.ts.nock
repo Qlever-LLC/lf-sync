@@ -3,7 +3,7 @@
     "createDocument",
     [
       {
-        "body": "--form-data-boundary-4biycr2ilnkub9xc\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.create.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-4biycr2ilnkub9xc--\r\n\r\n",
+        "body": "--form-data-boundary-zffsmz18cd528563\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.create.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-zffsmz18cd528563--\r\n\r\n",
         "method": "POST",
         "path": "/CWSAPI/api/CreateDocument",
         "rawHeaders": [
@@ -22,18 +22,18 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:30 GMT",
+          "Wed, 09 Mar 2022 20:44:45 GMT",
           "Connection",
           "close"
         ],
         "reqheaders": {
           "accept": "application/json",
           "accept-encoding": "gzip, deflate, br",
-          "content-type": "multipart/form-data; boundary=form-data-boundary-4biycr2ilnkub9xc",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-zffsmz18cd528563",
           "host": "localhost"
         },
         "response": {
-          "LaserficheEntryID": 1514453
+          "LaserficheEntryID": 1514976
         },
         "responseIsBinary": false,
         "scope": "http://localhost:80",
@@ -41,7 +41,7 @@
       },
       {
         "body": {
-          "LaserficheEntryId": 1514453
+          "LaserficheEntryId": 1514976
         },
         "method": "DELETE",
         "path": "/CWSAPI/api/DeleteDocument",
@@ -59,7 +59,7 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:31 GMT",
+          "Wed, 09 Mar 2022 20:44:45 GMT",
           "Connection",
           "close"
         ],
@@ -79,7 +79,7 @@
     "createGenericDocument",
     [
       {
-        "body": "--form-data-boundary-vsyh17ed5ik1gqfv\r\nContent-Disposition: form-data; name=\"DocumentName\"\r\n\r\ntest.generic.txt\r\n--form-data-boundary-vsyh17ed5ik1gqfv--\r\n\r\n",
+        "body": "--form-data-boundary-0vb8v18e9rqx5tfd\r\nContent-Disposition: form-data; name=\"DocumentName\"\r\n\r\ntest.generic.txt\r\n--form-data-boundary-0vb8v18e9rqx5tfd--\r\n\r\n",
         "method": "POST",
         "path": "/CWSAPI/api/CreateGenericDocument",
         "rawHeaders": [
@@ -98,14 +98,14 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:31 GMT",
+          "Wed, 09 Mar 2022 20:44:45 GMT",
           "Connection",
           "close"
         ],
         "reqheaders": {
           "accept": "application/json",
           "accept-encoding": "gzip, deflate, br",
-          "content-type": "multipart/form-data; boundary=form-data-boundary-vsyh17ed5ik1gqfv",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-0vb8v18e9rqx5tfd",
           "host": "localhost"
         },
         "response": {
@@ -124,7 +124,7 @@
     "deleteDocument",
     [
       {
-        "body": "--form-data-boundary-s9xg1nrbm90ndzzi\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.delete.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-s9xg1nrbm90ndzzi--\r\n\r\n",
+        "body": "--form-data-boundary-9bm1yzzckj6m3zx3\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.delete.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-9bm1yzzckj6m3zx3--\r\n\r\n",
         "method": "POST",
         "path": "/CWSAPI/api/CreateDocument",
         "rawHeaders": [
@@ -143,18 +143,18 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:39 GMT",
+          "Wed, 09 Mar 2022 20:44:49 GMT",
           "Connection",
           "close"
         ],
         "reqheaders": {
           "accept": "application/json",
           "accept-encoding": "gzip, deflate, br",
-          "content-type": "multipart/form-data; boundary=form-data-boundary-s9xg1nrbm90ndzzi",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-9bm1yzzckj6m3zx3",
           "host": "localhost"
         },
         "response": {
-          "LaserficheEntryID": 1514463
+          "LaserficheEntryID": 1514979
         },
         "responseIsBinary": false,
         "scope": "http://localhost:80",
@@ -162,7 +162,7 @@
       },
       {
         "body": {
-          "LaserficheEntryId": 1514463
+          "LaserficheEntryId": 1514979
         },
         "method": "DELETE",
         "path": "/CWSAPI/api/DeleteDocument",
@@ -180,7 +180,7 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:40 GMT",
+          "Wed, 09 Mar 2022 20:44:50 GMT",
           "Connection",
           "close"
         ],
@@ -200,7 +200,7 @@
     "retrieveDocument",
     [
       {
-        "body": "--form-data-boundary-msj3jiceqdet4z8y\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.retrieve.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-msj3jiceqdet4z8y--\r\n\r\n",
+        "body": "--form-data-boundary-gl3ca7i4yeim2ijm\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.retrieve.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-gl3ca7i4yeim2ijm--\r\n\r\n",
         "method": "POST",
         "path": "/CWSAPI/api/CreateDocument",
         "rawHeaders": [
@@ -219,18 +219,18 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:35 GMT",
+          "Wed, 09 Mar 2022 20:44:46 GMT",
           "Connection",
           "close"
         ],
         "reqheaders": {
           "accept": "application/json",
           "accept-encoding": "gzip, deflate, br",
-          "content-type": "multipart/form-data; boundary=form-data-boundary-msj3jiceqdet4z8y",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-gl3ca7i4yeim2ijm",
           "host": "localhost"
         },
         "response": {
-          "LaserficheEntryID": 1514456
+          "LaserficheEntryID": 1514977
         },
         "responseIsBinary": false,
         "scope": "http://localhost:80",
@@ -239,7 +239,7 @@
       {
         "body": "",
         "method": "GET",
-        "path": "/CWSAPI/api/RetrieveDocument?LaserficheEntryId=1514456",
+        "path": "/CWSAPI/api/RetrieveDocument?LaserficheEntryId=1514977",
         "rawHeaders": [
           "Cache-Control",
           "no-cache",
@@ -256,7 +256,7 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:36 GMT",
+          "Wed, 09 Mar 2022 20:44:48 GMT",
           "Connection",
           "close"
         ],
@@ -266,7 +266,7 @@
           "host": "localhost"
         },
         "response": {
-          "CreationTime": "2022-03-03T15:59:35",
+          "CreationTime": "2022-03-09T14:44:47",
           "Creator": "MYSMITHFIELD\\ALeyton",
           "ElectronicDocumentSize": 0,
           "Extension": "",
@@ -274,15 +274,15 @@
           ],
           "HasTags": false,
           "IsElectronicDocument": false,
-          "LaserficheEntryID": 1514456,
-          "LastModifiedTime": "2022-03-03T15:59:35",
+          "LaserficheEntryID": 1514977,
+          "LastModifiedTime": "2022-03-09T14:44:47",
           "MimeType": "",
           "Name": "test.retrieve.txt",
           "Owner": "MYSMITHFIELD\\ALeyton",
           "PageCount": 0,
           "ParentID": 1513594,
           "Path": "\\FSQA\\trellis\\trading-partners\\test.retrieve.txt",
-          "RetrieveDocumentContentURL": "http://localhost/CWSAPI/api/RetrieveDocumentContent?LaserficheEntryID=1514456",
+          "RetrieveDocumentContentURL": "http://localhost/CWSAPI/api/RetrieveDocumentContent?LaserficheEntryID=1514977",
           "TemplateName": "",
           "Volume": "DEFAULT",
           "VolumeSource": ""
@@ -293,7 +293,7 @@
       },
       {
         "body": {
-          "LaserficheEntryId": 1514456
+          "LaserficheEntryId": 1514977
         },
         "method": "DELETE",
         "path": "/CWSAPI/api/DeleteDocument",
@@ -311,7 +311,7 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:37 GMT",
+          "Wed, 09 Mar 2022 20:44:48 GMT",
           "Connection",
           "close"
         ],
@@ -352,7 +352,7 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:37 GMT",
+          "Wed, 09 Mar 2022 20:44:49 GMT",
           "Connection",
           "close"
         ],

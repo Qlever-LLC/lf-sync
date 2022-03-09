@@ -14,6 +14,7 @@
   },
   "ava": {
     "failFast": false,
+    "concurrency": 1,
     "files": [
       "**/*.test.ts"
     ],

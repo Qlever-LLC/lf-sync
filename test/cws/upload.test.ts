@@ -15,16 +15,16 @@
  * limitations under the License.
  */
 
-import { PassThrough, Readable } from 'node:stream';
+import { Duplex, PassThrough, Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import test from 'ava';
 
 import setup from '../setup.js';
 
+import { chunkedUpload, streamUpload } from '../../dist/cws/upload.js';
 import { createDocument, deleteDocument } from '../../dist/cws/documents.js';
 import { retrieveDocumentContent } from '../../dist/cws/download.js';
-import { streamUpload } from '../../dist/cws/upload.js';
 
 setup();
 
@@ -32,10 +32,31 @@ test('stream upload', async (t) => {
   const file = Buffer.from('test test');
   const body = await createDocument({
     path: '/',
-    name: 'test.txt',
+    name: 'test.stream.txt',
   });
   const upload = streamUpload(body.LaserficheEntryID);
   await pipeline(Readable.from(file), upload, new PassThrough());
+  const document = await retrieveDocumentContent(body.LaserficheEntryID);
+  t.is(document.toString(), 'test test');
+  try {
+    await deleteDocument(body.LaserficheEntryID);
+  } catch {}
+});
+
+test.failing('chunked upload', async (t) => {
+  // eslint-disable-next-line unicorn/consistent-function-scoping
+  async function* test() {
+    yield 'test 1';
+    yield 'test 2';
+  }
+
+  const contents = Readable.from(test(), { objectMode: false });
+  const body = await createDocument({
+    path: '/',
+    name: 'test.chunked.txt',
+  });
+  const upload = chunkedUpload(body.LaserficheEntryID);
+  await pipeline(contents, Duplex.from(upload), new PassThrough());
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
   t.is(document.toString(), 'test test');
   try {

@@ -51,19 +51,22 @@ export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
     : (entry.LaserficheEntryID as EntryId<T>);
 }
 
+type EntryEntry<E extends Entry> = Omit<E, 'LaserficheEntryID'> & {
+  EntryId: EntryId<E>;
+};
 export async function retrieveEntry<E extends Entry>(
-  entry: EntryIdLike<E> | string
-) {
+  entry: EntryIdLike<E> | Path
+): Promise<EntryEntry<E>> {
   if (typeof entry === 'string') {
     return cws
-      .get('api/Entry', {
-        searchParams: { Path: entry },
+      .get('api/RetrieveEntry', {
+        searchParams: { Path: normalizePath(entry) },
       })
-      .json<E>();
+      .json();
   }
 
   const id = getEntryId(entry);
-  return cws.get(`api/Entry/${Number(id)}`).json<E>();
+  return cws.get(`api/RetrieveEntry/${Number(id)}`).json();
 }
 
 /**

@@ -1,5 +1,236 @@
 [
   [
+    "moveEntry",
+    [
+      {
+        "body": "--form-data-boundary-hiaxpkkogs8p08dj\r\nContent-Disposition: form-data; name=\"Parameters\"\r\n\r\n{\"LaserficheFolderPath\":\"\\\\FSQA\\\\trellis\\\\trading-partners\\\\\",\"LaserficheDocumentName\":\"test.move.txt\",\"LaserficheVolumeName\":\"Default\"}\r\n--form-data-boundary-hiaxpkkogs8p08dj--\r\n\r\n",
+        "method": "POST",
+        "path": "/CWSAPI/api/CreateDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Wed, 09 Mar 2022 20:44:59 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "multipart/form-data; boundary=form-data-boundary-hiaxpkkogs8p08dj",
+          "host": "localhost"
+        },
+        "response": {
+          "LaserficheEntryID": 1514984
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      },
+      {
+        "body": {
+          "DestinationParentPath": "\\FSQA\\trellis\\trading-partners\\moved",
+          "LaserficheEntryID": 1514984
+        },
+        "method": "PUT",
+        "path": "/CWSAPI/api/Entry/Move",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Wed, 09 Mar 2022 20:45:00 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "application/json",
+          "host": "localhost"
+        },
+        "response": "",
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      },
+      {
+        "body": {
+          "LaserficheEntryId": 1514984
+        },
+        "method": "DELETE",
+        "path": "/CWSAPI/api/DeleteDocument",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Wed, 09 Mar 2022 20:45:01 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept-encoding": "gzip, deflate, br",
+          "content-type": "application/json",
+          "host": "localhost"
+        },
+        "response": "",
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      }
+    ]
+  ],
+  [
+    "retrieveEntry with ID",
+    [
+      {
+        "body": "",
+        "method": "GET",
+        "path": "/CWSAPI/api/RetrieveEntry/1",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Wed, 09 Mar 2022 20:44:57 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "host": "localhost"
+        },
+        "response": {
+          "CreationTime": "2011-07-30T15:40:05Z",
+          "Creator": "",
+          "ElectronicDocumentSize": 0,
+          "EntryId": 1,
+          "Extension": null,
+          "FieldDataList": [
+          ],
+          "HasTags": false,
+          "IsElectronicDocument": false,
+          "LastModifiedTime": "2022-03-06T14:08:53Z",
+          "MimeType": null,
+          "Name": "ROOT FOLDER",
+          "Owner": "",
+          "PageCount": 0,
+          "ParentId": 0,
+          "Path": "\\ROOT FOLDER",
+          "TargetId": null,
+          "TargetType": null,
+          "TemplateName": null,
+          "Type": "Folder"
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      }
+    ]
+  ],
+  [
+    "retrieveEntry with path",
+    [
+      {
+        "body": "",
+        "method": "GET",
+        "path": "/CWSAPI/api/RetrieveEntry?Path=%5CFSQA%5Ctrellis%5Ctrading-partners%5C",
+        "rawHeaders": [
+          "Cache-Control",
+          "no-cache",
+          "Pragma",
+          "no-cache",
+          "Content-Type",
+          "application/json; charset=utf-8",
+          "Expires",
+          "-1",
+          "Server",
+          "Microsoft-IIS/8.5",
+          "X-AspNet-Version",
+          "4.0.30319",
+          "X-Powered-By",
+          "ASP.NET",
+          "Date",
+          "Wed, 09 Mar 2022 20:44:58 GMT",
+          "Connection",
+          "close"
+        ],
+        "reqheaders": {
+          "accept": "application/json",
+          "accept-encoding": "gzip, deflate, br",
+          "host": "localhost"
+        },
+        "response": {
+          "CreationTime": "2022-02-23T21:08:39Z",
+          "Creator": "MYSMITHFIELD\\ALeyton",
+          "ElectronicDocumentSize": 0,
+          "EntryId": 1513594,
+          "Extension": null,
+          "FieldDataList": [
+          ],
+          "HasTags": false,
+          "IsElectronicDocument": false,
+          "LastModifiedTime": "2022-03-09T20:44:55Z",
+          "MimeType": null,
+          "Name": "trading-partners",
+          "Owner": "MYSMITHFIELD\\ALeyton",
+          "PageCount": 0,
+          "ParentId": 1510179,
+          "Path": "\\FSQA\\trellis\\trading-partners",
+          "TargetId": null,
+          "TargetType": null,
+          "TemplateName": null,
+          "Type": "Folder"
+        },
+        "responseIsBinary": false,
+        "scope": "http://localhost:80",
+        "status": 200
+      }
+    ]
+  ],
+  [
     "searchEntries",
     [
       {
@@ -24,7 +255,7 @@
           "X-Powered-By",
           "ASP.NET",
           "Date",
-          "Thu, 03 Mar 2022 21:59:28 GMT",
+          "Wed, 09 Mar 2022 20:45:02 GMT",
           "Connection",
           "close"
         ],
