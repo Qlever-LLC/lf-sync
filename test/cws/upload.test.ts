@@ -22,11 +22,34 @@ import test from 'ava';
 
 import setup from '../setup.js';
 
-import { chunkedUpload, streamUpload } from '../../dist/cws/upload.js';
-import { createDocument, deleteDocument } from '../../dist/cws/documents.js';
+import {
+  chunkedUpload,
+  smallUpload,
+  streamUpload,
+} from '../../dist/cws/upload.js';
+import {
+  createDocument,
+  deleteDocument,
+  retrieveDocument,
+} from '../../dist/cws/documents.js';
 import { retrieveDocumentContent } from '../../dist/cws/download.js';
 
 setup();
+
+test('small upload', async (t) => {
+  const file = Buffer.from('test test');
+  const body = await createDocument({
+    path: '/',
+    name: 'test.stream.txt',
+  });
+  t.log(await retrieveDocument(body.LaserficheEntryID));
+  await smallUpload(body.LaserficheEntryID, file);
+  const document = await retrieveDocumentContent(body.LaserficheEntryID);
+  t.is(document.toString(), 'test test');
+  try {
+    await deleteDocument(body.LaserficheEntryID);
+  } catch {}
+});
 
 test('stream upload', async (t) => {
   const file = Buffer.from('test test');
@@ -34,7 +57,7 @@ test('stream upload', async (t) => {
     path: '/',
     name: 'test.stream.txt',
   });
-  const upload = streamUpload(body.LaserficheEntryID);
+  const upload = streamUpload(body.LaserficheEntryID, 'txt');
   await pipeline(Readable.from(file), upload, new PassThrough());
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
   t.is(document.toString(), 'test test');
@@ -45,12 +68,12 @@ test('stream upload', async (t) => {
 
 test.failing('chunked upload', async (t) => {
   // eslint-disable-next-line unicorn/consistent-function-scoping
-  async function* test() {
+  async function* gen() {
     yield 'test 1';
     yield 'test 2';
   }
 
-  const contents = Readable.from(test(), { objectMode: false });
+  const contents = Readable.from(gen(), { objectMode: false });
   const body = await createDocument({
     path: '/',
     name: 'test.chunked.txt',

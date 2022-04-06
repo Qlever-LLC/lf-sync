@@ -49,6 +49,7 @@
     "codeql",
     "FSQA",
     "ksuid",
+    "lcov",
     "Snyk",
     "sonarjs",
     "trellisfw"
@@ -62,5 +63,20 @@
   "coverage-gutters.coverageReportFileName": "coverage/**/*.html",
   "coverage-gutters.showGutterCoverage": false,
   "ponicode.testSettings.testLocation.locationType": "Custom",
-  "ponicode.testSettings.testLocation.path": "{rootDir}/test/{filePath}/{fileName}.test.{ext}"
+  "ponicode.testSettings.testLocation.path": "{rootDir}/test/{filePath}/{fileName}.test.{ext}",
+  "explorerExclude.backup": null,
+  "npm.packageManager": "yarn",
+  "debug.javascript.autoAttachFilter": "smart",
+  "debug.javascript.breakOnConditionalError": true,
+  "debug.javascript.defaultRuntimeExecutable": {
+    "node": "yarn",
+    "pwa-node": "yarn"
+  },
+  "debug.javascript.autoAttachSmartPattern": [
+    "${workspaceFolder}/**",
+    "!**/node_modules/**",
+    "**/$KNOWN_TOOLS$/**",
+    "!**/yarn-*",
+    "!**/ava-*/**/cli.mjs"
+  ]
 }

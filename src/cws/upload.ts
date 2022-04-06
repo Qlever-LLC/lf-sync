@@ -80,8 +80,20 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
  * @param document The document to which to upload contents
  * @returns A `Writeable` `Stream` that can be used to upload the contents of the document
  */
-export function streamUpload(document: EntryIdLike<DocumentEntry>): Writable {
+export function streamUpload(
+  document: EntryIdLike<DocumentEntry>,
+  extension: string
+): Writable {
   const id = getEntryId(document);
-  const extension = 'foo';
   return cws.stream.put(`api/Document/${id}/${extension}`);
+}
+
+export async function smallUpload(
+  document: EntryIdLike<DocumentEntry>,
+  file: Buffer
+) {
+  const id = getEntryId(document);
+  return cws.post(`api/Document/${id}`, {
+    body: file,
+  });
 }

@@ -40,6 +40,20 @@ test('createDocument', async (t) => {
   } catch {}
 });
 
+test('createDocument with file', async (t) => {
+  const file = Buffer.from('test test');
+  const body = await createDocument({
+    path: '/',
+    name: 'test.create.file.txt',
+    file,
+  });
+  t.log(await retrieveDocument(body.LaserficheEntryID));
+  t.truthy(body.LaserficheEntryID);
+  try {
+    await deleteDocument(body.LaserficheEntryID);
+  } catch {}
+});
+
 test.failing('createGenericDocument', async (t) => {
   const body = await createGenericDocument({
     type: 'file',
