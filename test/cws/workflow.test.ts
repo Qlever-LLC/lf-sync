@@ -15,46 +15,78 @@
  * limitations under the License.
  */
 
+import { PassThrough, Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { setTimeout } from 'node:timers/promises';
+
 import test from 'ava';
 
 import setup from '../setup.js';
 
-import { PassThrough, Readable } from 'node:stream';
 import fs from 'node:fs/promises';
-import { pipeline } from 'node:stream/promises';
 
 import {
   createDocument,
   deleteDocument,
   retrieveDocument,
 } from '../../dist/cws/documents.js';
+import { smallUpload, streamUpload } from '../../dist/cws/upload.js';
 import { retrieveDocumentContent } from '../../dist/cws/download.js';
-import { streamUpload } from '../../dist/cws/upload.js';
 
 setup();
 
-test('should trigger workflow', async (t) => {
+test('smallUpload', async (t) => {
   const file = await fs.readFile('./test/test.pdf');
   const { LaserficheEntryID: id } = await createDocument({
     path: '/../../_Incoming',
-    name: 'test.workflow.pdf',
-    template: 'Template 1',
+    name: 'test.workflow.small.pdf',
+    template: 'SFI Template 1',
     metadata: {
       'Document Date': new Date().toISOString(),
       'Expiration Date': new Date().toISOString(),
       'Entity': 'Trellis Test Supplier',
-      'Document Type (2)': 'COI',
-      'Share Mode': 'Shared In',
+      'Document Type (2)': 'Certificate of Insurance',
+      'Share Mode': 'Shared To Smithfield',
     },
   } as const);
-  const upload = streamUpload(id, 'pdf');
-  await pipeline(Readable.from(file), upload, new PassThrough());
+  await smallUpload(id, file);
   const content = await retrieveDocumentContent(id);
-  t.is(content.toString(), 'test test');
+  t.is(content.toString(), file.toString());
   const entry = await retrieveDocument(id);
   t.regex(
     entry.Path,
-    /^\/FSQA\/Trellis\/Trading Partners\//,
+    /^\\FSQA\\Trellis\\Trading Partners\\.*/,
+    'Should be moved by workflow'
+  );
+  t.log(entry);
+  try {
+    await deleteDocument(id);
+  } catch {}
+});
+
+test('streamUpload', async (t) => {
+  const file = await fs.readFile('./test/test.pdf');
+  const { LaserficheEntryID: id } = await createDocument({
+    path: '/../../_Incoming',
+    name: 'test.workflow.stream.pdf',
+    template: 'SFI Template 1',
+    metadata: {
+      'Document Date': new Date().toISOString(),
+      'Expiration Date': new Date().toISOString(),
+      'Entity': 'Trellis Test Supplier',
+      'Document Type (2)': 'Certificate of Insurance',
+      'Share Mode': 'Shared To Smithfield',
+    },
+  } as const);
+  const upload = streamUpload(id, 'pdf', file.length);
+  await pipeline(Readable.from(file), upload, new PassThrough());
+  await setTimeout(1000);
+  const content = await retrieveDocumentContent(id);
+  t.is(content.toString(), file.toString());
+  const entry = await retrieveDocument(id);
+  t.regex(
+    entry.Path,
+    /^\\FSQA\\Trellis\\Trading Partners\\.*/,
     'Should be moved by workflow'
   );
   t.log(entry);

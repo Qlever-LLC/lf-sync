@@ -82,10 +82,15 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
  */
 export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
-  extension: string
+  extension: string,
+  length: number
 ): Writable {
   const id = getEntryId(document);
-  return cws.stream.put(`api/Document/${id}/${extension}`);
+  return cws.stream.put(`api/Document/${id}/${extension}`, {
+    headers: {
+      'Content-Length': `${length}`,
+    },
+  });
 }
 
 export async function smallUpload(
@@ -94,6 +99,10 @@ export async function smallUpload(
 ) {
   const id = getEntryId(document);
   return cws.post(`api/Document/${id}`, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Length': `${file.length}`,
+    },
     body: file,
   });
 }
