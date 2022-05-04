@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NODE_VER=16-alpine
+ARG NODE_VER=18-alpine
 ARG SERVICE=Qlever-LLC/lf-sync
 
 FROM node:$NODE_VER AS install
@@ -41,7 +41,7 @@ ARG SERVICE
 
 # Install needed packages
 RUN apk add --no-cache \
-    dumb-init
+  dumb-init
 
 # Do not run service as root
 USER node
