@@ -21,10 +21,8 @@
 import assert from 'node:assert';
 import { join } from 'node:path';
 
+import 'dotenv/config';
 import convict from 'convict';
-import { config as load } from 'dotenv';
-
-load();
 
 interface FolderSync {
   fromFolder: string;
