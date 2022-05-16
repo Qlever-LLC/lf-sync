@@ -49,7 +49,7 @@ let oada: OADAClient;
 
 // Client to fetch binary objects
 const client = got.extend({
-  prefixUrl: `https://${domain}`,
+  prefixUrl: `https://${domain}${BASE_PATH}`,
   https: {
     rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
   },
@@ -95,6 +95,7 @@ function syncNewDocument(oada: OADAClient) {
 
   // FIXME: What happens if this throws?
   return async function syncNewDocument(data: Change, path: string) {
+    warn('NEW DATA', data);
     // FIXME: Remove when we solve the `itemsPath` issue
     path = `/d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e${path}`;
 
@@ -137,7 +138,7 @@ function syncNewDocument(oada: OADAClient) {
     trace(`Fetching PDF: ${BASE_PATH}${path}/_meta/vdoc/pdf`);
     try {
       const pdf = await http
-        .get(`${BASE_PATH.slice(1)}${path}/_meta/vdoc/pdf`)
+        .get(`${path.slice(1)}/_meta/vdoc/pdf`)
         .buffer();
       const upload = streamUpload(lfDoc.LaserficheEntryID, 'pdf', pdf.length);
       await pipeline(Readable.from(pdf), upload, new PassThrough());
@@ -153,9 +154,7 @@ function syncNewDocument(oada: OADAClient) {
 
     trace('Recording LF ID to resource meta');
     await oada.put({
-      path: `${BASE_PATH.slice(
-        1
-      )}${path}/_meta/services/lf-sync/LaserficheEntryID`,
+      path: `${BASE_PATH}${path}/_meta/services/lf-sync/LaserficheEntryID`,
       data: lfDoc.LaserficheEntryID,
     });
 
