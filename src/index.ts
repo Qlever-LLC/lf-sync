@@ -31,14 +31,14 @@ import tree from './tree.js';
 
 const trace = debug('lf-sync:trace');
 const info = debug('lf-sync:info');
-const warn = debug('lf-sync:error');
+const warn = debug('lf-sync:warn');
 const error = debug('lf-sync:error');
 
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
 
 // FIXME: Should be config?
-const BASE_PATH = '/bookmarks/trellisfw/trading-partners/masterid-index';
+const BASE_PATH = '/bookmarks/trellisfw/trading-partners';
 
 import transformers from './transformers/index.js';
 
@@ -72,11 +72,10 @@ async function run(token: string) {
     conn,
     tree,
     // FIXME: We can't track this beacuse much of the tree is incomplete
-    // itemsPath: `$.*.bookmarks.trellisfw.documents.*.*`,
-    itemsPath: '$.bookmarks.trellisfw.documents.cois.*',
+    itemsPath: `$.masterid-index.*.bookmarks.trellisfw.documents.*.*`,
     name: 'lf-sync-to-lf',
     // resume: true,
-    path: `${BASE_PATH}/d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e`,
+    path: `${BASE_PATH}`,
     onAddItem: syncNewDocument(conn),
   });
   // }
@@ -95,10 +94,6 @@ function syncNewDocument(oada: OADAClient) {
 
   // FIXME: What happens if this throws?
   return async function syncNewDocument(data: Change, path: string) {
-    warn('NEW DATA', data);
-    // FIXME: Remove when we solve the `itemsPath` issue
-    path = `/d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e${path}`;
-
     // NOTE: It would be nice if oada/list-lib would give you the `*` values from `itemsPath`
     const parts = path.split('/');
     const masterid = parts[1];
@@ -117,7 +112,7 @@ function syncNewDocument(oada: OADAClient) {
 
     // Determine entity name from trading-partner
     const { data: partnerName } = await oada.get({
-      path: `${BASE_PATH}/${masterid}/name`,
+      path: `${BASE_PATH}/masterid-index/${masterid}/name`,
     });
     trace('Trading partner/Entity name:', partnerName);
 
@@ -135,7 +130,7 @@ function syncNewDocument(oada: OADAClient) {
     trace('Created LF document:', lfDoc);
 
     // Fetch fetch and upload the PDF document
-    trace(`Fetching PDF: ${BASE_PATH}${path}/_meta/vdoc/pdf`);
+    trace(`Fetching PDF: ${BASE_PATH}/masterid-index${path}/_meta/vdoc/pdf`);
     try {
       const pdf = await http
         .get(`${path.slice(1)}/_meta/vdoc/pdf`)
@@ -154,7 +149,7 @@ function syncNewDocument(oada: OADAClient) {
 
     trace('Recording LF ID to resource meta');
     await oada.put({
-      path: `${BASE_PATH}${path}/_meta/services/lf-sync/LaserficheEntryID`,
+      path: `${BASE_PATH}/master-index${path}/_meta/services/lf-sync/LaserficheEntryID`,
       data: lfDoc.LaserficheEntryID,
     });
 
