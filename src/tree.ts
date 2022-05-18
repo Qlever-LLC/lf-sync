@@ -61,19 +61,22 @@ const tree: Tree = {
         // FIXME: This *should* be a resource, but it is not right now.
         'masterid-index': {
           // '*': {
-          d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e: {
+          'd4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e': {
             _type: 'application/vnd.trellisfw.trading-partner.1+json',
+            _rev: 0,
             bookmarks: {
               _type: 'application/vnd.oada.bookmarks.1+json',
+              _rev: 0,
               trellisfw: {
                 _type: 'application/vnd.trellisfw.1+json',
+                _rev: 0,
                 documents: {
                   // eslint-disable-next-line no-secrets/no-secrets
                   _type: 'application/vnd.trellisfw.documents.1+json',
-                  cois: {
-                    // '_type': 'application/vnd.oada.trellisfw.documents.1+json',
+                  _rev: 0, 
+                  '*': {
                     '*': {
-                      _type: 'application/vnd.trellisfw.cois.1+json',
+                      _rev: 0,
                     },
                   },
                 },

@@ -39,6 +39,7 @@ const { token: tokens, domain } = config.get('oada');
 
 // FIXME: Should be config?
 const BASE_PATH = '/bookmarks/trellisfw/trading-partners';
+// const BASE_PATH = '/bookmarks/trellisfw/trading-partners/masterid-index';
 
 import transformers from './transformers/index.js';
 
@@ -73,9 +74,11 @@ async function run(token: string) {
     tree,
     // FIXME: We can't track this beacuse much of the tree is incomplete
     itemsPath: `$.masterid-index.*.bookmarks.trellisfw.documents.*.*`,
+    // itemsPath: `$.bookmarks.trellisfw.documents.*.*`,
     name: 'lf-sync-to-lf',
     // resume: true,
-    path: `${BASE_PATH}`,
+    // path: `${BASE_PATH}/d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e`,
+    path: BASE_PATH,
     onAddItem: syncNewDocument(conn),
   });
   // }
@@ -84,8 +87,6 @@ async function run(token: string) {
 await Promise.all(tokens.map(async (token) => run(token)));
 
 function syncNewDocument(oada: OADAClient) {
-  // TODO: I probley need to filter the changes and ignore changes at the masterid and doc type level
-
   const http = client.extend({
     headers: {
       Authorization: `Bearer ${oada.getToken()}`,
@@ -93,10 +94,15 @@ function syncNewDocument(oada: OADAClient) {
   });
 
   // FIXME: What happens if this throws?
+  // FIXME: data is not of type Change
   return async function syncNewDocument(data: Change, path: string) {
+    // path = `/d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e${path}`;
+    console.log("PATH", path);
+
     // NOTE: It would be nice if oada/list-lib would give you the `*` values from `itemsPath`
     const parts = path.split('/');
-    const masterid = parts[1];
+    // const masterid = parts[1];
+    const masterid = parts[2];
     const docId = parts[parts.length - 1];
     const docType = data._type as string;
 
@@ -113,6 +119,7 @@ function syncNewDocument(oada: OADAClient) {
     // Determine entity name from trading-partner
     const { data: partnerName } = await oada.get({
       path: `${BASE_PATH}/masterid-index/${masterid}/name`,
+      // path: `${BASE_PATH}/${masterid}/name`,
     });
     trace('Trading partner/Entity name:', partnerName);
 
@@ -130,7 +137,8 @@ function syncNewDocument(oada: OADAClient) {
     trace('Created LF document:', lfDoc);
 
     // Fetch fetch and upload the PDF document
-    trace(`Fetching PDF: ${BASE_PATH}/masterid-index${path}/_meta/vdoc/pdf`);
+    // trace(`Fetching PDF: ${BASE_PATH}/masterid-index${path}/_meta/vdoc/pdf`);
+    trace(`Fetching PDF: ${BASE_PATH}${path}/_meta/vdoc/pdf`);
     try {
       const pdf = await http
         .get(`${path.slice(1)}/_meta/vdoc/pdf`)
@@ -149,7 +157,8 @@ function syncNewDocument(oada: OADAClient) {
 
     trace('Recording LF ID to resource meta');
     await oada.put({
-      path: `${BASE_PATH}/master-index${path}/_meta/services/lf-sync/LaserficheEntryID`,
+      // path: `${BASE_PATH}/master-index${path}/_meta/services/lf-sync/LaserficheEntryID`,
+      path: `${BASE_PATH}${path}/_meta/services/lf-sync/LaserficheEntryID`,
       data: lfDoc.LaserficheEntryID,
     });
 
