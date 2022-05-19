@@ -6,6 +6,7 @@
     "node_modules": true,
     "package.lock": true,
     "*.log": true,
+    "tags.*": true,
     ".DS_Store": true,
     "dist": true,
     ".test": true,
@@ -15,9 +16,7 @@
     "act": true,
     ".yarn": true,
     ".pnp.*": true,
-    ".vim": true,
-    "**/.yarn": true,
-    "**/.pnp.*": true
+    ".vim": true
   },
   "prettier.prettierPath": ".yarn/sdks/prettier/index.js",
   "typescript.tsdk": ".yarn/sdks/typescript/lib",
@@ -30,6 +29,7 @@
     "node_modules": true,
     "package.lock": true,
     "*.log": true,
+    "tags.*": true,
     ".DS_Store": true,
     "dist": true,
     ".test": true,
@@ -50,9 +50,11 @@
     "FSQA",
     "ksuid",
     "lcov",
+    "masterid",
     "Snyk",
     "sonarjs",
-    "trellisfw"
+    "trellisfw",
+    "vdoc"
   ],
   "eslint.format.enable": true,
   "eslint.lintTask.enable": true,
