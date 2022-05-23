@@ -72,7 +72,6 @@ async function run(token: string) {
   return new ListWatch({
     conn,
     tree,
-    // FIXME: Remove masterid-index once it is a resources
     itemsPath: `$.masterid-index.*.bookmarks.trellisfw.documents.*.*`,
     name: 'lf-sync:to-lf',
     resume: true,
@@ -133,7 +132,11 @@ function syncNewDocument(oada: OADAClient) {
     trace(`Fetching PDF: ${doc._id}/_meta/vdoc/pdf`);
     try {
       const pdf = await http.get(`${doc._id}/_meta/vdoc/pdf`).buffer();
-      await pipeline(Readable.from(pdf), streamUpload(lfDoc.LaserficheEntryID, 'pdf', pdf.length), new PassThrough());
+      await pipeline(
+        Readable.from(pdf),
+        streamUpload(lfDoc.LaserficheEntryID, 'pdf', pdf.length),
+        new PassThrough()
+      );
       trace('Uploaded to LF');
     } catch (e) {
       // FIXME: oada/list-lib doesn't catch errors?

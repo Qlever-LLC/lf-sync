@@ -60,8 +60,8 @@ const tree: Tree = {
         '_type': 'application/vnd.trellisfw.trading-partners.1+json',
         // FIXME: This *should* be a resource, but it is not right now.
         'masterid-index': {
-          // '*': {
-          'd4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e': {
+          '*': {
+            // d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e: {
             _type: 'application/vnd.trellisfw.trading-partner.1+json',
             _rev: 0,
             bookmarks: {
@@ -72,8 +72,8 @@ const tree: Tree = {
                 _rev: 0,
                 documents: {
                   // eslint-disable-next-line no-secrets/no-secrets
-                  _type: 'application/vnd.trellisfw.documents.1+json',
-                  _rev: 0, 
+                  '_type': 'application/vnd.trellisfw.documents.1+json',
+                  '_rev': 0,
                   '*': {
                     '*': {
                       _rev: 0,
