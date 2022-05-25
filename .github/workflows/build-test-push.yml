@@ -19,15 +19,15 @@ on:
   pull_request:
 
 jobs:
-  # yarn:
-  #   name: yarn CI
-  #   uses: qlever-llc/workflows/.github/workflows/build-and-publish-package.yml@master
-  #   secrets:
-  #     npm_token: ${{ secrets.NPM_AUTH_TOKEN }}
-  #   with:
-  #     # Remove this line if your tests don't need an OADA instance
-  #     oada: true
-  #     publish: false
+# yarn:
+#   name: yarn CI
+#   uses: qlever-llc/workflows/.github/workflows/build-and-publish-package.yml@master
+#   secrets:
+#     npm_token: ${{ secrets.NPM_AUTH_TOKEN }}
+#   with:
+#     # Remove this line if your tests don't need an OADA instance
+#     oada: true
+#     publish: false
   docker:
     name: Docker CI
     # Wait for yarn tests to pass?
