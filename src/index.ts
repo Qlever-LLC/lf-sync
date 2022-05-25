@@ -18,14 +18,19 @@
 // Import this first to setup the environment
 import config from './config.js';
 
-import got from 'got';
-import debug from 'debug';
 import { PassThrough, Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { join } from 'node:path';
+
+import got from 'got';
+import debug from 'debug';
+
+import { ListWatch } from '@oada/list-lib';
 import { OADAClient, connect } from '@oada/client';
-import { ListWatch, Change } from '@oada/list-lib';
+import Resource, { is as isResource } from '@oada/types/oada/resource.js';
 
 import { createDocument, streamUpload } from './cws/index.js';
+import transformers from './transformers/index.js';
 import tree from './tree.js';
 
 const trace = debug('lf-sync:trace');
@@ -37,11 +42,9 @@ const error = debug('lf-sync:error');
 const { token: tokens, domain } = config.get('oada');
 
 // FIXME: Should be config?
-// FIXME: Should include `masterid-index` once it is a resource
 // ADB: I guess not config, because you can't decouple this from the tree embedded in this service
-const BASE_PATH = '/bookmarks/trellisfw/trading-partners';
-
-import transformers from './transformers/index.js';
+const BASE_PATH = '/bookmarks/trellisfw/trading-partners/masterid-index';
+const LF_ID_PATH = '_meta/services/lf-sync/LaserficheEntryID';
 
 /**
  * Shared OADA client instance?
@@ -68,93 +71,105 @@ async function run(token: string) {
     ? oada.clone(token)
     : (oada = await connect({ token, domain }));
 
-  // for (const sync of toLF) {
   return new ListWatch({
     conn,
     tree,
-    itemsPath: `$.masterid-index.*.bookmarks.trellisfw.documents.*.*`,
+    itemsPath: `$.*.bookmarks.trellisfw.documents.*.*`,
     name: 'lf-sync:to-lf',
     resume: true,
     path: BASE_PATH,
-    onAddItem: syncNewDocument(conn),
+    onAddItem: newDocument(conn),
   });
-  // }
 }
 
-await Promise.all(tokens.map(async (token) => run(token)));
+// Start the service
+await Promise.all(tokens.map(run));
 
-function syncNewDocument(oada: OADAClient) {
+function newDocument(oada: OADAClient) {
   const http = client.extend({
     headers: {
       Authorization: `Bearer ${oada.getToken()}`,
     },
   });
 
-  // FIXME: What happens if this throws?
-  // FIXME: doc is not of type Change
-  return async function syncNewDocument(doc: Change, path: string) {
-    // NOTE: It would be nice if oada/list-lib would give you the `*` values from `itemsPath`
-    const parts = path.split('/');
-    const masterid = parts[2];
-    const docId = parts[parts.length - 1];
-    const docType = doc._type as string;
-
-    const transformer = transformers.get(docType);
-    if (!transformer) {
-      warn(`Unknown document type ${docType}. Skipping.`);
-      return;
-    }
-
-    const metadata = transformer.metadata(doc);
-    trace('Template', transformer.lfTemplate);
-    trace('Metadata', metadata);
-
-    // Determine entity name from trading-partner
-    const { data: partnerName } = await oada.get({
-      path: `${BASE_PATH}/masterid-index/${masterid}/name`,
-    });
-    trace('Trading partner/Entity name:', partnerName);
-
-    const lfDoc = await createDocument({
-      path: '/../../_Incoming',
-      name: `${docId}.pdf`,
-      template: transformer.lfTemplate,
-      metadata: {
-        'Entity': partnerName?.toString() || 'unknown',
-        // FIXME: How to know???
-        'Share Mode': 'Shared To Smithfield',
-        ...metadata,
-      },
-    } as const);
-    trace('Created LF document:', lfDoc);
-
-    // Fetch fetch and upload the PDF document
-    trace(`Fetching PDF: ${doc._id}/_meta/vdoc/pdf`);
+  return async function (doc: Resource, path: string) {
     try {
-      const pdf = await http.get(`${doc._id}/_meta/vdoc/pdf`).buffer();
+      if (!isResource(doc)) {
+        error('@oada/list-lib gave a non-resource to onAddItem callback?');
+        return;
+      }
+
+      // Verify that the document is not already in LF
+      try {
+        const { data: lfId } = await oada.get({
+          path: join(doc._id, LF_ID_PATH),
+        });
+
+        if (lfId) {
+          warn(`${doc._id} already in Laserfiche (EntryID: ${lfId}).`);
+          return;
+        }
+      } catch (e: any) {
+        if (e.status !== 404) {
+          trace('Unexpected error! %s', e);
+          throw e;
+        }
+      }
+
+      // NOTE: It would be nice if oada/list-lib would give you the `*` values from `itemsPath`
+      const masterid = path.split('/')[1] as string;
+      const docType = doc._type;
+
+      const transformer = transformers.get(docType);
+      if (!transformer) {
+        warn(`Unknown document type ${docType}. Skipping.`);
+        return;
+      }
+
+      const metadata = transformer.metadata(doc);
+      trace('Template: %s', transformer.lfTemplate);
+      trace('Metadata: %s', metadata);
+
+      // Determine entity name from trading-partner
+      const { data: partnerName } = await oada.get({
+        path: join(BASE_PATH, masterid, 'name'),
+      });
+      trace('Trading partner/Entity name: %s', partnerName);
+
+      const lfDoc = await createDocument({
+        path: '/_Incoming',
+        name: `${doc._id}.pdf`,
+        template: transformer.lfTemplate,
+        metadata: {
+          'Entity': partnerName?.toString() ?? 'unknown',
+          'Share Mode': 'Shared To Smithfield',
+          ...metadata,
+        },
+      } as const);
+      trace('Created Laserfiche document: %s', lfDoc);
+
+      trace(`Fetching ${doc._id}'s PDF`);
+      const pdf = await http.get(join(doc._id, '_meta/vdoc/pdf')).buffer();
+
+      trace('Streaming fetched PDF to Laserfiche');
       await pipeline(
         Readable.from(pdf),
         streamUpload(lfDoc.LaserficheEntryID, 'pdf', pdf.length),
         new PassThrough()
       );
-      trace('Uploaded to LF');
+
+      trace('Recording Laserfiche ID to resource meta');
+      await oada.put({
+        path: join(doc._id, '_meta/services/lf-sync/LaserficheEntryID'),
+        data: lfDoc.LaserficheEntryID,
+      });
+
+      info(
+        `Created Laserfiche entry ${lfDoc.LaserficheEntryID} for document ${doc._id}`
+      );
     } catch (e) {
-      // FIXME: oada/list-lib doesn't catch errors?
-      error(e);
+      error('Unexpected error! %s', e);
+      throw e;
     }
-
-    // FIXME: We really should do a streaming upload ...
-    // const upload = chunkedUpload(body.LaserficheEntryID);
-    // await pipeline(pdf, upload);
-
-    trace('Recording LF ID to resource meta');
-    await oada.put({
-      path: `/${doc._id}/_meta/services/lf-sync/LaserficheEntryID`,
-      data: lfDoc.LaserficheEntryID,
-    });
-
-    info(
-      `Created LF entry ${lfDoc.LaserficheEntryID} for document ${docId} (${doc._id})`
-    );
   };
 }

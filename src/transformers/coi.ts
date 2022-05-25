@@ -1,35 +1,5 @@
 import type { Metadata } from '../cws/metadata';
 
-/*
-interface CoIDocument {
-  effective_date: string;
-  expire_date: string;
-  producer: {
-    name: string;
-  };
-  insured: {
-    name: string;
-  };
-  holder: {
-    name: string;
-  };
-  policies: {
-    [key: string]: CommercialGeneralLiability | AutomotiveLiability;
-  };
-  signatures: Array<string>;
-}
-
-type CommercialGeneralLiability = {
-  type: 'Commercial General Liability';
-  general_aggregate: string;
-};
-
-type AutomotiveLiability = {
-  type: 'Automobile Liability';
-  combined_single_limit: string;
-};
-*/
-
 export function coiMetadata(doc: any): Metadata {
   // FIXME: Should this assert the CoI type with @oada/formats?
 
@@ -40,23 +10,6 @@ export function coiMetadata(doc: any): Metadata {
     },
     {}
   );
-
-  // // TODO: Should we be summing?
-  // let policyLimits = Object.values(doc.policies).reduce(
-  //   (values, p) => {
-  //     switch (p.type) {
-  //       case 'Commercial General Liability':
-  //         values.general = +p.general_aggregate;
-  //         break;
-  //
-  //       case 'Automobile Liability':
-  //         values.automobile = +p.combined_single_limit;
-  //         break;
-  //     }
-  //     return values;
-  //   },
-  //   { general: 0, automobile: 0 }
-  // );
 
   return {
     'Document Type': 'Certificate of Insurance',

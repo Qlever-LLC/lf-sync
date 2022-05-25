@@ -1,4 +1,5 @@
 /**
+Asma will create an Excel file that can serve as template to integrate the main data model.
  * @license
  * Copyright 2020 Qlever LLC
  *
@@ -18,61 +19,10 @@
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 
-import assert from 'node:assert';
 import { join } from 'node:path';
 
 import 'dotenv/config';
 import convict from 'convict';
-
-interface FolderSync {
-  fromFolder: string;
-  toFolder: string;
-}
-function sync(value: unknown): asserts value is FolderSync {
-  assert(
-    value &&
-      typeof value === 'object' &&
-      'fromFolder' in value &&
-      'toFolder' in value
-  );
-}
-
-function assertArray<T>(
-  check: (value: unknown) => asserts value is T
-): (value: unknown) => asserts value is T[] | readonly T[] {
-  return (value) => {
-    if (!Array.isArray(value)) {
-      throw new TypeError('Expected an array');
-    }
-
-    for (const v of value) {
-      check(v);
-    }
-  };
-}
-
-convict.addFormat({
-  name: 'sync',
-  validate: assertArray(sync),
-  coerce(value: unknown) {
-    const array = Array.isArray(value)
-      ? value
-      : typeof value === 'string'
-      ? value.split(',')
-      : [value];
-    return array.map((item: unknown) => {
-      if (typeof item === 'string') {
-        const [fromFolder, toFolder] = item.split(':');
-        return {
-          fromFolder,
-          toFolder,
-        };
-      }
-
-      return item;
-    });
-  },
-});
 
 const config = convict({
   oada: {
@@ -101,7 +51,7 @@ const config = convict({
     },
     baseFolder: {
       doc: 'Top Laserfiche folder to use',
-      default: '/FSQA/trellis/trading-partners' as `/${string}`,
+      default: '/FSQA' as `/${string}`,
       format: String,
       env: 'FOLDER',
       arg: 'folder',
@@ -148,22 +98,6 @@ const config = convict({
         env: 'CWS_API',
         arg: 'cws-api',
       },
-    },
-  },
-  syncs: {
-    toLF: {
-      doc: 'Folders to sync from OADA to Laserfiche',
-      format: 'sync',
-      default: [] as FolderSync[],
-      env: 'TO_LF',
-      arg: 'to-lf',
-    },
-    fromLF: {
-      doc: 'Folders to sync from Laserfiche to OADA',
-      format: 'sync',
-      default: [] as FolderSync[],
-      env: 'FROM_LF',
-      arg: 'from-lf',
     },
   },
 });

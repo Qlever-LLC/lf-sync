@@ -54,14 +54,17 @@ export type Tree = {
 const tree: Tree = {
   bookmarks: {
     _type: 'application/vnd.oada.bookmarks.1+json',
+    _rev: 0,
     trellisfw: {
       '_type': 'application/vnd.trellisfw.1+json',
+      '_rev': 0,
       'trading-partners': {
         '_type': 'application/vnd.trellisfw.trading-partners.1+json',
-        // FIXME: This *should* be a resource, but it is not right now.
+        '_rev': 0,
         'masterid-index': {
+          '_type': 'application/vnd.trellisfw.trading-partners.1+json',
+          '_rev': 0,
           '*': {
-            // d4f7b367c7f6aa30841132811bbfe95d3c3a807513ac43d7c8fea41a6688606e: {
             _type: 'application/vnd.trellisfw.trading-partner.1+json',
             _rev: 0,
             bookmarks: {
