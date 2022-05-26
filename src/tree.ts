@@ -16,40 +16,7 @@
  */
 
 /* eslint-disable sonarjs/no-duplicate-string */
-
-type Letter =
-  | 'a'
-  | 'b'
-  | 'c'
-  | 'd'
-  | 'e'
-  | 'f'
-  | 'g'
-  | 'h'
-  | 'i'
-  | 'j'
-  | 'k'
-  | 'l'
-  | 'm'
-  | 'p'
-  | 'q'
-  | 'r'
-  | 's'
-  | 't'
-  | 'u'
-  | 'v'
-  | 'w'
-  | 'x'
-  | 'y'
-  | 'z';
-
-export type TreeKey = `${Letter | '*' | Uppercase<Letter>}${string}`;
-
-export type Tree = {
-  [key: TreeKey]: Tree;
-  _type?: string;
-  _rev?: number;
-};
+import type { Tree } from '@oada/list-lib/dist/tree.js';
 
 const tree: Tree = {
   bookmarks: {
@@ -78,7 +45,10 @@ const tree: Tree = {
                   '_type': 'application/vnd.trellisfw.documents.1+json',
                   '_rev': 0,
                   '*': {
+                    '_type': 'application/json',
+                    '_rev': 0,
                     '*': {
+                      _type: 'application/json',
                       _rev: 0,
                     },
                   },
