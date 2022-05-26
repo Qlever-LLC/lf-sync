@@ -11,10 +11,24 @@ export function coiMetadata(doc: any): Metadata {
     {}
   );
 
+  let effective_date = new Date(
+    Math.max.apply(
+      Math,
+      Object.values(policies).map((p) => +new Date(p.effective_date))
+    )
+  );
+
+  let expiration_date = new Date(
+    Math.min.apply(
+      Math,
+      Object.values(policies).map((p) => +new Date(p.min))
+    )
+  );
+
   return {
     'Document Type': 'Certificate of Insurance',
-    'Document Date': new Date(doc.effective_date).toISOString(),
-    'Expiration Date': new Date(doc.expire_date).toISOString(),
+    'Document Date': effective_date.toISOString(),
+    'Expiration Date': expiration_date.toISOString(),
     'Insurance Producer': doc.producer.name,
     'Insured Company': doc.insured.name,
     'General Liability': (
