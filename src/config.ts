@@ -1,5 +1,4 @@
 /**
-Asma will create an Excel file that can serve as template to integrate the main data model.
  * @license
  * Copyright 2020 Qlever LLC
  *

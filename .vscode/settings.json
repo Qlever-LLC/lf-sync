@@ -16,6 +16,7 @@
     ".yarn": true,
     ".pnp.*": true,
     ".vim": true,
+    "tags.*": true,
     "**/.yarn": true,
     "**/.pnp.*": true
   },
@@ -39,7 +40,8 @@
     "act": true,
     ".yarn": true,
     ".pnp.*": true,
-    ".vim": true
+    ".vim": true,
+    "tags.*": true
   },
   "eslint.packageManager": "yarn",
   "licenser.author": "Qlever LLC",
@@ -50,9 +52,11 @@
     "FSQA",
     "ksuid",
     "lcov",
+    "masterid",
     "Snyk",
     "sonarjs",
-    "trellisfw"
+    "trellisfw",
+    "vdoc"
   ],
   "eslint.format.enable": true,
   "eslint.lintTask.enable": true,

@@ -59,6 +59,7 @@ export default function setup(
       // Don't record tokens
       'authorization': () => null,
       // Don't record content lengths?
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       'content-length': () => null,
       'content-location': filterVariables,
       ...headerFilter,
