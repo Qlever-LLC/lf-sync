@@ -285,6 +285,7 @@ __metadata:
     formdata-node: ^4.3.2
     got: ^12.0.4
     ksuid: ^3.0.0
+    p-limit: ^4.0.0
     prettier: ^2.6.2
     tslib: ^2.4.0
     type-fest: ^2.13.0

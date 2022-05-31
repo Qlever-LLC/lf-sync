@@ -24,6 +24,7 @@ import { join } from 'node:path';
 
 import got from 'got';
 import debug from 'debug';
+import pLimit from 'p-limit'; // promise queue to avoid spamming LF
 
 import { ListWatch } from '@oada/list-lib';
 import { OADAClient, connect } from '@oada/client';
@@ -50,6 +51,9 @@ const LF_ID_PATH = '_meta/services/lf-sync/LaserficheEntryID';
  * Shared OADA client instance?
  */
 let oada: OADAClient;
+
+// queue for LF calls, concurrency 1.  Wrap things and pass to limit function.
+const limit = pLimit(1); // only allow one thing to run at once by passing it to the limit function
 
 // Client to fetch binary objects
 const client = got.extend({
@@ -136,7 +140,7 @@ function newDocument(oada: OADAClient) {
       });
       trace('Trading partner/Entity name: %s', partnerName);
 
-      const lfDoc = await createDocument({
+      const lfDoc = await limit(() => createDocument({
         path: '/_Incoming',
         name: `${doc._id}.pdf`,
         template: transformer.lfTemplate,
@@ -145,18 +149,18 @@ function newDocument(oada: OADAClient) {
           'Share Mode': 'Shared To Smithfield',
           ...metadata,
         },
-      } as const);
+      } as const));
       trace('Created Laserfiche document: %s', lfDoc);
 
       trace(`Fetching ${doc._id}'s PDF`);
       const pdf = await http.get(join(doc._id, '_meta/vdoc/pdf')).buffer();
 
       trace('Streaming fetched PDF to Laserfiche');
-      await pipeline(
+      await limit(() => pipeline(
         Readable.from(pdf),
         streamUpload(lfDoc.LaserficheEntryID, 'pdf', pdf.length),
         new PassThrough()
-      );
+      ));
 
       trace('Recording Laserfiche ID to resource meta');
       await oada.put({
