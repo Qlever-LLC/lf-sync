@@ -91,7 +91,7 @@ async function onMasterId(conn: OADAClient, id: string) {
     return;
   }
 
-  const path = `${PARTNERS_LIST}/${id}`;
+  const path = join(PARTNERS_LIST, id, PARTNER_DOCS_LIST);
   info('Monitoring %s for new/current document types', path);
   const watch = new ListWatch({
     conn,
@@ -118,7 +118,7 @@ async function onDocumentType(conn: OADAClient, tp: string, type: string) {
   }
 
   // Watch for new documents of type `type`
-  const path = `${PARTNER_DOCS_LIST}/${tp}/${PARTNER_DOCS_LIST}/${type}`;
+  const path = join(PARTNERS_LIST, tp, PARTNER_DOCS_LIST, type);
   info('Monitoring %s for new documents of type %s', path, type);
   const watch = new ListWatch({
     conn,
@@ -127,19 +127,15 @@ async function onDocumentType(conn: OADAClient, tp: string, type: string) {
     resume: true,
     path,
     assertItem: assertResource,
-    async onAddItem(item, id) {
-      await onNewDocument(conn, item, id);
+    async onAddItem(item) {
+      await onNewDocument(conn, tp, item);
     },
   });
   documentTypeWatches.set({ conn, tp, type }, watch);
   process.on('beforeExit', async () => watch.stop());
 }
 
-async function onNewDocument(
-  conn: OADAClient,
-  document: Resource,
-  path: string
-) {
+async function onNewDocument(conn: OADAClient, tp: string, document: Resource) {
   // Verify that the document is not already in LF
   try {
     const { data: lfId } = (await conn.get({
@@ -158,8 +154,6 @@ async function onNewDocument(
     }
   }
 
-  // NOTE: It would be nice if oada/list-lib would give you the `*` values from `itemsPath`
-  const masterID = path.split('/')[1]!;
   const documentType = document._type;
 
   const transformer = transformers.get(documentType);
@@ -176,7 +170,7 @@ async function onNewDocument(
 
   // Determine entity name from trading-partner
   const { data: partnerName } = await conn.get({
-    path: join(PARTNERS_LIST, masterID, 'name'),
+    path: join(PARTNERS_LIST, tp, 'name'),
   });
   trace('Trading partner/Entity name: %s', partnerName);
 
@@ -213,7 +207,7 @@ async function onNewDocument(
 
   trace('Recording Laserfiche ID to resource meta');
   await conn.put({
-    path: join(document._id, '_meta/services/lf-sync/LaserficheEntryID'),
+    path: join(document._id, LF_ID_PATH),
     data: lfDocument.LaserficheEntryID,
   });
 
