@@ -20,12 +20,18 @@ import type { Metadata } from '../cws/metadata.js';
 export function genericMetadata(doc: any): Metadata {
   // FIXME: Should this assert the base type with @oada/formats?
 
+  const documentDate = doc.document_date ? new Date(doc.document_date) : new Date();
+  
   let metadata: Metadata = {
-    'Document Date': new Date(doc.effective_date).toISOString(),
+    'Document Date': documentDate.toISOString(),
   };
 
   if (doc.expire_date) {
     metadata['Expiration Date'] = new Date(doc.expire_date).toISOString();
+  }
+
+  if (doc.effective_date) {
+    metadata['Effective Date'] = new Date(doc.effective_date).toISOString();
   }
 
   return metadata;
