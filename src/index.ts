@@ -165,6 +165,7 @@ async function onNewDocument(conn: OADAClient, tp: string, document: Resource) {
       template: transformer.lfTemplate,
       metadata: {
         'Entity': partnerName?.toString() ?? 'unknown',
+        'Document Type': transformer.lfTemplate,
         'Share Mode': 'Shared To Smithfield',
         'Document Type': transformer.lfTemplate,
         ...metadata,
