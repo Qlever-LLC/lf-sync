@@ -136,23 +136,7 @@ async function onDocumentType(conn: OADAClient, tp: string, type: string) {
 }
 
 async function onNewDocument(conn: OADAClient, tp: string, document: Resource) {
-  // Verify that the document is not already in LF
-  try {
-    const { data: lfId } = (await conn.get({
-      path: join(document._id, LF_ID_PATH),
-    })) as { data: string };
 
-    if (lfId) {
-      warn('%s already in Laserfiche (EntryID: %s).', document._id, lfId);
-      return;
-    }
-  } catch (cError: unknown) {
-    // @ts-expect-error catches in ts are a pain
-    if (cError?.status !== 404) {
-      trace(cError, 'Unexpected error!');
-      throw cError;
-    }
-  }
 
   const documentType = document._type;
 
@@ -182,40 +166,71 @@ async function onNewDocument(conn: OADAClient, tp: string, document: Resource) {
       metadata: {
         'Entity': partnerName?.toString() ?? 'unknown',
         'Share Mode': 'Shared To Smithfield',
+        'Document Type': transformer.lfTemplate,
         ...metadata,
       },
     })
   );
   trace('Created Laserfiche document: %s', lfDocument);
 
-  trace('Fetching PDF for %s', document._id);
-  const { data: pdf } = await conn.get({
-    path: join(document._id, '_meta/vdoc/pdf'),
-  });
-  if (!Buffer.isBuffer(pdf)) {
-    throw new TypeError(`Expected PDF to be a Buffer, got ${typeof pdf}`);
+  trace('Fetching _meta for %s', document._id);
+  const { data: meta } = await conn.get({
+    path: join(document._id, '_meta'),
+  }) as unknown as {data: {vdoc: { pdf: Record<string, {_id: string}>}}};
+
+  for await (const entry of Object.entries(meta?.vdoc?.pdf)) {
+    let key = entry[0];
+    let val = entry[1];
+
+    // Verify that the document is not already in LF
+    try {
+      const { data: lfId } = (await conn.get({
+        path: join(document._id, `${LF_ID_PATH}/${key}`),
+      })) as { data: string };
+
+      if (lfId) {
+        warn('%s already in Laserfiche (EntryID: %s).', document._id, lfId);
+        return;
+      }
+    } catch (cError: unknown) {
+      // @ts-expect-error catches in ts are a pain
+      if (cError?.status !== 404) {
+        trace(cError, 'Unexpected error!');
+        throw cError;
+      }
+    }
+
+    let pdfPath = val!._id;
+
+    trace('Fetching PDF for %s', document._id);
+    const { data: pdf } = await conn.get({
+      path: pdfPath,
+    });
+    if (!Buffer.isBuffer(pdf)) {
+      throw new TypeError(`Expected PDF to be a Buffer, got ${typeof pdf}`);
+    }
+
+    trace('Streaming fetched PDF to Laserfiche');
+    await limit(async () =>
+      pipeline(
+        Readable.from(pdf),
+        streamUpload(lfDocument.LaserficheEntryID, 'pdf', pdf.length),
+        new PassThrough()
+      )
+    );
+
+    trace('Recording Laserfiche ID to resource meta');
+    await conn.put({
+      path: join(document._id, `${LF_ID_PATH}/${key}`),
+      data: lfDocument.LaserficheEntryID,
+    });
+
+    info(
+      'Created Laserfiche entry %s for document %s',
+      lfDocument.LaserficheEntryID,
+      document._id
+    );
   }
-
-  trace('Streaming fetched PDF to Laserfiche');
-  await limit(async () =>
-    pipeline(
-      Readable.from(pdf),
-      streamUpload(lfDocument.LaserficheEntryID, 'pdf', pdf.length),
-      new PassThrough()
-    )
-  );
-
-  trace('Recording Laserfiche ID to resource meta');
-  await conn.put({
-    path: join(document._id, LF_ID_PATH),
-    data: lfDocument.LaserficheEntryID,
-  });
-
-  info(
-    'Created Laserfiche entry %s for document %s',
-    lfDocument.LaserficheEntryID,
-    document._id
-  );
 }
 
 // Start the service
