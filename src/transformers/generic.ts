@@ -17,45 +17,49 @@
 
 import type { Metadata } from '../cws/metadata.js';
 
-export function genericMetadata(doc: any): Metadata {
-  // FIXME: Should this assert the base type with @oada/formats?
+export function generateGenericMetadata(type: string) {
+  return function genericMetadata(doc: any): Metadata {
+    // FIXME: Should this assert the base type with @oada/formats?
 
-  const documentDate = doc.document_date ? new Date(doc.document_date) : new Date();
+    const documentDate = doc.document_date
+      ? new Date(doc.document_date)
+      : new Date();
 
-  let metadata: Metadata = {
-    'Document Date': documentDate.toISOString(),
-  };
+    let metadata: Metadata = {
+      'Document Type': type,
+      'Document Date': documentDate.toISOString(),
+    };
 
-  Object.entries(metadataMappings).forEach(([trellisKey, lfField]) => {
-    if (doc[trellisKey]) {
-      if (lfField.includes("Date")) {
-        metadata[lfField] = new Date(doc[trellisKey]).toISOString();
-      } else {
-        metadata[lfField] = doc[trellisKey];
+    Object.entries(metadataMappings).forEach(([trellisKey, lfField]) => {
+      if (doc[trellisKey]) {
+        if (lfField.includes('Date')) {
+          metadata[lfField] = new Date(doc[trellisKey]).toISOString();
+        } else {
+          metadata[lfField] = doc[trellisKey];
+        }
       }
-    }
-  })
+    });
 
-  return metadata;
+    return metadata;
+  };
 }
 
-
 let metadataMappings = {
-  "adjustment_date": "Adjustment Date",
-  "expire_date": "Expiration Date",
-  'audit_date': 'Audit Date',
-  'certifying_body': 'Certifying Body',
+  adjustment_date: 'Adjustment Date',
+  expire_date: 'Expiration Date',
+  audit_date: 'Audit Date',
+  certifying_body: 'Certifying Body',
   //'fsis_directive_108001_compliance',
-  'effective_date': 'Effective Date', // 'certifying_body.name',
-  'score': 'Grade Score', //'score.value',
-  "initial_term_date": 'Initial Term Date',
-  'is_paaco_certified': 'PAACO Certified',
-  'document_date': 'Document Date',
+  effective_date: 'Effective Date', // 'certifying_body.name',
+  score: 'Grade Score', //'score.value',
+  initial_term_date: 'Initial Term Date',
+  is_paaco_certified: 'PAACO Certified',
+  document_date: 'Document Date',
   //'regulation_compliance',
 
-  'auditor': 'Auditor Name',
-  'issue_date': 'Issue Date',
+  auditor: 'Auditor Name',
+  issue_date: 'Issue Date',
   //'failures':
   //'reaudit_date':
   //'scheme':
-}
+};

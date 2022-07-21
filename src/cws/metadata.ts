@@ -29,7 +29,7 @@ export interface MetadataFieldMulti {
   Values: readonly string[];
 }
 export type FieldList = Array<MetadataFieldMulti | MetadataFieldSingle>;
-export type Metadata = Record<string, string | readonly string[]>;
+export type Metadata = Record<string, string>; /* | readonly string[]>;*/
 
 export function toFieldList(
   metadata: Metadata | FieldList

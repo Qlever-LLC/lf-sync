@@ -85,7 +85,6 @@ export async function createGenericDocument({
   metadata,
 }: {
   name: string;
-  type: string;
   metadata?: Record<string, unknown>;
 }) {
   const form = new FormData();

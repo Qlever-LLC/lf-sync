@@ -15,386 +15,249 @@
  * limitations under the License.
  */
 
+import type Resource from '@oada/types/oada/resource';
 import type { Metadata } from '../cws/index.js';
 import { coiMetadata } from './coi.js';
-import { genericMetadata } from './generic.js';
+import { generateGenericMetadata } from './generic.js';
 
-type Transformer = {
-  lfTemplate: string;
-  metadata: (document: unknown) => Metadata;
-};
+type Transformer = (document: unknown) => Metadata;
 
-export default new Map<string, Transformer>([
-  [
-    'application/vnd.trellisfw.coi.accord.1+json',
-    {
-      lfTemplate: 'Certificate of Insurance',
-      metadata: coiMetadata,
-    },
-  ],
+export function getTransformer(contentType: string): Transformer {
+  return transformers.get(contentType) || generateGenericMetadata('');
+}
 
-  // Generic from (fl-sync conversions.ts)
+export function transform(document: Resource): Metadata {
+  return getTransformer(document._type)(document);
+}
+
+const transformers = new Map<string, Transformer>([
+  ['application/vnd.trellisfw.coi.accord.1+json', coiMetadata],
+
   [
     'application/vnd.trellisfw.ach-form.1+json',
-    {
-      lfTemplate: 'ACH Form',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('ACH Form'),
   ],
 
   [
     'application/vnd.trellisfw.pfgia.1+json',
-    {
-      lfTemplate: 'Pure Food Guaranty and Indemnification Agreement (LOG)',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata(
+      'Pure Food Guaranty and Indemnification Agreement (LOG)'
+    ),
   ],
 
   [
     'application/vnd.trellisfw.letter-of-guarantee.1+json',
-    {
-      lfTemplate: 'Letter of Guarantee',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Letter of Guarantee'),
   ],
 
   [
     'application/vnd.trellisfw.emergency-contact-information.1+json',
-    {
-      lfTemplate: 'Emergency Contact Information',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Emergency Contact Information'),
   ],
 
   [
     'application.vnd.trellisfw.sars.1+json',
-    {
-      lfTemplate: 'Specifications that indicate acceptable requirements',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata(
+      'Specifications that indicate acceptable requirements'
+    ),
   ],
 
-  [
-    'application/vnd.trellisfw.w-9.1+json',
-    {
-      lfTemplate: 'W-9',
-      metadata: genericMetadata,
-    },
-  ],
+  ['application/vnd.trellisfw.w-9.1+json', generateGenericMetadata('W-9')],
 
   [
     'application/vnd.trellisfw.nutritional-information.1+json',
-    {
-      lfTemplate: '100g Nutritional Information',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('100g Nutritional Information'),
   ],
 
   [
     'application/vnd.trellisfw.allergen-statement.1+json',
-    {
-      lfTemplate: 'Allergen Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Allergen Statement'),
   ],
 
   [
     'application/vnd.trellisfw.be-ingredient-statement.1+json',
-    {
-      lfTemplate: 'Bioengineered (BE) Ingredient Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Bioengineered (BE) Ingredient Statement'),
   ],
 
   [
     'application/vnd.trellisfw.ca-prop-65-statement.1+json',
-    {
-      lfTemplate: 'California Prop 65 Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('California Prop 65 Statement'),
   ],
   [
     'application/vnd.trellisfw.coo-statement.1+json',
-    {
-      lfTemplate: 'Country of Origin Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Country of Origin Statement'),
   ],
   [
     'application/vnd.trellisfw.gluten-statement.1+json',
-    {
-      lfTemplate: 'Gluten Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Gluten Statement'),
   ],
   [
     'application/vnd.trellisfw.ingredient-breakdown.1+json',
-    {
-      lfTemplate: 'Ingredient Breakdown Range %',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Ingredient Breakdown Range %'),
   ],
   [
     'application/vnd.trellisfw.product-label.1+json',
-    {
-      lfTemplate: 'Product Label',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Product Label'),
   ],
 
   [
     'application/vnd.trellisfw.product-spec.1+json',
-    {
-      lfTemplate: 'Product Specification',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Product Specification'),
   ],
 
   [
     'application/vnd.trellisfw.sds.1+json',
-    {
-      lfTemplate: 'Safety Data Sheet (SDS)',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Safety Data Sheet (SDS)'),
   ],
 
   [
     'application/vnd.trellisfw.gmo-statement.1+json',
-    {
-      lfTemplate: 'GMO Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('GMO Statement'),
   ],
 
   [
     'application/vnd.trellisfw.natural-statement.1+json',
-    {
-      lfTemplate: 'Natural Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Natural Statement'),
   ],
 
   [
     'application/vnd.trellisfw.fsqa-certificates.1+json',
-    {
-      lfTemplate: 'GFSI Certificate',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('GFSI Certificate'),
   ],
 
   [
     'application/vnd.trellisfw.animal-statement.1+json',
-    {
-      lfTemplate: 'Non-Ambulatory (3D/4D) Animal Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Non-Ambulatory (3D/4D) Animal Statement'),
   ],
 
   [
     'application/vnd.trellisfw.srm-audit.1+json',
-    {
-      lfTemplate: 'Specified Risk Materials (SRM) Audit',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Specified Risk Materials (SRM) Audit'),
   ],
 
   [
     'application/vnd.trellisfw.srm-statement.1+json',
-    {
-      lfTemplate: 'Specified Risk Materials (SRM) Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Specified Risk Materials (SRM) Statement'),
   ],
 
   [
     'application/vnd.trellisfw.srm-corrective-actions.1+json',
-    {
-      lfTemplate: 'Specified Risk Materials (SRM) Corrective Actions',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata(
+      'Specified Risk Materials (SRM) Corrective Actions'
+    ),
   ],
 
   [
     'application/vnd.trellisfw.ecoli-audit.1+json',
-    {
-      lfTemplate: 'E.Coli 0157:H7 Intervention Audit',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('E.Coli 0157:H7 Intervention Audit'),
   ],
 
   [
     'application/vnd.trellisfw.foreign-material-control-plans.1+json',
-    {
-      lfTemplate: 'Foreign Material Control Plan',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Foreign Material Control Plan'),
   ],
 
   [
     'application/vnd.trellisfw.animal-welfare-audit.1+json',
-    {
-      lfTemplate: 'Animal Welfare Audit',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Animal Welfare Audit'),
   ],
 
   [
     'application/vnd.trellisfw.humane-harvest-statement.1+json',
-    {
-      lfTemplate: 'Humane Harvest Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Humane Harvest Statement'),
   ],
 
   [
     'application/vnd.trellisfw.nrp-statement.1+json',
-    {
-      lfTemplate: 'National Residue Program (NRP) Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('National Residue Program (NRP) Statement'),
   ],
 
   [
     'application/vnd.trellisfw.lot-code-explanation.1+json',
-    {
-      lfTemplate: 'Lot Code Explanation',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Lot Code Explanation'),
   ],
 
   [
     'application/vnd.trellisfw.aphis-statement.1+json',
-    {
-      lfTemplate: 'APHIS Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('APHIS Statement'),
   ],
 
   [
     'application/vnd.trellisfw.bpa-statement.1+json',
-    {
-      lfTemplate: 'Bisphenol A (BPA) Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Bisphenol A (BPA) Statement'),
   ],
 
   [
     'application/vnd.trellisfw.fsqa-audit.1+json',
-    {
-      lfTemplate: 'GFSI Audit',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('GFSI Audit'),
   ],
 
   [
     'application/vnd.trellisfw.haccp-plan.1+json',
-    {
-      lfTemplate: 'HACCP Plan / Flow Chart',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('HACCP Plan / Flow Chart'),
   ],
 
   [
     'application/vnd.trellisfw.copacker-fsqa-questionnaire.1+json',
-    {
-      lfTemplate: 'Co-Packer FSQA Questionnaire (GFSI Certified)',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Co-Packer FSQA Questionnaire (GFSI Certified)'),
   ],
 
   [
     'application/vnd.trellisfw.copack-confidentiality-agreement-form.1+json',
-    {
-      lfTemplate: 'Co-Pack Confidentiality Agreement Form',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Co-Pack Confidentiality Agreement Form'),
   ],
 
   [
     'application/vnd.trellisfw.tpa-corrective-actions.1+json',
-    {
-      lfTemplate: 'Third Party Food Safety GMP Audit Corrective Actions',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata(
+      'Third Party Food Safety GMP Audit Corrective Actions'
+    ),
   ],
 
-  [
-    'application/vnd.trellisfw.w-8.1+json',
-    {
-      lfTemplate: 'W-8',
-      metadata: genericMetadata,
-    },
-  ],
+  ['application/vnd.trellisfw.w-8.1+json', generateGenericMetadata('W-8')],
 
   [
     'application/vnd.trellisfw.fsqa-audit.1+json',
-    {
-      lfTemplate: 'Third Party Food Safety GMP Audit',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Third Party Food Safety GMP Audit'),
   ],
 
   [
     'application/vnd.trellisfw.animal-welfare-corrective-actions.1+json',
-    {
-      lfTemplate: 'Animal Welfare Corrective Actions',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Animal Welfare Corrective Actions'),
   ],
 
   [
     'application/vnd.trellisfw.fsqa-certificate.1+json',
-    {
-      lfTemplate: 'Third Party Food Safety GMP Certificate',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Third Party Food Safety GMP Certificate'),
   ],
 
   [
     'application/vnd.trellisfw.sba-form.1+json',
-    {
-      lfTemplate: 'Small Business Administration (SBA) Form',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Small Business Administration (SBA) Form'),
   ],
 
   [
     'application/vnd.trellisfw.wire-form.1+json',
-    {
-      lfTemplate: 'WIRE Form',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('WIRE Form'),
   ],
 
   [
     'application/vnd.trellisfw.ecoli-statement.1+json',
-    {
-      lfTemplate: 'E.Coli 0157:H7 Intervention Statement',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('E.Coli 0157:H7 Intervention Statement'),
   ],
 
   [
     'application/vnd.trellisfw.business-license.1+json',
-    {
-      lfTemplate: 'Business License',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Business License'),
   ],
 
   [
     'application/vnd.trellisfw.rate-sheet.1+json',
-    {
-      lfTemplate: 'Rate Sheet',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Rate Sheet'),
   ],
 
   [
     'application/vnd.trellisfw.msa.1+json',
-    {
-      lfTemplate: 'Master Service Agreement (MSA)',
-      metadata: genericMetadata,
-    },
+    generateGenericMetadata('Master Service Agreement (MSA)'),
   ],
 ]);

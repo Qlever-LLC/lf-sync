@@ -22,17 +22,25 @@ import cws from './api.js';
 
 export type EntryId<T extends BaseEntry = Entry> = Opaque<number, T>;
 interface BaseEntry {
+  EntryId: EntryId<BaseEntry>;
   LaserficheEntryID: EntryId<BaseEntry>;
   Name: string;
   Path: string;
   Type: string;
+  MimeType: string;
 }
 
 export type DocumentId = EntryId<DocumentEntry>;
 export interface DocumentEntry extends BaseEntry {
   LaserficheEntryID: DocumentId;
   Type: 'Document';
+  FieldDataList: Array<FieldData>;
 }
+
+export type FieldData = {
+  Name: string;
+  Value: string;
+};
 
 export type FolderId = EntryId<FolderEntry>;
 export interface FolderEntry extends BaseEntry {
@@ -42,13 +50,15 @@ export interface FolderEntry extends BaseEntry {
 
 export type Entry = FolderEntry | DocumentEntry;
 export type EntryIdLike<T extends BaseEntry = Entry> =
-  | Pick<T, 'LaserficheEntryID'>
+  | Pick<T, 'LaserficheEntryID' | 'EntryId'>
   | EntryId<T>;
 
 export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
   return typeof entry === 'number'
     ? entry
-    : (entry.LaserficheEntryID as EntryId<T>);
+    : entry.LaserficheEntryID
+    ? (entry.LaserficheEntryID as EntryId<T>)
+    : (entry.EntryId as EntryId<T>);
 }
 
 type EntryEntry<E extends Entry> = Omit<E, 'LaserficheEntryID'> & {

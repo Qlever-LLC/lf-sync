@@ -22,33 +22,42 @@ import { PassThrough, Readable } from 'node:stream';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 
-import debug from 'debug';
+import makeDebug from 'debug';
 // Promise queue to avoid spamming LF
 import pLimit from 'p-limit';
+import { JsonPointer } from 'json-ptr';
 
 import { OADAClient, connect } from '@oada/client';
+import type { Link } from '@oada/types/oada/link/v1';
 import Resource, {
   assert as assertResource,
 } from '@oada/types/oada/resource.js';
 import { ListWatch } from '@oada/list-lib';
 
-import { createDocument, streamUpload } from './cws/index.js';
-import transformers from './transformers/index.js';
+import {
+  DocumentId,
+  streamUpload,
+  setMetadata,
+  moveEntry,
+  createGenericDocument,
+} from './cws/index.js';
+import { transform } from './transformers/index.js';
+import { fetchLfTasks, finishedWork } from './fromLf.js';
+import { pushToTrellis } from './utils/trellis.js';
+import { DOCS_LIST, PARTNERS_LIST } from './tree.js';
 
-const trace = debug('lf-sync:trace');
-const info = debug('lf-sync:info');
-const warn = debug('lf-sync:warn');
+type VDocList = Record<string, Link>;
+type LfSyncMetaData = {
+  lastSync: string;
+  LaserficheEntryID: DocumentId;
+  data: Record<string, string>;
+};
 
-/**
- * Top level list to check/watch for all trading-partners
- */
-const PARTNERS_LIST = '/bookmarks/trellisfw/trading-partners/masterid-index';
-/**
- * List to check/watch for a trading-partner's document types
- */
-const PARTNER_DOCS_LIST = '/bookmarks/trellisfw/documents';
+const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
 
-const LF_ID_PATH = '_meta/services/lf-sync/LaserficheEntryID';
+const trace = makeDebug('lf-sync:trace');
+const info = makeDebug('lf-sync:info');
+// const debug = makeDebug('lf-sync:debug');
 
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
@@ -70,6 +79,7 @@ async function run(token: string) {
     ? oada.clone(token)
     : (oada = await connect({ token, domain }));
 
+  /*
   info('Monitoring %s for new/current partners', PARTNERS_LIST);
   const tpWatch = new ListWatch({
     conn,
@@ -80,47 +90,106 @@ async function run(token: string) {
       await onMasterId(conn, id);
     },
   });
-  process.on('beforeExit', async () => tpWatch.stop());
+  process.on('beforeExit', async () => tpWatch.stop()); */
+
+  // Watching "self" documents are /bookmarks/trellisfw/documents
+  const watch = new ListWatch({
+    conn,
+    name: 'lf-sync:to-lf-own',
+    resume: false,
+    path: DOCS_LIST,
+    onAddItem(_, key) {
+      // Watch documents at /bookmarks/trellisfw/documents/<type=key>
+      const path = join(DOCS_LIST, key);
+      trace(`Monitoring ${path} for new/current document types`);
+
+      const watch = new ListWatch({
+        conn,
+        name: `lf-sync:to-lf-own`,
+        resume: true,
+        path,
+        assertItem: assertResource,
+        //  async onItem(change) {
+        //    console.log('onItem CHANGE', change);
+        //  },
+        async onAddItem(item, docKey) {
+          trace(`Got new work (new): ${join(DOCS_LIST, key, docKey)}`);
+          await onDocument(conn, false, item);
+        },
+        async onChangeItem(change, docKey) {
+          trace(change, 'onChangeItem: ');
+          if (selfChange.has(change)) {
+            trace('Ignoring self made change to resource.');
+            return;
+          }
+
+          trace(`Got new work (changed): ${join(DOCS_LIST, key, docKey)}`);
+
+          // Fetch resource
+          let { data: item } = await oada.get({
+            path: change.resource_id,
+          });
+
+          // @ts-expect-error
+          await onDocument(conn, false, item);
+        },
+      });
+      process.on('beforeExit', () => watch.stop());
+    },
+  });
+  process.on('beforeExit', () => watch.stop());
+
+  // Wait LF for tasks
+  for await (const file of fetchLfTasks()) {
+    if (file.Type !== 'Document') {
+      info(`LF ${file.EntryId} is not a document. Skipping.`);
+      // TODO: Move the item to _Needs_Review?
+      continue;
+    }
+
+    info(`LaserFiche ${file.EntryId} queue for processing.`);
+
+    ////// REPLACE THIS WITH THE BELOW LOGIC
+    await pushToTrellis(conn, file);
+
+    ///////////////////////////////////
+    /// STILL NEED TO IMPLEMENT !!! ///
+    ///////////////////////////////////
+    /*
+    if (in-lf-by-id list) {
+      if (_type === unidentified) { 
+        skip?
+      } else {
+        causeTrellisUpdate() /* Re-upload pdf? * /
+      }
+    } else {
+      await pushToTrellis(conn, file);
+    }
+    */
+  }
 }
 
-const masterIdWatches = new Map<{ conn: OADAClient; id: string }, ListWatch>();
-async function onMasterId(conn: OADAClient, id: string) {
-  if (masterIdWatches.has({ conn, id })) {
-    // Already watching this
-    warn('Duplicate call to onMasterId for id %s', id);
-    return;
-  }
-
-  const path = join(PARTNERS_LIST, id, PARTNER_DOCS_LIST);
+/* async function onMasterId(conn: OADAClient, id: string) {
+  const path = join(PARTNERS_LIST, id, DOCS_LIST);
   info('Monitoring %s for new/current document types', path);
   const watch = new ListWatch({
     conn,
     name: `lf-sync:to-lf:${id}`,
     resume: false,
-    path,
+    path,Oh shoot.... I gu es
     async onAddItem(_, type) {
       await onDocumentType(conn, id, type);
     },
   });
-  masterIdWatches.set({ conn, id }, watch);
   process.on('beforeExit', async () => watch.stop());
-}
+} */
 
-const documentTypeWatches = new Map<
-  { conn: OADAClient; tp: string; type: string },
-  ListWatch
->();
+//@ts-expect-error
 async function onDocumentType(conn: OADAClient, tp: string, type: string) {
-  if (documentTypeWatches.has({ conn, tp, type })) {
-    // Already watching this
-    warn('Duplicate call to onDocumentType for id %s, type %s', tp, type);
-    return;
-  }
-
   // Watch for new documents of type `type`
-  const path = join(PARTNERS_LIST, tp, PARTNER_DOCS_LIST, type);
+  const path = join(PARTNERS_LIST, tp, DOCS_LIST, type);
   info('Monitoring %s for new documents of type %s', path, type);
-  const watch = new ListWatch({
+  new ListWatch({
     conn,
     name: `lf-sync:to-lf:${tp}:${type}`,
     // Only watch for actually new items
@@ -128,110 +197,127 @@ async function onDocumentType(conn: OADAClient, tp: string, type: string) {
     path,
     assertItem: assertResource,
     async onAddItem(item) {
+      // @ts-expect-error
+      // Renamed to onDocument
       await onNewDocument(conn, tp, item);
     },
   });
-  documentTypeWatches.set({ conn, tp, type }, watch);
-  process.on('beforeExit', async () => watch.stop());
+  // process.on('beforeExit', async () => watch.stop());
 }
 
-async function onNewDocument(conn: OADAClient, tp: string, document: Resource) {
-
-
-  const documentType = document._type;
-
-  const transformer = transformers.get(documentType);
-  if (!transformer) {
-    warn('Unknown document type %s. Skipping.', documentType);
+// FIXME: We really shouldn't need the trading partner to be passed in.
+async function onDocument(
+  conn: OADAClient,
+  tp: string | false,
+  document: Resource
+) {
+  if (Object.keys(document).filter((k) => !k.startsWith('_')).length === 0) {
+    trace('Document transcription still in progress... Skipping.');
     return;
   }
 
-  const metadata = transformer.metadata(document);
-  trace(
-    { document, metadata, template: transformer.lfTemplate },
-    'Attempting to transform document'
-  );
+  /// THIS NEEDS TO BE UPDATED TO TAKE THE OLD METADATA
+  const lfData = transform(document);
 
-  // Determine entity name from trading-partner
-  const { data: partnerName } = await conn.get({
-    path: join(PARTNERS_LIST, tp, 'name'),
-  });
-  trace('Trading partner/Entity name: %s', partnerName);
+  trace('Fetching vdocs for %s', document._id);
+  // TODO: Should we loop over non-PDFs?
+  const r = await conn.get({ path: join(document._id, '_meta/vdoc') });
+  // FIXME: Make proper format and assert the type
+  // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
+  //@ts-expect-error
+  const vdocs = r.data['pdf'] as VDocList;
 
-  const lfDocument = await limit(async () =>
-    createDocument({
-      path: '/_Incoming',
-      name: `${document._id}.pdf`,
-      template: transformer.lfTemplate,
-      metadata: {
-        'Entity': partnerName?.toString() ?? 'unknown',
-        'Document Type': transformer.lfTemplate,
-        'Share Mode': 'Shared To Smithfield',
-        ...metadata,
-      },
-    })
-  );
-  trace('Created Laserfiche document: %s', lfDocument);
-
-  trace('Fetching _meta for %s', document._id);
-  const { data: meta } = await conn.get({
-    path: join(document._id, '_meta'),
-  }) as unknown as {data: {vdoc: { pdf: Record<string, {_id: string}>}}};
-
-  for await (const entry of Object.entries(meta?.vdoc?.pdf)) {
-    let key = entry[0];
-    let val = entry[1];
-
-    // Verify that the document is not already in LF
-    try {
-      const { data: lfId } = (await conn.get({
-        path: join(document._id, `${LF_ID_PATH}/${key}`),
-      })) as { data: string };
-
-      if (lfId) {
-        warn('%s already in Laserfiche (EntryID: %s).', document._id, lfId);
-        return;
-      }
-    } catch (cError: unknown) {
-      // @ts-expect-error catches in ts are a pain
-      if (cError?.status !== 404) {
-        trace(cError, 'Unexpected error!');
-        throw cError;
-      }
-    }
-
-    let pdfPath = val!._id;
-
-    trace('Fetching PDF for %s', document._id);
-    const { data: pdf } = await conn.get({
-      path: pdfPath,
+  // TODO: Replace this block w/ proper master data lookup
+  // We know that we came from a trading-partner index, then us our "standard name" for that tradiing partner
+  if (tp) {
+    const { data: name } = await conn.get({
+      path: join(PARTNERS_LIST, tp, 'name'),
     });
-    if (!Buffer.isBuffer(pdf)) {
-      throw new TypeError(`Expected PDF to be a Buffer, got ${typeof pdf}`);
+    // NOTE: We really should be getting the name from the data (through a masterdata match), but for now FL is "most" right.
+    lfData['Entity'] = name?.toString() || '';
+    lfData['Share Mode'] = 'Shared To Smithfield';
+  }
+
+  // Note: Each "vdoc" is a LF Document itself (some "documents" have multiple attachments)
+  for await (const [key, val] of Object.entries(vdocs)) {
+    // TODO: Remove when target-helper vdoc extra link bug is fiexed
+    if (key === '_id') continue;
+
+    let syncMetadata = await fetchSyncMetadata(conn, document._id, key);
+
+    // Document is new to LF
+    if (!syncMetadata) {
+      info('Document is new to LF');
+      trace('Creating LF document.');
+      const lfDocument = await createGenericDocument({
+        name: `${document._id}-${key}.pdf`,
+      });
+
+      trace('Fetching PDF for %s', document._id);
+      const { data: pdf } = await conn.get({
+        path: val._id,
+      });
+      if (!Buffer.isBuffer(pdf)) {
+        throw new TypeError(`Expected PDF to be a Buffer, got ${typeof pdf}`);
+      }
+
+      trace('Streaming fetched PDF to Laserfiche');
+      await limit(async () =>
+        pipeline(
+          Readable.from(pdf),
+          streamUpload(lfDocument.LaserficheEntryID, 'pdf', pdf.length),
+          new PassThrough()
+        )
+      );
+
+      info(`Created LF document ${lfDocument.LaserficheEntryID}`);
+      syncMetadata = {
+        lastSync: new Date().toISOString(),
+        LaserficheEntryID: lfDocument.LaserficheEntryID,
+        data: lfData,
+      };
     }
 
-    trace('Streaming fetched PDF to Laserfiche');
-    await limit(async () =>
-      pipeline(
-        Readable.from(pdf),
-        streamUpload(lfDocument.LaserficheEntryID, 'pdf', pdf.length),
-        new PassThrough()
-      )
+    trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
+    await setMetadata(
+      syncMetadata.LaserficheEntryID,
+      lfData,
+      lfData['Document Type']
     );
 
-    trace('Recording Laserfiche ID to resource meta');
+    trace(`Moving the LF document to _Incoming for filing`);
+    await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
+
+    trace('Recording lf-sync metadata to Trellis document');
     await conn.put({
-      path: join(document._id, `${LF_ID_PATH}/${key}`),
-      data: lfDocument.LaserficheEntryID,
+      path: join(document._id, '_meta/services/lf-sync/', key),
+      data: syncMetadata,
     });
 
-    info(
-      'Created Laserfiche entry %s for document %s',
-      lfDocument.LaserficheEntryID,
-      document._id
-    );
+    // Let the LF monitor know we finished if this doc happens to be from LF
+    trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
+    finishedWork(syncMetadata.LaserficheEntryID);
   }
 }
 
 // Start the service
 await Promise.all(tokens.map(async (element) => run(element)));
+
+async function fetchSyncMetadata(
+  oada: OADAClient,
+  id: string,
+  key: string
+): Promise<LfSyncMetaData | void> {
+  try {
+    const r = await oada.get({
+      path: join(id, '_meta/services/lf-sync', key),
+    });
+    // FIXME: Make proper format and assert type
+    return r.data as LfSyncMetaData;
+  } catch (cError: any) {
+    if (cError?.status !== 404) {
+      trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
+      throw cError;
+    }
+  }
+}
