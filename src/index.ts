@@ -46,7 +46,7 @@ import {
 import { transform } from './transformers/index.js';
 import { fetchLfTasks, finishedWork } from './fromLf.js';
 import { pushToTrellis } from './utils/trellis.js';
-import { BY_LF_PATH, DOCS_LIST, PARTNERS_LIST } from './tree.js';
+import { BY_LF_PATH, DOCS_LIST, MASTERID_LIST } from './tree.js';
 
 type VDocList = Record<string, Link>;
 type LfSyncMetaData = {
@@ -91,10 +91,10 @@ async function run(token: string) {
     name: 'lf-sync:to-lf',
     resume: false,
     path: PARTNERS_LIST,
-    onAddItem(_, id) {
+    onAddItem(_, masterId) {
       // No need to start them sequentially (service start is several minutes otherwise)
       // TODO: Maybe p-limit this to something largish?
-     onMasterId(conn, id);
+     onMasterId(conn, masterId);
     }
   });
   process.on('beforeExit', async () => watch.stop()); */
@@ -180,26 +180,34 @@ async function run(token: string) {
 } */
 
 //@ts-expect-error
-async function onDocumentType(conn: OADAClient, tp: string, type: string) {
+async function onDocumentType(
+  conn: OADAClient,
+  masterId: string,
+  type: string
+) {
   // Watch for new documents of type `type`
-  const path = join(PARTNERS_LIST, tp, DOCS_LIST, type);
+  const path = join(MASTERID_LIST, masterId, DOCS_LIST, type);
   info('Monitoring %s for new documents of type %s', path, type);
   const watch = new ListWatch({
     conn,
-    name: `lf-sync:to-lf:${tp}:${type}`,
+    name: `lf-sync:to-lf:${masterId}:${type}`,
     // Only watch for actually new items
     resume: true,
     path,
     assertItem: assertResource,
     async onAddItem(item) {
-      work.add(() => onDocument(conn, tp, item));
+      work.add(() => onDocument(conn, masterId, item));
     },
   });
   process.on('beforeExit', async () => watch.stop());
 }
 
 // FIXME: We really shouldn't need the trading partner to be passed in.
-async function onDocument(conn: OADAClient, tp: string | false, doc: Resource) {
+async function onDocument(
+  conn: OADAClient,
+  masterId: string | false,
+  doc: Resource
+) {
   // aka, an empty object
   if (Object.keys(doc).filter((k) => !k.startsWith('_')).length === 0) {
     trace('Document has no data. Skipping.');
@@ -213,8 +221,8 @@ async function onDocument(conn: OADAClient, tp: string | false, doc: Resource) {
   const vdocs = await getPdfVdocs(conn, doc);
 
   // TODO: Replace block with proper master data lookup
-  if (tp) {
-    const name = await getTradingPartnerName(conn, tp);
+  if (masterId) {
+    const name = await tradingPartnerNameByMasterId(conn, masterId);
 
     lfData['Entity'] = name;
     lfData['Share Mode'] = 'Shared To Smithfield';
@@ -230,7 +238,7 @@ async function onDocument(conn: OADAClient, tp: string | false, doc: Resource) {
     // Document is new to LF
     if (!syncMetadata.LaserficheEntryID) {
       info('Document is new to LF');
-      const lfId = await copyPdfToLf(oada, val, key);
+      const lfId = await uploadPdfToLf(oada, val, key);
 
       info(`Created LF document ${lfId}`);
       syncMetadata.LaserficheEntryID = lfId;
@@ -284,6 +292,8 @@ async function fetchSyncMetadata(
 }
 
 //// TRELLIS
+// Query the Documents-By-LaserFicheID index managed by this service
+// for the related Trellis document
 async function lookupByLf(
   oada: OADAClient,
   file: DocumentEntry
@@ -306,6 +316,7 @@ async function lookupByLf(
   return;
 }
 
+// Get the list of **PDF** vdocs associated with a Trellis document.
 async function getPdfVdocs(
   oada: OADAClient,
   doc: Resource | Link
@@ -318,7 +329,8 @@ async function getPdfVdocs(
   return r.data['pdf'] as VDocList;
 }
 
-async function copyPdfToLf(
+// Upload a PDF from Trellis to LaserFiche as a new LF resource
+async function uploadPdfToLf(
   oada: OADAClient,
   doc: Resource | Link,
   key: string
@@ -346,17 +358,19 @@ async function copyPdfToLf(
   return lfDocument.LaserficheEntryID;
 }
 
-async function getTradingPartnerName(
+// Lookup the English name for a Trading partner by masterid
+async function tradingPartnerNameByMasterId(
   oada: OADAClient,
-  tp: string
+  masterId: string
 ): Promise<string> {
   const { data: name } = await oada.get({
-    path: join(PARTNERS_LIST, tp, 'name'),
+    path: join(MASTERID_LIST, masterId, 'name'),
   });
 
   return (name || '').toString();
 }
 
+// Update the LF sync metadata in a Trellis
 async function updateSyncMetadata(
   oada: OADAClient,
   doc: Resource,

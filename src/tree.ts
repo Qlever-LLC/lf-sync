@@ -3,7 +3,7 @@ import type { Tree } from '@oada/list-lib';
 /**
  * Top level list to check/watch for all trading-partners
  */
-export const PARTNERS_LIST =
+export const MASTERID_LIST =
   '/bookmarks/trellisfw/trading-partners/masterid-index';
 
 /**
