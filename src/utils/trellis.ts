@@ -11,8 +11,6 @@ const trace = debug('lf-sync:utils:trellis:trace');
 export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
   let docBuffer = await retrieveDocumentContent(file);
 
-  // TODO: THIS SHOULD ONLY BE DONE FOR NOT-YET-IN-TRELLIS-DOCUMENTS
-
   // Upload PDF from LF to Trellis
   let docKey = await oada
     .post({
