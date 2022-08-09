@@ -87,10 +87,7 @@ export function coiMetadata(document: unknown): Metadata {
     let shareMode: string;
 
     if (
-      document.holder.name
-        .trim()
-        .toLowerCase()
-        .startsWith('smithfield foods inc')
+      document.holder.name.trim().toLowerCase().startsWith('smithfield foods')
     ) {
       entity = document.insured.name;
       shareMode = 'Shared From Smithfield';

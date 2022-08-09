@@ -42,6 +42,7 @@ import {
   createGenericDocument,
   DocumentEntry,
   getEntryId,
+  getMetadata,
 } from './cws/index.js';
 import { transform } from './transformers/index.js';
 import { fetchLfTasks, finishedWork } from './fromLf.js';
@@ -84,66 +85,15 @@ async function run(token: string) {
     ? oada.clone(token)
     : (oada = await connect({ token, domain }));
 
-  /*
-  info('Monitoring %s for new/current partners', PARTNERS_LIST);
-  const watch = new ListWatch({
-    conn,
-    name: 'lf-sync:to-lf',
-    resume: false,
-    path: PARTNERS_LIST,
-    onAddItem(_, masterId) {
-      // No need to start them sequentially (service start is several minutes otherwise)
-      // TODO: Maybe p-limit this to something largish?
-     onMasterId(conn, masterId);
-    }
-  });
-  process.on('beforeExit', async () => watch.stop()); */
+  // Watch for new trading partner documents to process
+  // watchPartnerDocs(conn, (masterId, item) =>
+  //   work.add(() => onDocument(conn, masterId, item))
+  // );
 
-  // Watching "self" documents are /bookmarks/trellisfw/documents
-  const watch = new ListWatch({
-    conn,
-    name: 'lf-sync:to-lf-own',
-    resume: false,
-    path: DOCS_LIST,
-    onAddItem(_, key) {
-      // Watch documents at /bookmarks/trellisfw/documents/<type=key>
-      const path = join(DOCS_LIST, key);
-      trace(`Monitoring ${path} for new/current document types`);
+  // Watch for new "self" documents to process
+  watchSelfDocs(conn, (item) => work.add(() => onDocument(conn, false, item)));
 
-      const watch = new ListWatch({
-        conn,
-        name: `lf-sync:to-lf-own`,
-        resume: true,
-        path,
-        assertItem: assertResource,
-        // TODO: Can I use onItem here? I don't really recall way I couldn't...
-        async onAddItem(item, docKey) {
-          trace(`Got new work (new): ${join(path, docKey)}`);
-          work.add(() => onDocument(conn, false, item));
-        },
-        async onChangeItem(change, docKey) {
-          if (selfChange.has(change)) {
-            trace('Ignoring self made change to resource.');
-            return;
-          }
-
-          trace(`Got change work: ${join(path, docKey)}`);
-
-          // Fetch resource
-          let data = await oada.get({
-            path: change.resource_id,
-          });
-          let item = data.data as Resource;
-
-          work.add(() => onDocument(conn, false, item));
-        },
-      });
-      process.on('beforeExit', () => watch.stop());
-    },
-  });
-  process.on('beforeExit', () => watch.stop());
-
-  // Wait LF for tasks
+  // Watch LaserFiche for documents to process
   for await (const file of fetchLfTasks()) {
     if (file.Type !== 'Document') {
       info(`LF ${file.EntryId} is not a document. Moving to _NeedsReview.`);
@@ -156,50 +106,12 @@ async function run(token: string) {
     let doc = await lookupByLf(oada, file);
 
     if (doc) {
-      trace('Document already in Trellis! %s', doc._id);
-      // causeTrellisUpdate(doc)
+      info('Reprocessing Trellis document %s', doc._id);
+      onDocument(conn, false, doc);
     } else {
       await pushToTrellis(conn, file);
     }
   }
-}
-
-/* async function onMasterId(conn: OADAClient, id: string) {
-  const path = join(PARTNERS_LIST, id, DOCS_LIST);
-  info('Monitoring %s for new/current document types', path);
-  const watch = new ListWatch({
-    conn,
-    name: `lf-sync:to-lf:${id}`,
-    resume: false,
-    path,Oh shoot.... I gu es
-    async onAddItem(_, type) {
-      await onDocumentType(conn, id, type);
-    },
-  });
-  process.on('beforeExit', async () => watch.stop());
-} */
-
-//@ts-expect-error
-async function onDocumentType(
-  conn: OADAClient,
-  masterId: string,
-  type: string
-) {
-  // Watch for new documents of type `type`
-  const path = join(MASTERID_LIST, masterId, DOCS_LIST, type);
-  info('Monitoring %s for new documents of type %s', path, type);
-  const watch = new ListWatch({
-    conn,
-    name: `lf-sync:to-lf:${masterId}:${type}`,
-    // Only watch for actually new items
-    resume: true,
-    path,
-    assertItem: assertResource,
-    async onAddItem(item) {
-      work.add(() => onDocument(conn, masterId, item));
-    },
-  });
-  process.on('beforeExit', async () => watch.stop());
 }
 
 // FIXME: We really shouldn't need the trading partner to be passed in.
@@ -214,7 +126,6 @@ async function onDocument(
     return;
   }
 
-  /// THIS NEEDS TO BE UPDATED TO TAKE THE OLD METADATA
   const lfData = transform(doc);
 
   trace('Fetching vdocs for %s', doc._id);
@@ -234,19 +145,31 @@ async function onDocument(
     if (key === '_id') continue;
 
     let syncMetadata = await fetchSyncMetadata(conn, doc._id, key);
+    let currentMetadata = {};
 
     // Document is new to LF
     if (!syncMetadata.LaserficheEntryID) {
       info('Document is new to LF');
-      const lfId = await uploadPdfToLf(oada, val, key);
+      const lfId = await uploadToLF(oada, val, key);
 
       info(`Created LF document ${lfId}`);
       syncMetadata.LaserficheEntryID = lfId;
+    } else {
+      const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
+      currentMetadata = metadata.LaserficheFieldList.reduce(
+        // @ts-expect-error
+        (data, f) => (f.Value !== '' ? { ...data, [f.Name]: f.Value } : data),
+        {}
+      );
+      console.log(currentMetadata);
     }
 
     // Update document data
-    // TODO: THIS IS WHERE I NEED TO DO THAT DON"T OVERRIGHT CHECK
-    syncMetadata.data = lfData;
+    syncMetadata.data = Object.assign(
+      syncMetadata.data,
+      lfData,
+      currentMetadata
+    );
 
     trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
     await setMetadata(
@@ -330,7 +253,7 @@ async function getPdfVdocs(
 }
 
 // Upload a PDF from Trellis to LaserFiche as a new LF resource
-async function uploadPdfToLf(
+async function uploadToLF(
   oada: OADAClient,
   doc: Resource | Link,
   key: string
@@ -384,4 +307,98 @@ async function updateSyncMetadata(
       lastSync: new Date().toISOString(),
     },
   });
+}
+
+// @ts-expect-error
+function watchPartnerDocs(
+  conn: OADAClient,
+  work: (masterId: string, item: Resource) => void
+) {
+  info('Monitoring %s for new/current partners', MASTERID_LIST);
+  const watch = new ListWatch({
+    conn,
+    name: 'lf-sync:to-lf',
+    resume: false,
+    path: MASTERID_LIST,
+    onAddItem(_, masterId) {
+      const docPath = join(MASTERID_LIST, masterId, DOCS_LIST);
+
+      info('Monitoring %s for new/current document types', docPath);
+      const watch = new ListWatch({
+        conn,
+        name: `lf-sync:to-lf:${masterId}`,
+        resume: false,
+        path: docPath,
+        onAddItem(_, type) {
+          // Watch for new documents of type `type`
+          const path = join(docPath, type);
+
+          info('Monitoring %s for new documents of type %s', path, type);
+          const watch = new ListWatch({
+            conn,
+            name: `lf-sync:to-lf:${masterId}:${type}`,
+            // Only watch for actually new items
+            resume: true,
+            path,
+            assertItem: assertResource,
+            onAddItem(item) {
+              work(masterId, item);
+            },
+          });
+          process.on('beforeExit', async () => watch.stop());
+        },
+      });
+      process.on('beforeExit', async () => watch.stop());
+    },
+  });
+  process.on('beforeExit', () => watch.stop());
+}
+
+function watchSelfDocs(
+  conn: OADAClient,
+  work: (item: Resource) => Promise<void>
+) {
+  // Watching "self" documents are /bookmarks/trellisfw/documents
+  const watch = new ListWatch({
+    conn,
+    name: 'lf-sync:to-lf-own',
+    resume: false,
+    path: DOCS_LIST,
+    onAddItem(_, key) {
+      // Watch documents at /bookmarks/trellisfw/documents/<type=key>
+      const path = join(DOCS_LIST, key);
+      trace(`Monitoring ${path} for new/current document types`);
+
+      const watch = new ListWatch({
+        conn,
+        name: `lf-sync:to-lf-own`,
+        resume: true,
+        path,
+        assertItem: assertResource,
+        // TODO: Can I use onItem here? I don't really recall way I couldn't...
+        async onAddItem(item, docKey) {
+          trace(`Got work (new): ${join(path, docKey)}`);
+          await work(item);
+        },
+        async onChangeItem(change, docKey) {
+          if (selfChange.has(change)) {
+            trace('Ignoring self made change to resource.');
+            return;
+          }
+
+          trace(`Got work (change): ${join(path, docKey)}`);
+
+          // Fetch resource
+          let data = await oada.get({
+            path: change.resource_id,
+          });
+          let item = data.data as Resource;
+
+          await work(item);
+        },
+      });
+      process.on('beforeExit', () => watch.stop());
+    },
+  });
+  process.on('beforeExit', () => watch.stop());
 }
