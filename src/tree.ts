@@ -1,4 +1,4 @@
-// import type { Tree } from '@oada/list-lib';
+// Import type { Tree } from '@oada/list-lib';
 
 type Letter =
   | 'a'

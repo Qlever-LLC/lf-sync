@@ -35,23 +35,23 @@ import { ListWatch } from '@oada/list-lib';
 import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
 import { transform } from './transformers/index.js';
 import {
-  setMetadata,
-  moveEntry,
-  browse,
   DocumentEntry,
-  getMetadata,
+  browse,
   createGenericDocument,
+  getMetadata,
+  moveEntry,
+  setMetadata,
 } from './cws/index.js';
 import {
+  LfSyncMetaData,
   fetchSyncMetadata,
   getBuffer,
   getPdfVdocs,
-  LfSyncMetaData,
+  has,
   lookupByLf,
   pushToTrellis,
   tradingPartnerNameByMasterId,
   updateSyncMetadata,
-  has,
 } from './utils.js';
 
 const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
@@ -87,26 +87,26 @@ async function run(token: string) {
 
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
-    watchPartnerDocs(conn, (masterId, item) =>
-      work.add(() => processDocument(conn, masterId, item))
+    watchPartnerDocs(conn, async (masterId, item) =>
+      work.add(async () => processDocument(conn, masterId, item))
     );
   }
 
   // Watch for new "self" documents to process
   if (config.get('watch.own')) {
-    watchSelfDocs(conn, (item) =>
-      work.add(() => processDocument(conn, false, item))
+    watchSelfDocs(conn, async (item) =>
+      work.add(async () => processDocument(conn, false, item))
     );
   }
 
   if (config.get('watch.lf')) {
     watchLaserfiche(async (file) => {
       info(`LaserFiche ${file.EntryId} queue for processing.`);
-      let doc = await lookupByLf(conn, file);
+      const document = await lookupByLf(conn, file);
 
-      if (doc) {
-        info('Reprocessing Trellis document %s', doc._id);
-        processDocument(conn, false, doc);
+      if (document) {
+        info('Reprocessing Trellis document %s', document._id);
+        processDocument(conn, false, document);
       } else {
         await pushToTrellis(conn, file);
       }
@@ -121,33 +121,33 @@ await Promise.all(tokens.map(async (element) => run(element)));
 async function processDocument(
   conn: OADAClient,
   masterId: string | false,
-  doc: Resource
+  document: Resource
 ) {
-  // aka, an empty object
-  if (Object.keys(doc).filter((k) => !k.startsWith('_')).length === 0) {
+  // Aka, an empty object
+  if (Object.keys(document).filter((k) => !k.startsWith('_')).length === 0) {
     trace('Document has no data. Skipping.');
     return;
   }
 
-  const fieldList = transform(doc);
+  const fieldList = transform(document);
 
-  trace('Fetching vdocs for %s', doc._id);
-  const vdocs = await getPdfVdocs(conn, doc);
+  trace('Fetching vdocs for %s', document._id);
+  const vdocs = await getPdfVdocs(conn, document);
 
   // TODO: Replace block with proper master data lookup
   if (masterId) {
     const name = await tradingPartnerNameByMasterId(conn, masterId);
 
-    fieldList['Entity'] = name;
+    fieldList.Entity = name;
     fieldList['Share Mode'] = 'Shared To Smithfield';
   }
 
   // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
-  for await (const [key, val] of Object.entries(vdocs)) {
+  for await (const [key, value] of Object.entries(vdocs)) {
     // TODO: Remove when target-helper vdoc extra link bug is fiexed
     if (key === '_id') continue;
 
-    let syncMetadata = await fetchSyncMetadata(conn, doc._id, key);
+    const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
     let currentFields = {} as LfSyncMetaData['fields'];
 
     // Document is new to LF
@@ -155,13 +155,13 @@ async function processDocument(
       info('Document is new to LF');
 
       trace('Uploading document to Laserfiche');
-      const lfDoc = await createGenericDocument({
-        name: `${val._id}-${key}`,
-        buffer: await getBuffer(conn, val),
+      const lfDocument = await createGenericDocument({
+        name: `${value._id}-${key}`,
+        buffer: await getBuffer(conn, value),
       });
 
-      info(`Created LF document ${lfDoc.LaserficheEntryID}`);
-      syncMetadata.LaserficheEntryID = lfDoc.LaserficheEntryID;
+      info(`Created LF document ${lfDocument.LaserficheEntryID}`);
+      syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
     } else {
       // Fetch the current LF fields to compare for changes
       const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
@@ -194,7 +194,7 @@ async function processDocument(
     await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
 
     trace('Recording lf-sync metadata to Trellis document');
-    updateSyncMetadata(oada, doc, key, syncMetadata);
+    updateSyncMetadata(oada, document, key, syncMetadata);
 
     // Let the LF monitor know we finished if this doc happens to be from LF
     trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
@@ -212,17 +212,17 @@ function watchPartnerDocs(
     resume: false,
     path: MASTERID_LIST,
     onAddItem(_, masterId) {
-      const docPath = join(MASTERID_LIST, masterId, DOCS_LIST);
+      const documentPath = join(MASTERID_LIST, masterId, DOCS_LIST);
 
-      info('Monitoring %s for new/current document types', docPath);
+      info('Monitoring %s for new/current document types', documentPath);
       const watch = new ListWatch({
         conn,
         name: `lf-sync:to-lf:${masterId}`,
         resume: false,
-        path: docPath,
+        path: documentPath,
         onAddItem(_, type) {
           // Watch for new documents of type `type`
-          const path = join(docPath, type);
+          const path = join(documentPath, type);
 
           info('Monitoring %s for new documents of type %s', path, type);
           const watch = new ListWatch({
@@ -242,7 +242,7 @@ function watchPartnerDocs(
       process.on('beforeExit', async () => watch.stop());
     },
   });
-  process.on('beforeExit', () => watch.stop());
+  process.on('beforeExit', async () => watch.stop());
 }
 
 function watchSelfDocs(
@@ -267,31 +267,31 @@ function watchSelfDocs(
         path,
         assertItem: assertResource,
         // TODO: Can I use onItem here? I don't really recall way I couldn't...
-        async onAddItem(item, docKey) {
-          trace(`Got work (new): ${join(path, docKey)}`);
+        async onAddItem(item, documentKey) {
+          trace(`Got work (new): ${join(path, documentKey)}`);
           await work(item);
         },
-        async onChangeItem(change, docKey) {
+        async onChangeItem(change, documentKey) {
           if (selfChange.has(change)) {
             trace('Ignoring self made change to resource.');
             return;
           }
 
-          trace(`Got work (change): ${join(path, docKey)}`);
+          trace(`Got work (change): ${join(path, documentKey)}`);
 
           // Fetch resource
-          let data = await oada.get({
+          const data = await oada.get({
             path: change.resource_id,
           });
-          let item = data.data as Resource;
+          const item = data.data as Resource;
 
           await work(item);
         },
       });
-      process.on('beforeExit', () => watch.stop());
+      process.on('beforeExit', async () => watch.stop());
     },
   });
-  process.on('beforeExit', () => watch.stop());
+  process.on('beforeExit', async () => watch.stop());
 }
 
 function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
@@ -302,7 +302,7 @@ function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
     while (true) {
       const start = new Date();
 
-      for (let [id, startTime] of workQueue.entries()) {
+      for (const [id, startTime] of workQueue.entries()) {
         if (start.getTime() > startTime + LF_JOB_TIMEOUT) {
           warn(`LF ${id} work never completed. Now eligible for re-queuing.`);
           workQueue.delete(id);
@@ -311,7 +311,7 @@ function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
 
       trace(`${start.toISOString()} Polling LaserFiche.`);
 
-      let files = await browse(LF_AUTOMATION_FOLDER);
+      const files = await browse(LF_AUTOMATION_FOLDER);
       for (const file of files) {
         if (!workQueue.has(file.EntryId)) {
           if (file.Type !== 'Document') {

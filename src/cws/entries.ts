@@ -21,21 +21,21 @@ import { Path, normalizePath } from './paths.js';
 import cws from './api.js';
 
 export type EntryId<T extends BaseEntry = Entry> = Opaque<number, T>;
-interface BaseEntry {
+type BaseEntry = {
   EntryId: EntryId<BaseEntry>;
   LaserficheEntryID: EntryId<BaseEntry>;
   Name: string;
   Path: string;
   Type: string;
   MimeType: string;
-}
+};
 
 export type DocumentId = EntryId<DocumentEntry>;
-export interface DocumentEntry extends BaseEntry {
+export type DocumentEntry = {
   LaserficheEntryID: DocumentId;
   Type: 'Document';
-  FieldDataList: Array<FieldData>;
-}
+  FieldDataList: FieldData[];
+} & BaseEntry;
 
 export type FieldData = {
   Name: string;
@@ -43,10 +43,10 @@ export type FieldData = {
 };
 
 export type FolderId = EntryId<FolderEntry>;
-export interface FolderEntry extends BaseEntry {
+export type FolderEntry = {
   LaserficheEntryID: FolderId;
   Type: 'Folder';
-}
+} & BaseEntry;
 
 export type Entry = FolderEntry | DocumentEntry;
 export type EntryIdLike<T extends BaseEntry = Entry> =

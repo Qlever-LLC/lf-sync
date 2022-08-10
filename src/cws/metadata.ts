@@ -18,16 +18,16 @@
 import { Entry, EntryId, EntryIdLike, getEntryId } from './entries.js';
 import cws from './api.js';
 
-export interface MetadataFieldSingle {
+export type MetadataFieldSingle = {
   Name: string;
   IsMulti: false;
   Value: string;
-}
-export interface MetadataFieldMulti {
+};
+export type MetadataFieldMulti = {
   Name: string;
   IsMulti: true;
   Values: readonly string[];
-}
+};
 export type FieldList = Array<MetadataFieldMulti | MetadataFieldSingle>;
 export type Metadata = Record<string, string>; /* | readonly string[]>;*/
 

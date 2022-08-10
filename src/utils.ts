@@ -1,3 +1,19 @@
+/**
+ * @license
+ * Copyright 2022 Qlever LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import { join } from 'node:path';
 import bs58 from 'bs58';
 import debug from 'debug';
@@ -32,45 +48,50 @@ export function has<T, K extends string>(
 }
 
 export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
-  let docBuffer = await retrieveDocumentContent(file);
+  const documentBuffer = await retrieveDocumentContent(file);
 
   // Upload PDF from LF to Trellis
-  let docKey = await oada
+  const documentKey = await oada
     .post({
       path: '/resources',
-      data: docBuffer,
+      data: documentBuffer,
       contentType: file.MimeType,
     })
     .then((r) => r.headers['content-location']!.replace(/^\/resources\//, ''));
-  trace(`Created Trellis file resource: /resources/${docKey}`);
+  trace(`Created Trellis file resource: /resources/${documentKey}`);
 
   // Make Trellis document for the PDF
-  const trellisDocKey = await oada
+  const trellisDocumentKey = await oada
     .post({
       path: '/resources',
       data: {},
       contentType: 'application/vnd.trellisfw.unidentified.1+json',
     })
     .then((r) => r.headers['content-location']!.replace(/^\/resources\//, ''));
-  trace(`Created unidentified Trellis document: /resources/${trellisDocKey}`);
+  trace(
+    `Created unidentified Trellis document: /resources/${trellisDocumentKey}`
+  );
 
   // Link PDF into Trellis document
-  const fileHash = bs58.encode(createHash('sha256').update(docBuffer).digest());
-  await oada.put({
-    path: `resources/${trellisDocKey}/_meta`,
-    data: {
-      vdoc: { pdf: { [fileHash]: { _id: `resources/${docKey}`, _rev: 0 } } },
-    },
-  });
-  trace(`Linked PDF resource into /resources/${trellisDocKey}'s vdocs`);
-
-  // Put the existing metadata into Trellis
-  let lfData = file.FieldDataList.reduce(
-    (data, f) => ({ ...data, [f.Name]: f.Value }),
-    {}
+  const fileHash = bs58.encode(
+    createHash('sha256').update(documentBuffer).digest()
   );
   await oada.put({
-    path: join('resources', trellisDocKey, '_meta/services/lf-sync'),
+    path: `resources/${trellisDocumentKey}/_meta`,
+    data: {
+      vdoc: {
+        pdf: { [fileHash]: { _id: `resources/${documentKey}`, _rev: 0 } },
+      },
+    },
+  });
+  trace(`Linked PDF resource into /resources/${trellisDocumentKey}'s vdocs`);
+
+  // Put the existing metadata into Trellis
+  const lfData = Object.fromEntries(
+    file.FieldDataList.map((f) => [f.Name, f.Value])
+  );
+  await oada.put({
+    path: join('resources', trellisDocumentKey, '_meta/services/lf-sync'),
     data: {
       [fileHash]: {
         LaserficheEntryID: file.EntryId,
@@ -87,7 +108,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
     tree,
     data: {
       [file.EntryId]: {
-        _id: `resources/${trellisDocKey}`,
+        _id: `resources/${trellisDocumentKey}`,
       },
     },
   });
@@ -103,9 +124,9 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
   // Link document as unidentified into documents list
   await oada.post({
     path: `/bookmarks/trellisfw/documents/unidentified`,
-    // tree,
+    // Tree,
     data: {
-      _id: `resources/${trellisDocKey}`,
+      _id: `resources/${trellisDocumentKey}`,
       _rev: 0,
     },
   });
@@ -113,10 +134,10 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
 
 export async function getBuffer(
   oada: OADAClient,
-  doc: Resource | Link
+  document: Resource | Link
 ): Promise<Buffer> {
-  trace('Fetching document from %s', doc._id);
-  const { data: buffer } = await oada.get({ path: doc._id });
+  trace('Fetching document from %s', document._id);
+  const { data: buffer } = await oada.get({ path: document._id });
   if (!Buffer.isBuffer(buffer)) {
     throw new TypeError(`Expected binary Buffer but got ${typeof buffer}`);
   }
@@ -158,7 +179,7 @@ export async function lookupByLf(
 ): Promise<Resource | undefined> {
   // Check if document is already in Trellis. If so, trigger a re-process. Otherwise, upload it to Trellis.
   try {
-    let { data } = await oada.get({
+    const { data } = await oada.get({
       path: join(BY_LF_PATH, getEntryId(file).toString()),
     });
 
@@ -171,7 +192,7 @@ export async function lookupByLf(
     }
   }
 
-  return;
+  return undefined;
 }
 
 /**
@@ -179,14 +200,14 @@ export async function lookupByLf(
  */
 export async function getPdfVdocs(
   oada: OADAClient,
-  doc: Resource | Link
+  document: Resource | Link
 ): Promise<VDocList> {
   // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
-  const r = await oada.get({ path: join(doc._id, '_meta/vdoc') });
+  const r = await oada.get({ path: join(document._id, '_meta/vdoc') });
 
-  //@ts-expect-error
+  // @ts-expect-error
   // FIXME: Make proper format and assert the type
-  return r.data['pdf'] as VDocList;
+  return r.data.pdf as VDocList;
 }
 
 /**
@@ -200,7 +221,7 @@ export async function tradingPartnerNameByMasterId(
     path: join(MASTERID_LIST, masterId, 'name'),
   });
 
-  return (name || '').toString();
+  return (name ?? '').toString();
 }
 
 /**
@@ -208,12 +229,12 @@ export async function tradingPartnerNameByMasterId(
  */
 export async function updateSyncMetadata(
   oada: OADAClient,
-  doc: Resource,
+  document: Resource,
   key: string,
   syncMetadata: LfSyncMetaData
 ) {
   await oada.put({
-    path: join(doc._id, '_meta/services/lf-sync/', key),
+    path: join(document._id, '_meta/services/lf-sync/', key),
     data: {
       ...syncMetadata,
       lastSync: new Date().toISOString(),

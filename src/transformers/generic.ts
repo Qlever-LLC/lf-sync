@@ -18,48 +18,48 @@
 import type { Metadata } from '../cws/metadata.js';
 
 export function generateGenericMetadata(type: string) {
-  return function genericMetadata(doc: any): Metadata {
+  return function genericMetadata(document: any): Metadata {
     // FIXME: Should this assert the base type with @oada/formats?
 
-    const documentDate = doc.document_date
-      ? new Date(doc.document_date)
+    const documentDate = document.document_date
+      ? new Date(document.document_date)
       : new Date();
 
-    let metadata: Metadata = {
+    const metadata: Metadata = {
       'Document Type': type,
       'Document Date': documentDate.toISOString(),
     };
 
-    Object.entries(metadataMappings).forEach(([trellisKey, lfField]) => {
-      if (doc[trellisKey]) {
+    for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
+      if (document[trellisKey]) {
         if (lfField.includes('Date')) {
-          metadata[lfField] = new Date(doc[trellisKey]).toISOString();
+          metadata[lfField] = new Date(document[trellisKey]).toISOString();
         } else {
-          metadata[lfField] = doc[trellisKey];
+          metadata[lfField] = document[trellisKey];
         }
       }
-    });
+    }
 
     return metadata;
   };
 }
 
-let metadataMappings = {
+const metadataMappings = {
   adjustment_date: 'Adjustment Date',
   expire_date: 'Expiration Date',
   audit_date: 'Audit Date',
   certifying_body: 'Certifying Body',
-  //'fsis_directive_108001_compliance',
+  // 'fsis_directive_108001_compliance',
   effective_date: 'Effective Date', // 'certifying_body.name',
-  score: 'Grade Score', //'score.value',
+  score: 'Grade Score', // 'score.value',
   initial_term_date: 'Initial Term Date',
   is_paaco_certified: 'PAACO Certified',
   document_date: 'Document Date',
-  //'regulation_compliance',
+  // 'regulation_compliance',
 
   auditor: 'Auditor Name',
   issue_date: 'Issue Date',
-  //'failures':
-  //'reaudit_date':
-  //'scheme':
+  // 'failures':
+  // 'reaudit_date':
+  // 'scheme':
 };

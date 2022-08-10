@@ -19,7 +19,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 
 import { join } from 'node:path';
-import { DOCS_LIST, MASTERID_LIST, LF_AUTOMATION_FOLDER } from './tree.js';
+import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
 
 import 'dotenv/config';
 import convict from 'convict';
@@ -88,7 +88,7 @@ const config = convict({
     },
     pollRate: {
       doc: 'Rate to poll LaserFiche for documents to process. In milliseconds.',
-      default: 10000,
+      default: 10_000,
       format: Number,
       env: 'LF_POLL_RATE_MS',
       arg: 'lf-poll-rate',
