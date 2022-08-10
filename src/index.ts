@@ -83,6 +83,9 @@ let lfCleanup: (id: EntryIdLike) => void | undefined;
  * Start-up for a given user (token)
  */
 async function run(token: string) {
+  info('Service: lf-sync');
+  info(`Version: ${process.env.npm_package_version}`);
+
   // Connect to the OADA API
   const conn = oada
     ? oada.clone(token)
