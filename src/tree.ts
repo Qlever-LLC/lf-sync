@@ -1,4 +1,38 @@
-import type { Tree } from '@oada/list-lib';
+// import type { Tree } from '@oada/list-lib';
+
+type Letter =
+  | 'a'
+  | 'b'
+  | 'c'
+  | 'd'
+  | 'e'
+  | 'f'
+  | 'g'
+  | 'h'
+  | 'i'
+  | 'j'
+  | 'k'
+  | 'l'
+  | 'm'
+  | 'p'
+  | 'q'
+  | 'r'
+  | 's'
+  | 't'
+  | 'u'
+  | 'v'
+  | 'w'
+  | 'x'
+  | 'y'
+  | 'z';
+
+export type TreeKey = `${Letter | '*' | Uppercase<Letter>}${string}`;
+
+export type Tree = {
+  [key: TreeKey]: Tree;
+  _type?: string;
+  _rev?: number;
+};
 
 /**
  * Top level list to check/watch for all trading-partners
@@ -15,6 +49,11 @@ export const DOCS_LIST = '/bookmarks/trellisfw/documents';
  * List of all document sync's managed by `lf-sync`
  */
 export const BY_LF_PATH = '/bookmarks/services/lf-sync/by-lf-id';
+
+/**
+ * Name of LF folder to watch for documents to process
+ */
+export const LF_AUTOMATION_FOLDER = '/_TrellisAutomation';
 
 export const tree: Tree = {
   bookmarks: {

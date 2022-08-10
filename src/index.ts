@@ -18,53 +18,53 @@
 // Import this first to setup the environment
 import config from './config.js';
 
-import { PassThrough, Readable } from 'node:stream';
 import { join } from 'node:path';
-import { pipeline } from 'node:stream/promises';
 
 import makeDebug from 'debug';
 // Promise queue to avoid spamming LF
 import pQueue from 'p-queue';
 import { JsonPointer } from 'json-ptr';
+import { CronJob } from 'cron';
 
 import { OADAClient, connect } from '@oada/client';
-import type { Link } from '@oada/types/oada/link/v1';
 import Resource, {
   assert as assertResource,
 } from '@oada/types/oada/resource.js';
 import { ListWatch } from '@oada/list-lib';
 
+import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
+import { transform } from './transformers/index.js';
 import {
-  DocumentId,
-  streamUpload,
   setMetadata,
   moveEntry,
-  createGenericDocument,
+  browse,
   DocumentEntry,
-  getEntryId,
   getMetadata,
+  createGenericDocument,
 } from './cws/index.js';
-import { transform } from './transformers/index.js';
-import { fetchLfTasks, finishedWork } from './fromLf.js';
-import { pushToTrellis } from './utils/trellis.js';
-import { BY_LF_PATH, DOCS_LIST, MASTERID_LIST } from './tree.js';
-
-type VDocList = Record<string, Link>;
-type LfSyncMetaData = {
-  lastSync?: string;
-  LaserficheEntryID?: DocumentId;
-  data?: Record<string, string>;
-};
+import {
+  fetchSyncMetadata,
+  getBuffer,
+  getPdfVdocs,
+  LfSyncMetaData,
+  lookupByLf,
+  pushToTrellis,
+  tradingPartnerNameByMasterId,
+  updateSyncMetadata,
+  has,
+} from './utils.js';
 
 const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
 
 const trace = makeDebug('lf-sync:trace');
 const info = makeDebug('lf-sync:info');
-// const debug = makeDebug('lf-sync:debug');
-const error = makeDebug('lf-sync:error');
+const warn = makeDebug('lf-sync:warn');
 
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
+const CONCURRENCY = config.get('concurrency');
+const LF_POLL_RATE = config.get('laserfiche.pollRate');
+const LF_JOB_TIMEOUT = config.get('laserfiche.timeout');
 
 /**
  * Shared OADA client instance?
@@ -74,7 +74,7 @@ let oada: OADAClient;
 // This queue limits the number of *processing documents* at once.
 // OADA is rate limited by @oada/client
 // LF is *NOT* rate limited, but only has sparse calls per *pending document* at this time
-const work = new pQueue({ concurrency: 1 });
+const work = new pQueue({ concurrency: CONCURRENCY });
 
 /**
  * Start-up for a given user (token)
@@ -86,36 +86,39 @@ async function run(token: string) {
     : (oada = await connect({ token, domain }));
 
   // Watch for new trading partner documents to process
-  // watchPartnerDocs(conn, (masterId, item) =>
-  //   work.add(() => onDocument(conn, masterId, item))
-  // );
+  if (config.get('watch.partners')) {
+    watchPartnerDocs(conn, (masterId, item) =>
+      work.add(() => processDocument(conn, masterId, item))
+    );
+  }
 
   // Watch for new "self" documents to process
-  watchSelfDocs(conn, (item) => work.add(() => onDocument(conn, false, item)));
+  if (config.get('watch.own')) {
+    watchSelfDocs(conn, (item) =>
+      work.add(() => processDocument(conn, false, item))
+    );
+  }
 
-  // Watch LaserFiche for documents to process
-  for await (const file of fetchLfTasks()) {
-    if (file.Type !== 'Document') {
-      info(`LF ${file.EntryId} is not a document. Moving to _NeedsReview.`);
-      await moveEntry(file, '/_NeedsReview');
+  if (config.get('watch.lf')) {
+    watchLaserfiche(async (file) => {
+      info(`LaserFiche ${file.EntryId} queue for processing.`);
+      let doc = await lookupByLf(conn, file);
 
-      continue;
-    }
-
-    info(`LaserFiche ${file.EntryId} queue for processing.`);
-    let doc = await lookupByLf(oada, file);
-
-    if (doc) {
-      info('Reprocessing Trellis document %s', doc._id);
-      onDocument(conn, false, doc);
-    } else {
-      await pushToTrellis(conn, file);
-    }
+      if (doc) {
+        info('Reprocessing Trellis document %s', doc._id);
+        processDocument(conn, false, doc);
+      } else {
+        await pushToTrellis(conn, file);
+      }
+    });
   }
 }
 
+// Start the service
+await Promise.all(tokens.map(async (element) => run(element)));
+
 // FIXME: We really shouldn't need the trading partner to be passed in.
-async function onDocument(
+async function processDocument(
   conn: OADAClient,
   masterId: string | false,
   doc: Resource
@@ -126,7 +129,7 @@ async function onDocument(
     return;
   }
 
-  const lfData = transform(doc);
+  const fieldList = transform(doc);
 
   trace('Fetching vdocs for %s', doc._id);
   const vdocs = await getPdfVdocs(conn, doc);
@@ -135,8 +138,8 @@ async function onDocument(
   if (masterId) {
     const name = await tradingPartnerNameByMasterId(conn, masterId);
 
-    lfData['Entity'] = name;
-    lfData['Share Mode'] = 'Shared To Smithfield';
+    fieldList['Entity'] = name;
+    fieldList['Share Mode'] = 'Shared To Smithfield';
   }
 
   // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
@@ -145,37 +148,46 @@ async function onDocument(
     if (key === '_id') continue;
 
     let syncMetadata = await fetchSyncMetadata(conn, doc._id, key);
-    let currentMetadata = {};
+    let currentFields = {} as LfSyncMetaData['fields'];
 
     // Document is new to LF
     if (!syncMetadata.LaserficheEntryID) {
       info('Document is new to LF');
-      const lfId = await uploadToLF(oada, val, key);
 
-      info(`Created LF document ${lfId}`);
-      syncMetadata.LaserficheEntryID = lfId;
+      trace('Uploading document to Laserfiche');
+      const lfDoc = await createGenericDocument({
+        name: `${val._id}-${key}`,
+        buffer: await getBuffer(conn, val),
+      });
+
+      info(`Created LF document ${lfDoc.LaserficheEntryID}`);
+      syncMetadata.LaserficheEntryID = lfDoc.LaserficheEntryID;
     } else {
+      // Fetch the current LF fields to compare for changes
       const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
-      currentMetadata = metadata.LaserficheFieldList.reduce(
-        // @ts-expect-error
-        (data, f) => (f.Value !== '' ? { ...data, [f.Name]: f.Value } : data),
+      currentFields = metadata.LaserficheFieldList.reduce(
+        (o, f) =>
+          has(f, 'Value') && f.Value !== '' ? { ...o, [f.Name]: f.Value } : o,
         {}
       );
-      console.log(currentMetadata);
     }
 
-    // Update document data
-    syncMetadata.data = Object.assign(
-      syncMetadata.data,
-      lfData,
-      currentMetadata
-    );
+    if (!syncMetadata.fields) {
+      syncMetadata.fields = {};
+    }
+
+    // Only take new automation values if not manually changed in the past
+    for (const [key, value] of Object.entries(fieldList)) {
+      if (!currentFields || syncMetadata.fields[key] === currentFields[key]) {
+        syncMetadata.fields[key] = value;
+      }
+    }
 
     trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
     await setMetadata(
       syncMetadata.LaserficheEntryID,
-      syncMetadata.data,
-      syncMetadata.data['Document Type']
+      syncMetadata.fields || {},
+      syncMetadata.fields['Document Type']
     );
 
     trace(`Moving the LF document to _Incoming for filing`);
@@ -186,130 +198,9 @@ async function onDocument(
 
     // Let the LF monitor know we finished if this doc happens to be from LF
     trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
-    finishedWork(syncMetadata.LaserficheEntryID);
   }
 }
 
-// Start the service
-await Promise.all(tokens.map(async (element) => run(element)));
-
-async function fetchSyncMetadata(
-  oada: OADAClient,
-  id: string,
-  key: string
-): Promise<LfSyncMetaData> {
-  try {
-    const r = await oada.get({
-      path: join(id, '_meta/services/lf-sync', key),
-    });
-    // FIXME: Make proper format and assert type
-    return r.data as LfSyncMetaData;
-  } catch (cError: any) {
-    if (cError?.status !== 404) {
-      trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
-      throw cError;
-    }
-  }
-
-  return {};
-}
-
-//// TRELLIS
-// Query the Documents-By-LaserFicheID index managed by this service
-// for the related Trellis document
-async function lookupByLf(
-  oada: OADAClient,
-  file: DocumentEntry
-): Promise<Resource | undefined> {
-  // Check if document is already in Trellis. If so, trigger a re-process. Otherwise, upload it to Trellis.
-  try {
-    let { data } = await oada.get({
-      path: join(BY_LF_PATH, getEntryId(file).toString()),
-    });
-
-    // TODO: Proper assert?
-    return data as Resource;
-  } catch (cError: any) {
-    if (cError?.status !== 404) {
-      error(cError, 'Unexpected error with Trellis!');
-      throw cError;
-    }
-  }
-
-  return;
-}
-
-// Get the list of **PDF** vdocs associated with a Trellis document.
-async function getPdfVdocs(
-  oada: OADAClient,
-  doc: Resource | Link
-): Promise<VDocList> {
-  // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
-  const r = await oada.get({ path: join(doc._id, '_meta/vdoc') });
-
-  //@ts-expect-error
-  // FIXME: Make proper format and assert the type
-  return r.data['pdf'] as VDocList;
-}
-
-// Upload a PDF from Trellis to LaserFiche as a new LF resource
-async function uploadToLF(
-  oada: OADAClient,
-  doc: Resource | Link,
-  key: string
-): Promise<DocumentId> {
-  trace('Creating LF document.');
-  const lfDocument = await createGenericDocument({
-    name: `${doc._id}-${key}.pdf`,
-  });
-
-  trace('Fetching PDF for %s', doc._id);
-  const { data: pdf } = await oada.get({
-    path: doc._id,
-  });
-  if (!Buffer.isBuffer(pdf)) {
-    throw new TypeError(`Expected PDF to be a Buffer, got ${typeof pdf}`);
-  }
-
-  trace('Streaming fetched PDF to Laserfiche');
-  await pipeline(
-    Readable.from(pdf),
-    streamUpload(lfDocument.LaserficheEntryID, 'pdf', pdf.length),
-    new PassThrough()
-  );
-
-  return lfDocument.LaserficheEntryID;
-}
-
-// Lookup the English name for a Trading partner by masterid
-async function tradingPartnerNameByMasterId(
-  oada: OADAClient,
-  masterId: string
-): Promise<string> {
-  const { data: name } = await oada.get({
-    path: join(MASTERID_LIST, masterId, 'name'),
-  });
-
-  return (name || '').toString();
-}
-
-// Update the LF sync metadata in a Trellis
-async function updateSyncMetadata(
-  oada: OADAClient,
-  doc: Resource,
-  key: string,
-  syncMetadata: LfSyncMetaData
-) {
-  await oada.put({
-    path: join(doc._id, '_meta/services/lf-sync/', key),
-    data: {
-      ...syncMetadata,
-      lastSync: new Date().toISOString(),
-    },
-  });
-}
-
-// @ts-expect-error
 function watchPartnerDocs(
   conn: OADAClient,
   work: (masterId: string, item: Resource) => void
@@ -401,4 +292,40 @@ function watchSelfDocs(
     },
   });
   process.on('beforeExit', () => watch.stop());
+}
+
+function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
+  const workQueue = new Map<number, number>();
+  new CronJob(`* * * * * */${LF_POLL_RATE}`, fetchLfTasks, undefined, true);
+
+  async function fetchLfTasks() {
+    while (true) {
+      const start = new Date();
+
+      for (let [id, startTime] of workQueue.entries()) {
+        if (start.getTime() > startTime + LF_JOB_TIMEOUT) {
+          warn(`LF ${id} work never completed. Now eligible for re-queuing.`);
+          workQueue.delete(id);
+        }
+      }
+
+      trace(`${start.toISOString()} Polling LaserFiche.`);
+
+      let files = await browse(LF_AUTOMATION_FOLDER);
+      for (const file of files) {
+        if (!workQueue.has(file.EntryId)) {
+          if (file.Type !== 'Document') {
+            info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);
+            await moveEntry(file, '/_NeedsReview');
+
+            continue;
+          }
+
+          workQueue.set(file.EntryId, Date.now());
+
+          work(file).then(() => workQueue.delete(file.EntryId));
+        }
+      }
+    }
+  }
 }

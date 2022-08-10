@@ -19,11 +19,42 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 
 import { join } from 'node:path';
+import { DOCS_LIST, MASTERID_LIST, LF_AUTOMATION_FOLDER } from './tree.js';
 
 import 'dotenv/config';
 import convict from 'convict';
 
 const config = convict({
+  watch: {
+    partners: {
+      doc: `Watch the ${MASTERID_LIST} for documents`,
+      format: Boolean,
+      default: true,
+      env: 'LF_SYNC_WATCH_PARTNERS',
+      arg: 'watch-partners',
+    },
+    own: {
+      doc: `Watch the ${DOCS_LIST} for documents`,
+      format: Boolean,
+      default: true,
+      env: 'LF_SYNC_WATCH_OWN',
+      arg: 'watch-own',
+    },
+    lf: {
+      doc: `Watch the LF ${LF_AUTOMATION_FOLDER} for documents`,
+      format: Boolean,
+      default: true,
+      env: 'LF_SYNC_WATCH_LF',
+      arg: 'watch-lf',
+    },
+  },
+  concurrency: {
+    doc: `The maximum number of documents to process at one time.`,
+    format: 'int',
+    default: 5,
+    env: 'LF_SYNC_CONCURRENCY',
+    arg: 'concurrency',
+  },
   oada: {
     domain: {
       doc: 'OADA API domain',
@@ -61,6 +92,13 @@ const config = convict({
       format: Number,
       env: 'LF_POLL_RATE_MS',
       arg: 'lf-poll-rate',
+    },
+    timeout: {
+      doc: 'Timeout for a pending document job to complete. In milliseconds.',
+      default: 1000 * 1000,
+      format: Number,
+      env: 'LF_JOB_TIMEOUT',
+      arg: 'lf-job-timeout',
     },
     cws: {
       login: {

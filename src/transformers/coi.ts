@@ -16,13 +16,7 @@
  */
 
 import type { Metadata } from '../cws/metadata.js';
-
-function has<T, K extends string>(
-  value: T,
-  key: K
-): value is T & { [P in K]: unknown } {
-  return value && key in value;
-}
+import { has } from '../utils.js';
 
 export function coiMetadata(document: unknown): Metadata {
   let metadata: Metadata = {

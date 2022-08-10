@@ -22,6 +22,9 @@
  */
 
 import { Blob } from 'node:buffer';
+import { PassThrough, Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { extname } from 'node:path';
 
 import { FormData } from 'formdata-node';
 
@@ -34,6 +37,7 @@ import {
 import { FieldList, Metadata, toFieldList } from './metadata.js';
 import { Path, normalizePath } from './paths.js';
 import cws from './api.js';
+import { streamUpload } from './upload.js';
 
 /**
  * Can be used to set template and field data at time of creation
@@ -83,9 +87,11 @@ export async function createDocument({
 export async function createGenericDocument({
   name,
   metadata,
+  buffer,
 }: {
   name: string;
   metadata?: Record<string, unknown>;
+  buffer: Buffer;
 }) {
   const form = new FormData();
   form.set('DocumentName', name);
@@ -93,11 +99,21 @@ export async function createGenericDocument({
     form.set('Metadata', metadata);
   }
 
-  return cws
+  const r = await cws
     .post('api/CreateGenericDocument', {
       body: form,
     })
     .json<{ LaserficheEntryID: DocumentId }>();
+
+  if (buffer) {
+    await pipeline(
+      Readable.from(buffer),
+      streamUpload(r.LaserficheEntryID, extname(name), buffer.length),
+      new PassThrough()
+    );
+  }
+
+  return r;
 }
 
 export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {
