@@ -63,7 +63,7 @@ const warn = makeDebug('lf-sync:warn');
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
 const CONCURRENCY = config.get('concurrency');
-const LF_POLL_RATE = config.get('laserfiche.pollRate');
+// const LF_POLL_RATE = config.get('laserfiche.pollRate');
 const LF_JOB_TIMEOUT = config.get('laserfiche.timeout');
 
 /**
@@ -296,36 +296,38 @@ function watchSelfDocs(
 
 function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
   const workQueue = new Map<number, number>();
-  new CronJob(`* * * * * */${LF_POLL_RATE}`, fetchLfTasks, undefined, true);
 
-  async function fetchLfTasks() {
-    while (true) {
-      const start = new Date();
+  let job = new CronJob(`*/6 * * * * *`, async () => {
+    console.log('HERE');
+    const start = new Date();
 
-      for (const [id, startTime] of workQueue.entries()) {
-        if (start.getTime() > startTime + LF_JOB_TIMEOUT) {
-          warn(`LF ${id} work never completed. Now eligible for re-queuing.`);
-          workQueue.delete(id);
-        }
-      }
-
-      trace(`${start.toISOString()} Polling LaserFiche.`);
-
-      const files = await browse(LF_AUTOMATION_FOLDER);
-      for (const file of files) {
-        if (!workQueue.has(file.EntryId)) {
-          if (file.Type !== 'Document') {
-            info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);
-            await moveEntry(file, '/_NeedsReview');
-
-            continue;
-          }
-
-          workQueue.set(file.EntryId, Date.now());
-
-          work(file).then(() => workQueue.delete(file.EntryId));
-        }
+    for (const [id, startTime] of workQueue.entries()) {
+      if (start.getTime() > startTime + LF_JOB_TIMEOUT) {
+        warn(`LF ${id} work never completed. Now eligible for re-queuing.`);
+        workQueue.delete(id);
       }
     }
-  }
+
+    trace(`${start.toISOString()} Polling LaserFiche.`);
+
+    const files = await browse(LF_AUTOMATION_FOLDER);
+    for (const file of files) {
+      if (!workQueue.has(file.EntryId)) {
+        if (file.Type !== 'Document') {
+          info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);
+          await moveEntry(file, '/_NeedsReview');
+
+          continue;
+        }
+
+        workQueue.set(file.EntryId, Date.now());
+
+        work(file).then(() => workQueue.delete(file.EntryId));
+      }
+    }
+  });
+
+  job.start();
+
+  return job;
 }
