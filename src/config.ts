@@ -88,7 +88,7 @@ const config = convict({
     },
     pollRate: {
       doc: 'Rate to poll LaserFiche for documents to process. In milliseconds.',
-      default: 10_000,
+      default: 5_000,
       format: Number,
       env: 'LF_POLL_RATE_MS',
       arg: 'lf-poll-rate',
