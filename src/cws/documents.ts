@@ -91,7 +91,7 @@ export async function createGenericDocument({
 }: {
   name: string;
   metadata?: Record<string, unknown>;
-  buffer: Buffer;
+  buffer?: Buffer;
 }) {
   const form = new FormData();
   form.set('DocumentName', name);

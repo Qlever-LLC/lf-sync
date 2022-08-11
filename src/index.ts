@@ -41,6 +41,8 @@ import {
   getMetadata,
   moveEntry,
   setMetadata,
+  EntryIdLike,
+  getEntryId,
 } from './cws/index.js';
 import {
   LfSyncMetaData,
@@ -63,7 +65,7 @@ const warn = makeDebug('lf-sync:warn');
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
 const CONCURRENCY = config.get('concurrency');
-// const LF_POLL_RATE = config.get('laserfiche.pollRate');
+const LF_POLL_RATE = config.get('laserfiche.pollRate');
 const LF_JOB_TIMEOUT = config.get('laserfiche.timeout');
 
 /**
@@ -75,11 +77,15 @@ let oada: OADAClient;
 // OADA is rate limited by @oada/client
 // LF is *NOT* rate limited, but only has sparse calls per *pending document* at this time
 const work = new pQueue({ concurrency: CONCURRENCY });
+let lfCleanup: (id: EntryIdLike) => void | undefined;
 
 /**
  * Start-up for a given user (token)
  */
 async function run(token: string) {
+  info('Service: lf-sync');
+  info(`Version: ${process.env.npm_package_version}`);
+
   // Connect to the OADA API
   const conn = oada
     ? oada.clone(token)
@@ -87,28 +93,28 @@ async function run(token: string) {
 
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
-    watchPartnerDocs(conn, async (masterId, item) =>
-      work.add(async () => processDocument(conn, masterId, item))
+    watchPartnerDocs(conn, (masterId, item) =>
+      work.add(() => processDocument(conn, masterId, item))
     );
   }
 
   // Watch for new "self" documents to process
   if (config.get('watch.own')) {
-    watchSelfDocs(conn, async (item) =>
-      work.add(async () => processDocument(conn, false, item))
+    watchSelfDocs(conn, (item) =>
+      work.add(() => processDocument(conn, false, item))
     );
   }
 
   if (config.get('watch.lf')) {
-    watchLaserfiche(async (file) => {
+    lfCleanup = watchLaserfiche(async (file) => {
       info(`LaserFiche ${file.EntryId} queue for processing.`);
       const document = await lookupByLf(conn, file);
 
       if (document) {
         info('Reprocessing Trellis document %s', document._id);
-        processDocument(conn, false, document);
+        work.add(() => processDocument(conn, false, document));
       } else {
-        await pushToTrellis(conn, file);
+        work.add(() => pushToTrellis(conn, file));
       }
     });
   }
@@ -176,12 +182,16 @@ async function processDocument(
       syncMetadata.fields = {};
     }
 
+    currentFields = Object.assign({}, syncMetadata.fields, currentFields);
+
     // Only take new automation values if not manually changed in the past
     for (const [key, value] of Object.entries(fieldList)) {
-      if (!currentFields || syncMetadata.fields[key] === currentFields[key]) {
-        syncMetadata.fields[key] = value;
+      if (syncMetadata.fields[key] === currentFields[key]) {
+        currentFields[key] = value;
       }
     }
+
+    syncMetadata.fields = currentFields;
 
     trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
     await setMetadata(
@@ -197,7 +207,11 @@ async function processDocument(
     updateSyncMetadata(oada, document, key, syncMetadata);
 
     // Let the LF monitor know we finished if this doc happens to be from LF
-    trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
+    // FIXME: This cleanup channel seems hacked in.
+    if (lfCleanup) {
+      trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
+      lfCleanup(syncMetadata.LaserficheEntryID);
+    }
   }
 }
 
@@ -294,11 +308,12 @@ function watchSelfDocs(
   process.on('beforeExit', async () => watch.stop());
 }
 
-function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
+function watchLaserfiche(
+  task: (file: DocumentEntry) => void
+): (id: EntryIdLike) => void {
   const workQueue = new Map<number, number>();
 
-  let job = new CronJob(`*/6 * * * * *`, async () => {
-    console.log('HERE');
+  let job = new CronJob(`*/${LF_POLL_RATE} * * * * *`, async () => {
     const start = new Date();
 
     for (const [id, startTime] of workQueue.entries()) {
@@ -322,12 +337,15 @@ function watchLaserfiche(work: (file: DocumentEntry) => Promise<void>) {
 
         workQueue.set(file.EntryId, Date.now());
 
-        work(file).then(() => workQueue.delete(file.EntryId));
+        // Do work
+        task(file);
       }
     }
   });
 
   job.start();
 
-  return job;
+  return (id: EntryIdLike) => {
+    workQueue.delete(getEntryId(id));
+  };
 }
