@@ -94,8 +94,8 @@ const config = convict({
       arg: 'lf-poll-rate',
     },
     timeout: {
-      doc: 'Timeout for a pending document job to complete. In milliseconds.',
-      default: 1000 * 1000,
+      doc: 'Timeout for a pending document job to complete. In milliseconds. (default: 2 hrs)',
+      default: 7200 * 1000,
       format: Number,
       env: 'LF_JOB_TIMEOUT',
       arg: 'lf-job-timeout',

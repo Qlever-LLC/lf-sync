@@ -43,6 +43,7 @@ import {
   EntryIdLike,
   getEntryId,
   createDocument,
+  EntryId,
 } from './cws/index.js';
 import {
   LfSyncMetaData,
@@ -327,7 +328,8 @@ function watchLaserfiche(
 
     for (const [id, startTime] of workQueue.entries()) {
       if (start.getTime() > startTime + LF_JOB_TIMEOUT) {
-        warn(`LF ${id} work never completed. Now eligible for re-queuing.`);
+        warn(`LF ${id} work never completed. moved to _NeedsReview`);
+        await moveEntry(id as EntryId, '/_NeedsReview');
         workQueue.delete(id);
       }
     }
