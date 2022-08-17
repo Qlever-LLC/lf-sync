@@ -130,12 +130,6 @@ async function processDocument(
   masterId: string | false,
   document: Resource
 ) {
-  // Aka, an empty object
-  if (Object.keys(document).filter((k) => !k.startsWith('_')).length === 0) {
-    trace('Document has no data. Skipping.');
-    return;
-  }
-
   const fieldList = transform(document);
 
   trace('Fetching vdocs for %s', document._id);
@@ -183,6 +177,12 @@ async function processDocument(
     }
 
     syncMetadata.fields = currentFields;
+
+    // Aka, an empty object
+    if (Object.keys(syncMetadata.fields).length === 0) {
+      trace(`Document vdoc ${key} has no data yet. Skipping.`);
+      continue;
+    }
 
     // Upsert into LF
     if (syncMetadata.LaserficheEntryID) {

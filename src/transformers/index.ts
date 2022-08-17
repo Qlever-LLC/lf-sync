@@ -22,12 +22,14 @@ import { generateGenericMetadata } from './generic.js';
 
 type Transformer = (document: unknown) => Metadata;
 
-export function getTransformer(contentType: string): Transformer {
-  return transformers.get(contentType) || generateGenericMetadata('');
+export function getTransformer(contentType: string): Transformer | undefined {
+  return transformers.get(contentType);
 }
 
 export function transform(document: Resource): Metadata {
-  return getTransformer(document._type)(document);
+  let t = getTransformer(document._type);
+
+  return t ? t(document) : {};
 }
 
 const transformers = new Map<string, Transformer>([
