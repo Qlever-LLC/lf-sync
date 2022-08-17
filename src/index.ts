@@ -37,12 +37,12 @@ import { transform } from './transformers/index.js';
 import {
   DocumentEntry,
   browse,
-  createGenericDocument,
   getMetadata,
   moveEntry,
   setMetadata,
   EntryIdLike,
   getEntryId,
+  createDocument,
 } from './cws/index.js';
 import {
   LfSyncMetaData,
@@ -141,11 +141,12 @@ async function processDocument(
   const vdocs = await getPdfVdocs(conn, document);
 
   // TODO: Replace block with proper master data lookup
+  // We should we probably just use the data from the PDF (target), but without a
+  // proper master data lookup, we can't resolve trading partner aliases. So for now,
+  // we just use the name as known in Trellis.
   if (masterId) {
     const name = await tradingPartnerNameByMasterId(conn, masterId);
-
     fieldList.Entity = name;
-    fieldList['Share Mode'] = 'Shared To Smithfield';
   }
 
   // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
@@ -157,18 +158,7 @@ async function processDocument(
     let currentFields = {} as LfSyncMetaData['fields'];
 
     // Document is new to LF
-    if (!syncMetadata.LaserficheEntryID) {
-      info('Document is new to LF');
-
-      trace('Uploading document to Laserfiche');
-      const lfDocument = await createGenericDocument({
-        name: `${value._id}-${key}`,
-        buffer: await getBuffer(conn, value),
-      });
-
-      info(`Created LF document ${lfDocument.LaserficheEntryID}`);
-      syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
-    } else {
+    if (syncMetadata.LaserficheEntryID) {
       // Fetch the current LF fields to compare for changes
       const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
       currentFields = metadata.LaserficheFieldList.reduce(
@@ -193,15 +183,34 @@ async function processDocument(
 
     syncMetadata.fields = currentFields;
 
-    trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
-    await setMetadata(
-      syncMetadata.LaserficheEntryID,
-      syncMetadata.fields || {},
-      syncMetadata.fields['Document Type']
-    );
+    // Upsert into LF
+    if (syncMetadata.LaserficheEntryID) {
+      trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
+      await setMetadata(
+        syncMetadata.LaserficheEntryID,
+        syncMetadata.fields || {},
+        syncMetadata.fields['Document Type']
+      );
 
-    trace(`Moving the LF document to _Incoming for filing`);
-    await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
+      trace(`Moving the LF document to _Incoming for filing`);
+      await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
+
+      // New to LF
+    } else {
+      info('Document is new to LF');
+
+      trace('Uploading document to Laserfiche');
+      const lfDocument = await createDocument({
+        name: `${document._id}-${key}.pdf`,
+        path: '/_Incoming',
+        metadata: syncMetadata.fields || {},
+        template: syncMetadata.fields['Document Type'],
+        buffer: await getBuffer(conn, value),
+      });
+
+      info(`Created LF document ${lfDocument.LaserficheEntryID}`);
+      syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
+    }
 
     trace('Recording lf-sync metadata to Trellis document');
     updateSyncMetadata(oada, document, key, syncMetadata);

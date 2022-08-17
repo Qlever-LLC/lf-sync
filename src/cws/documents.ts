@@ -38,6 +38,7 @@ import { FieldList, Metadata, toFieldList } from './metadata.js';
 import { Path, normalizePath } from './paths.js';
 import cws from './api.js';
 import { streamUpload } from './upload.js';
+import { __read } from 'tslib';
 
 /**
  * Can be used to set template and field data at time of creation
@@ -56,6 +57,7 @@ export async function createDocument({
   template,
   metadata,
   file,
+  buffer,
 }: {
   path: Path;
   name: string;
@@ -63,6 +65,7 @@ export async function createDocument({
   template?: string;
   metadata?: Metadata | FieldList;
   file?: Buffer | Blob;
+  buffer?: Buffer;
 }) {
   const form = new FormData();
   const parameters = {
@@ -77,21 +80,33 @@ export async function createDocument({
   }
 
   form.set('Parameters', JSON.stringify(parameters));
-  return cws
+  const r = await cws
     .post('api/CreateDocument', {
       body: form,
     })
     .json<{ LaserficheEntryID: DocumentId }>();
+
+  if (buffer) {
+    await pipeline(
+      Readable.from(buffer),
+      streamUpload(
+        r.LaserficheEntryID,
+        extname(name).substring(1),
+        buffer.length
+      ),
+      new PassThrough()
+    );
+  }
+
+  return r;
 }
 
 export async function createGenericDocument({
   name,
   metadata,
-  buffer,
 }: {
   name: string;
   metadata?: Record<string, unknown>;
-  buffer?: Buffer;
 }) {
   const form = new FormData();
   form.set('DocumentName', name);
@@ -104,14 +119,6 @@ export async function createGenericDocument({
       body: form,
     })
     .json<{ LaserficheEntryID: DocumentId }>();
-
-  if (buffer) {
-    await pipeline(
-      Readable.from(buffer),
-      streamUpload(r.LaserficheEntryID, extname(name), buffer.length),
-      new PassThrough()
-    );
-  }
 
   return r;
 }
