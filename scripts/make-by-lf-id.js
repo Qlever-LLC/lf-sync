@@ -14,11 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { connect } from '@oada/client';
+
+/* eslint-disable no-console */
+
 import config from '../dist/config.js';
-import { getMetadata } from '../dist/cws/index.js';
-import { has } from '../dist/utils.js';
-import { tree } from '../dist/tree.js';
+
+import { connect } from '@oada/client';
+
 const { token: tokens, domain } = config.get('oada');
 const basePath = `/bookmarks/trellisfw/trading-partners/masterid-index`;
 
@@ -26,24 +28,47 @@ function removeReserved(keys) {
   return keys.filter((key) => key.charAt(0) !== '_');
 }
 
-async function main() {
-  const oada = await connect({
-    token: tokens[0],
-    domain,
-  });
+setInterval(() => console.log('ping'), 3000);
 
-  const tps = await oada
+const oada = await connect({
+  token: tokens[0],
+  domain,
+});
+
+const { data: tps } = await oada.get({
+  path: basePath,
+});
+
+const tpKeys = removeReserved(Object.keys(tps));
+
+for await (const tp of tpKeys) {
+  const documentTypes = await oada
     .get({
-      path: basePath,
+      path: `${basePath}/${tp}/bookmarks/trellisfw/documents`,
     })
-    .then((r) => r.data);
+    .then((r) => r.data)
+    .catch((error) => {
+      if (error.status !== 404) throw error;
+      return {};
+    });
 
-  const tpKeys = removeReserved(Object.keys(tps));
+  const documentTypeKeys = removeReserved(Object.keys(documentTypes));
 
-  for await (const tp of tpKeys) {
-    const documentTypes = await oada
+  for await (const documentType of documentTypeKeys) {
+    if (documentType === 'code' || documentType === 'name') {
+      console.log(
+        'FOUND bad doctype',
+        `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`
+      );
+      await oada.delete({
+        path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
+      });
+      continue;
+    }
+
+    const docs = await oada
       .get({
-        path: `${basePath}/${tp}/bookmarks/trellisfw/documents`,
+        path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
       })
       .then((r) => r.data)
       .catch((error) => {
@@ -51,23 +76,16 @@ async function main() {
         return {};
       });
 
-    const documentTypeKeys = removeReserved(Object.keys(documentTypes));
+    const documentKeys = removeReserved(Object.keys(docs));
 
-    for await (const documentType of documentTypeKeys) {
-      if (documentType === 'code' || documentType === 'name') {
-        console.log(
-          'FOUND bad doctype',
-          `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`
-        );
-        await oada.delete({
-          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
-        });
-        continue;
-      }
-
-      const docs = await oada
+    for await (const documentKey of documentKeys) {
+      // Now, edit the vdoc structure and write the content to the by-lf-id
+      console.log('Found:', {
+        path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}`,
+      });
+      const document = await oada
         .get({
-          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
+          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}`,
         })
         .then((r) => r.data)
         .catch((error) => {
@@ -75,50 +93,31 @@ async function main() {
           return {};
         });
 
-      const documentKeys = removeReserved(Object.keys(docs));
+      const { data: meta } = await oada.get({
+        path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta`,
+      });
 
-      for await (const documentKey of documentKeys) {
-        // Now, edit the vdoc structure and write the content to the by-lf-id
-        console.log('Found:', {
-          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}`,
+      if (meta?.vdoc?.pdf?._id) {
+        // Old style vdoc pdf that isn't hash indexed
+        console.log(
+          'FOUND AN OLD VDOC PDF',
+          `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta`,
+          meta.vdoc.pdf
+        );
+        await oada.delete({
+          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/vdoc`,
         });
-        const document = await oada
-          .get({
-            path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}`,
-          })
-          .then((r) => r.data)
-          .catch((error) => {
-            if (error.status !== 404) throw error;
-            return {};
-          });
+        const newObject = meta?.vdoc?.pdf;
+        delete newObject._id;
+        await oada.put({
+          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/vdoc/pdf`,
+          data: newObject,
+        });
+      }
 
-        const meta = await oada
-          .get({
-            path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta`,
-          })
-          .then((r) => r.data);
-
-        if (meta?.vdoc?.pdf?._id) {
-          // Old style vdoc pdf that isn't hash indexed
-          console.log(
-            'FOUND AN OLD VDOC PDF',
-            `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta`,
-            meta.vdoc.pdf
-          );
-          await oada.delete({
-            path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/vdoc`,
-          });
-          const newObject = meta?.vdoc?.pdf;
-          delete newObject._id;
-          await oada.put({
-            path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/vdoc/pdf`,
-            data: newObject,
-          });
-        }
-
-        const hashes = removeReserved(Object.keys(meta?.vdoc?.pdf || {}));
-        /*
-        For await (const hash of hashes) {
+      /*
+        Const hashes = removeReserved(Object.keys(meta?.vdoc?.pdf || {}));
+        for await (const hash of hashes) {
 
           let lfid = meta?.services?.['lf-sync']?.LaserficheEntryID?.[hash];
 
@@ -177,23 +176,19 @@ async function main() {
           }
         }
         */
-        console.log(
-          'Delete LaserficheEntryID',
-          JSON.stringify(
-            {
-              path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,
-            },
-            null,
-            2
-          )
-        );
-        await oada.delete({
-          path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,
-        });
-      }
+      console.log(
+        'Delete LaserficheEntryID',
+        JSON.stringify(
+          {
+            path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,
+          },
+          undefined,
+          2
+        )
+      );
+      await oada.delete({
+        path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,
+      });
     }
   }
 }
-
-setInterval(() => console.log('ping'), 3000);
-main();

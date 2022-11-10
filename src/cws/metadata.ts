@@ -23,16 +23,16 @@ import {
 } from './entries.js';
 import cws from './api.js';
 
-export type MetadataFieldSingle = {
+export interface MetadataFieldSingle {
   Name: string;
   IsMulti: false;
   Value: string;
-};
-export type MetadataFieldMulti = {
+}
+export interface MetadataFieldMulti {
   Name: string;
   IsMulti: true;
   Values: readonly string[];
-};
+}
 export type FieldList = Array<MetadataFieldMulti | MetadataFieldSingle>;
 export type Metadata = Record<string, string>; /* | readonly string[]>;*/
 

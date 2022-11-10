@@ -22,7 +22,7 @@ declare module 'isomorphic-timers-promises' {
 declare module 'ava-nock' {
   import type { Scope } from 'nock';
   import type { TestFn } from 'ava';
-  type Options = {
+  interface Options {
     /** @default true */
     decodeResponse: boolean;
     fixtureDir: string;
@@ -39,7 +39,7 @@ declare module 'ava-nock' {
     responseBodyFilter:
       | ((body: string) => string)
       | Parameters<typeof String.prototype.replace>;
-  };
+  }
   export function configure(options: Partial<Options>): void;
   export function setupTests(test: TestFn): void;
 }

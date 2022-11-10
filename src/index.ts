@@ -112,9 +112,9 @@ async function run(token: string) {
 
       if (document) {
         info('Reprocessing Trellis document %s', document._id);
-        work.add(async () => processDocument(conn, false, document));
+        void work.add(async () => processDocument(conn, false, document));
       } else {
-        work.add(async () => pushToTrellis(conn, file));
+        void work.add(async () => pushToTrellis(conn, file));
       }
     });
   }
@@ -149,7 +149,7 @@ async function processDocument(
     if (key === '_id') continue;
 
     const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
-    let currentFields = {} as LfSyncMetaData['fields'];
+    let currentFields: LfSyncMetaData['fields'] = {};
 
     // Document is new to LF
     if (syncMetadata.LaserficheEntryID) {

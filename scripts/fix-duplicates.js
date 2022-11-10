@@ -14,61 +14,66 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/* eslint-disable no-console */
+
 import config from '../dist/config.js';
-import { connect } from '@oada/client';
+
 import { join } from 'node:path';
+
+import { connect } from '@oada/client';
 
 const { token: tokens, domain } = config.get('oada');
 
-async function run() {
-  const oada = await connect({ token: tokens[0] || '', domain });
-  const base = '/bookmarks/trellisfw/trading-partners/masterid-index';
+setInterval(() => console.log('TICK'), 1000);
 
-  const { data: masterIds } = await oada.get({ path: base });
+const oada = await connect({ token: tokens[0] || '', domain });
+const base = '/bookmarks/trellisfw/trading-partners/masterid-index';
 
-  dropTrellis(masterIds);
-  delete masterIds[''];
-  delete masterIds.bookmarks;
-  delete masterIds.smithfield;
+const { data: masterIds } = await oada.get({ path: base });
 
-  // Loop over all master ids
-  for (const [index, mId] of Object.keys(masterIds).entries()) {
-    console.log(`Master id ${index} / ${Object.keys(masterIds).length}`);
-    const documentTypeBase = join(base, mId, '/bookmarks/trellisfw/documents');
-    const { data: documentTypes } = await oada.get({ path: documentTypeBase });
-    dropTrellis(documentTypes);
+dropTrellis(masterIds);
+delete masterIds[''];
+delete masterIds.bookmarks;
+delete masterIds.smithfield;
 
-    // Loop over each master id's document types
-    for (const documentType of Object.keys(documentTypes)) {
-      // Known mistake keys
-      if (
-        documentType === 'name' ||
-        documentType === 'code' ||
-        documentType === 'documents'
-      ) {
-        continue;
-      }
+// Loop over all master ids
+for await (const [index, mId] of Object.keys(masterIds).entries()) {
+  console.log(`Master id ${index} / ${Object.keys(masterIds).length}`);
+  const documentTypeBase = join(base, mId, '/bookmarks/trellisfw/documents');
+  const { data: documentTypes } = await oada.get({ path: documentTypeBase });
+  dropTrellis(documentTypes);
 
-      const documentBase = join(documentTypeBase, documentType);
-      const { data: docs } = await oada.get({ path: documentBase });
-      dropTrellis(docs);
+  // Loop over each master id's document types
+  for await (const documentType of Object.keys(documentTypes)) {
+    // Known mistake keys
+    if (
+      documentType === 'name' ||
+      documentType === 'code' ||
+      documentType === 'documents'
+    ) {
+      continue;
+    }
 
-      // Loop over each master id's document types documents
-      for (const document of Object.keys(docs)) {
-        try {
-          await oada.get({
-            path: join(
-              documentBase,
-              document,
-              '_meta/services/lf-sync/LaserficheEntryID'
-            ),
-          });
-        } catch (error) {
-          if (Number(error.code) === 404) {
-            relinkDocument(oada, documentBase, document);
-          } else {
-            throw error;
-          }
+    const documentBase = join(documentTypeBase, documentType);
+    const { data: docs } = await oada.get({ path: documentBase });
+    dropTrellis(docs);
+
+    // Loop over each master id's document types documents
+    for await (const document of Object.keys(docs)) {
+      try {
+        await oada.get({
+          path: join(
+            documentBase,
+            document,
+            '_meta/services/lf-sync/LaserficheEntryID'
+          ),
+        });
+      } catch (error) {
+        if (Number(error.code) === 404) {
+          await relinkDocument(oada, documentBase, document);
+        } else {
+          throw error;
         }
       }
     }
@@ -93,10 +98,4 @@ function dropTrellis(document) {
   return document;
 }
 
-setInterval(() => console.log('TICK'), 1000);
-
-run()
-  .then(() => {
-    console.log('DONE');
-  })
-  .catch(console.log);
+console.log('DONE');

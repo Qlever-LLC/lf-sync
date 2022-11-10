@@ -30,11 +30,11 @@ import type { DocumentEntry, DocumentId } from './cws/index.js';
 import { getEntryId, retrieveDocumentContent } from './cws/index.js';
 
 export type VDocList = Record<string, Link>;
-export type LfSyncMetaData = {
+export interface LfSyncMetaData {
   lastSync?: string;
   LaserficheEntryID?: DocumentId;
   fields?: Record<string, string>;
-};
+}
 
 const trace = debug('lf-sync:utils:trace');
 const error = debug('lf-sync:utils:error');

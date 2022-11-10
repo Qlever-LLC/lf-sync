@@ -4,6 +4,9 @@
   "description": "Trellis LaserFiche sync service",
   "main": "dist/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "scripts": {
     "build": "tsc -b",
     "start": "node ${INSPECT:-} --enable-source-maps dist/index.js",
