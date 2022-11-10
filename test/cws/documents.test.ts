@@ -56,7 +56,6 @@ test('createDocument with file', async (t) => {
 
 test.failing('createGenericDocument', async (t) => {
   const body = await createGenericDocument({
-    type: 'file',
     name: 'test.generic.txt',
   });
   t.truthy(body.LaserficheEntryID);
