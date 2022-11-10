@@ -20,33 +20,30 @@ import config from './config.js';
 
 import { join } from 'node:path';
 
+import { CronJob } from 'cron';
+import { JsonPointer } from 'json-ptr';
 import makeDebug from 'debug';
 // Promise queue to avoid spamming LF
-import pQueue from 'p-queue';
-import { JsonPointer } from 'json-ptr';
-import { CronJob } from 'cron';
+import PQueue from 'p-queue';
 
-import { OADAClient, connect } from '@oada/client';
-import Resource, {
+import { type Change, ListWatch } from '@oada/list-lib';
+import { type OADAClient, connect } from '@oada/client';
+import {
+  type default as Resource,
   assert as assertResource,
 } from '@oada/types/oada/resource.js';
-import { ListWatch } from '@oada/list-lib';
 
 import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
-import { transform } from './transformers/index.js';
+import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
-  DocumentEntry,
   browse,
+  createDocument,
+  getEntryId,
   getMetadata,
   moveEntry,
   setMetadata,
-  EntryIdLike,
-  getEntryId,
-  createDocument,
-  EntryId,
 } from './cws/index.js';
 import {
-  LfSyncMetaData,
   fetchSyncMetadata,
   getBuffer,
   getPdfVdocs,
@@ -56,6 +53,8 @@ import {
   tradingPartnerNameByMasterId,
   updateSyncMetadata,
 } from './utils.js';
+import type { LfSyncMetaData } from './utils.js';
+import { transform } from './transformers/index.js';
 
 const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
 
@@ -77,7 +76,7 @@ let oada: OADAClient;
 // This queue limits the number of *processing documents* at once.
 // OADA is rate limited by @oada/client
 // LF is *NOT* rate limited, but only has sparse calls per *pending document* at this time
-const work = new pQueue({ concurrency: CONCURRENCY });
+const work = new PQueue({ concurrency: CONCURRENCY });
 let lfCleanup: (id: EntryIdLike) => void | undefined;
 
 /**
@@ -94,15 +93,15 @@ async function run(token: string) {
 
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
-    watchPartnerDocs(conn, (masterId, item) =>
-      work.add(() => processDocument(conn, masterId, item))
+    watchPartnerDocs(conn, async (masterId, item) =>
+      work.add(async () => processDocument(conn, masterId, item))
     );
   }
 
   // Watch for new "self" documents to process
   if (config.get('watch.own')) {
-    watchSelfDocs(conn, (item) =>
-      work.add(() => processDocument(conn, false, item))
+    watchSelfDocs(conn, async (item) =>
+      work.add(async () => processDocument(conn, false, item))
     );
   }
 
@@ -113,9 +112,9 @@ async function run(token: string) {
 
       if (document) {
         info('Reprocessing Trellis document %s', document._id);
-        work.add(() => processDocument(conn, false, document));
+        work.add(async () => processDocument(conn, false, document));
       } else {
-        work.add(() => pushToTrellis(conn, file));
+        work.add(async () => pushToTrellis(conn, file));
       }
     });
   }
@@ -167,7 +166,7 @@ async function processDocument(
       syncMetadata.fields = {};
     }
 
-    currentFields = Object.assign({}, syncMetadata.fields, currentFields);
+    currentFields = { ...syncMetadata.fields, ...currentFields };
 
     // Only take new automation values if not manually changed in the past
     for (const [key, value] of Object.entries(fieldList)) {
@@ -230,12 +229,13 @@ function watchPartnerDocs(
   work: (masterId: string, item: Resource) => void
 ) {
   info('Monitoring %s for new/current partners', MASTERID_LIST);
+  // TODO: Update these to new ListWatch v4 API
   const watch = new ListWatch({
     conn,
     name: 'lf-sync:to-lf',
     resume: false,
     path: MASTERID_LIST,
-    onAddItem(_, masterId) {
+    onAddItem(_: unknown, masterId: string) {
       const documentPath = join(MASTERID_LIST, masterId, DOCS_LIST);
 
       info('Monitoring %s for new/current document types', documentPath);
@@ -244,7 +244,7 @@ function watchPartnerDocs(
         name: `lf-sync:to-lf:${masterId}`,
         resume: false,
         path: documentPath,
-        onAddItem(_, type) {
+        onAddItem(_: unknown, type: string) {
           // Watch for new documents of type `type`
           const path = join(documentPath, type);
 
@@ -256,7 +256,7 @@ function watchPartnerDocs(
             resume: true,
             path,
             assertItem: assertResource,
-            onAddItem(item) {
+            onAddItem(item: Resource) {
               work(masterId, item);
             },
           });
@@ -274,12 +274,13 @@ function watchSelfDocs(
   work: (item: Resource) => Promise<void>
 ) {
   // Watching "self" documents are /bookmarks/trellisfw/documents
+  // TODO: Update these to new ListWatch v4 API
   const watch = new ListWatch({
     conn,
     name: 'lf-sync:to-lf-own',
     resume: false,
     path: DOCS_LIST,
-    onAddItem(_, key) {
+    onAddItem(_: unknown, key: string) {
       // Watch documents at /bookmarks/trellisfw/documents/<type=key>
       const path = join(DOCS_LIST, key);
       trace(`Monitoring ${path} for new/current document types`);
@@ -291,11 +292,11 @@ function watchSelfDocs(
         path,
         assertItem: assertResource,
         // TODO: Can I use onItem here? I don't really recall way I couldn't...
-        async onAddItem(item, documentKey) {
+        async onAddItem(item: Resource, documentKey: string) {
           trace(`Got work (new): ${join(path, documentKey)}`);
           await work(item);
         },
-        async onChangeItem(change, documentKey) {
+        async onChangeItem(change: Change, documentKey: string) {
           if (selfChange.has(change)) {
             trace('Ignoring self made change to resource.');
             return;
@@ -323,10 +324,10 @@ function watchLaserfiche(
 ): (id: EntryIdLike) => void {
   const workQueue = new Map<number, number>();
 
-  let job = new CronJob(`*/${LF_POLL_RATE} * * * * *`, async () => {
+  const job = new CronJob(`*/${LF_POLL_RATE} * * * * *`, async () => {
     const start = new Date();
 
-    for (const [id, startTime] of workQueue.entries()) {
+    for await (const [id, startTime] of workQueue.entries()) {
       if (start.getTime() > startTime + LF_JOB_TIMEOUT) {
         warn(`LF ${id} work never completed. moved to _NeedsReview`);
         await moveEntry(id as EntryId, '/_NeedsReview');
@@ -337,7 +338,7 @@ function watchLaserfiche(
     trace(`${start.toISOString()} Polling LaserFiche.`);
 
     const files = await browse(LF_AUTOMATION_FOLDER);
-    for (const file of files) {
+    for await (const file of files) {
       if (!workQueue.has(file.EntryId)) {
         if (file.Type !== 'Document') {
           info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);

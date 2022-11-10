@@ -17,7 +17,7 @@
 
 import type { Opaque } from 'type-fest';
 
-import { Path, normalizePath } from './paths.js';
+import { type Path, normalizePath } from './paths.js';
 import cws from './api.js';
 
 export type EntryId<T extends BaseEntry = Entry> = Opaque<number, T>;

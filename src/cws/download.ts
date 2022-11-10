@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import { DocumentEntry, EntryIdLike, getEntryId } from './entries.js';
+import { type DocumentEntry, type EntryIdLike, getEntryId } from './entries.js';
 import cws from './api.js';
 
 export async function retrieveDocumentContent(

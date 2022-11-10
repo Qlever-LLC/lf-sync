@@ -19,10 +19,11 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
 
 import { join } from 'node:path';
-import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
 
 import 'dotenv/config';
 import convict from 'convict';
+
+import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
 
 const config = convict({
   watch: {

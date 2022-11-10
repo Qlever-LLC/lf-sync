@@ -22,14 +22,14 @@
  */
 
 import {
-  Entry,
-  EntryIdLike,
-  FolderEntry,
-  FolderId,
+  type Entry,
+  type EntryIdLike,
+  type FolderEntry,
+  type FolderId,
   getEntryId,
 } from './entries.js';
-import { FieldList, Metadata, toFieldList } from './metadata.js';
-import { Path, normalizePath } from './paths.js';
+import { type FieldList, type Metadata, toFieldList } from './metadata.js';
+import { type Path, normalizePath } from './paths.js';
 import cws from './api.js';
 
 /**

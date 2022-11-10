@@ -21,24 +21,23 @@
  * @packageDocumentation
  */
 
-import { Blob } from 'node:buffer';
 import { PassThrough, Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import { Blob } from 'node:buffer';
 import { extname } from 'node:path';
+import { pipeline } from 'node:stream/promises';
 
 import { FormData } from 'formdata-node';
 
 import {
-  DocumentEntry,
-  DocumentId,
-  EntryIdLike,
+  type DocumentEntry,
+  type DocumentId,
+  type EntryIdLike,
   getEntryId,
 } from './entries.js';
-import { FieldList, Metadata, toFieldList } from './metadata.js';
-import { Path, normalizePath } from './paths.js';
+import { type FieldList, type Metadata, toFieldList } from './metadata.js';
+import { type Path, normalizePath } from './paths.js';
 import cws from './api.js';
 import { streamUpload } from './upload.js';
-import { __read } from 'tslib';
 
 /**
  * Can be used to set template and field data at time of creation
@@ -89,11 +88,7 @@ export async function createDocument({
   if (buffer) {
     await pipeline(
       Readable.from(buffer),
-      streamUpload(
-        r.LaserficheEntryID,
-        extname(name).substring(1),
-        buffer.length
-      ),
+      streamUpload(r.LaserficheEntryID, extname(name).slice(1), buffer.length),
       new PassThrough()
     );
   }
@@ -114,13 +109,11 @@ export async function createGenericDocument({
     form.set('Metadata', metadata);
   }
 
-  const r = await cws
+  return cws
     .post('api/CreateGenericDocument', {
       body: form,
     })
     .json<{ LaserficheEntryID: DocumentId }>();
-
-  return r;
 }
 
 export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {

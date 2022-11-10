@@ -15,7 +15,12 @@
  * limitations under the License.
  */
 
-import { Entry, EntryId, EntryIdLike, getEntryId } from './entries.js';
+import {
+  type Entry,
+  type EntryId,
+  type EntryIdLike,
+  getEntryId,
+} from './entries.js';
 import cws from './api.js';
 
 export type MetadataFieldSingle = {

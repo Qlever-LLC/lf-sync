@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 
-import type Resource from '@oada/types/oada/resource';
+import type Resource from '@oada/types/oada/resource.js';
+
 import type { Metadata } from '../cws/index.js';
 import { coiMetadata } from './coi.js';
 import { generateGenericMetadata } from './generic.js';
@@ -27,7 +28,7 @@ export function getTransformer(contentType: string): Transformer | undefined {
 }
 
 export function transform(document: Resource): Metadata {
-  let t = getTransformer(document._type);
+  const t = getTransformer(document._type);
 
   return t ? t(document) : {};
 }

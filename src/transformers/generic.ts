@@ -18,7 +18,7 @@
 import type { Metadata } from '../cws/metadata.js';
 
 export function generateGenericMetadata(type: string) {
-  return function genericMetadata(document: any): Metadata {
+  return function (document: any): Metadata {
     // FIXME: Should this assert the base type with @oada/formats?
 
     const documentDate = document.document_date

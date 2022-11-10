@@ -14,21 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
+
 import bs58 from 'bs58';
 import debug from 'debug';
-import { createHash } from 'node:crypto';
-import {
-  DocumentEntry,
-  DocumentId,
-  getEntryId,
-  retrieveDocumentContent,
-} from './cws/index.js';
-import { BY_LF_PATH, MASTERID_LIST, tree } from './tree.js';
 
+import type { Link } from '@oada/types/oada/link/v1.js';
 import type { OADAClient } from '@oada/client';
 import type Resource from '@oada/types/oada/resource.js';
-import type { Link } from '@oada/types/oada/link/v1';
+
+import { BY_LF_PATH, MASTERID_LIST, tree } from './tree.js';
+import type { DocumentEntry, DocumentId } from './cws/index.js';
+import { getEntryId, retrieveDocumentContent } from './cws/index.js';
 
 export type VDocList = Record<string, Link>;
 export type LfSyncMetaData = {
@@ -114,7 +113,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
   });
 
   trace('Linking into Trellis documents tree.');
-  // FIXME: Can't just do a tree put below becuase of the tree put bug
+  // FIXME: Can't just do a tree put below because of the tree put bug
   await oada.ensure({
     path: '/bookmarks/trellisfw/documents/unidentified',
     tree,
@@ -162,7 +161,7 @@ export async function fetchSyncMetadata(
   } catch (cError: any) {
     if (cError?.status !== 404) {
       trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
-      throw cError;
+      throw cError as Error;
     }
   }
 
@@ -188,7 +187,7 @@ export async function lookupByLf(
   } catch (cError: any) {
     if (cError?.status !== 404) {
       error(cError, 'Unexpected error with Trellis!');
-      throw cError;
+      throw cError as Error;
     }
   }
 
