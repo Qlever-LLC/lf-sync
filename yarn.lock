@@ -242,9 +242,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oada/list-lib@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "@oada/list-lib@npm:4.1.0"
+"@oada/list-lib@npm:^4.1.4":
+  version: 4.1.4
+  resolution: "@oada/list-lib@npm:4.1.4"
   dependencies:
     "@oada/types": ^3.3.0
     abort-controller: ^3.0.0
@@ -257,7 +257,7 @@ __metadata:
     tslib: ^2.4.1
   peerDependencies:
     "@oada/client": ^4.3.2
-  checksum: 3ba3a5ca4d692aa04684ea8e2aeae59bc9c9131e7eb798a78cf8a043da633f6eb0ab04887448cb245000fd74ea30a260262cbfffe9980a45f61496b4bac21468
+  checksum: 3006d026c4bb07a86e67f65767f2f2eaa54f9874d36d9873ba644f5dcc597c838a5faf4227b19f3e8b9d8f343eaecc7ce0b9638e4343d506df04c680b253f424
   languageName: node
   linkType: hard
 
@@ -279,7 +279,7 @@ __metadata:
   dependencies:
     "@ava/typescript": ^3.0.1
     "@oada/client": ^4.4.1
-    "@oada/list-lib": ^4.1.0
+    "@oada/list-lib": ^4.1.4
     "@oada/types": ^3.3.0
     "@tsconfig/node16": ^1.0.3
     "@types/convict": ^6.1.1
