@@ -33,7 +33,7 @@ import {
   assert as assertResource,
 } from '@oada/types/oada/resource.js';
 
-import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
+import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST, masteridTree, tpDocTypesTree, docTypesTree } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
   browse,
@@ -235,6 +235,7 @@ function watchPartnerDocs(
     name: 'lf-sync:to-lf',
     resume: false,
     path: MASTERID_LIST,
+    tree: masteridTree,
     onAddItem(_: unknown, masterId: string) {
       const documentPath = join(MASTERID_LIST, masterId, DOCS_LIST);
 
@@ -244,6 +245,7 @@ function watchPartnerDocs(
         name: `lf-sync:to-lf:${masterId}`,
         resume: false,
         path: documentPath,
+        tree: tpDocTypesTree,
         onAddItem(_: unknown, type: string) {
           // Watch for new documents of type `type`
           const path = join(documentPath, type);
@@ -280,6 +282,7 @@ function watchSelfDocs(
     name: 'lf-sync:to-lf-own',
     resume: false,
     path: DOCS_LIST,
+    tree: docTypesTree,
     onAddItem(_: unknown, key: string) {
       // Watch documents at /bookmarks/trellisfw/documents/<type=key>
       const path = join(DOCS_LIST, key);
