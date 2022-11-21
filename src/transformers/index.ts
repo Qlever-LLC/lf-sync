@@ -78,6 +78,11 @@ const transformers = new Map<string, Transformer>([
   ],
 
   [
+    'application/vnd.trellisfw.ingredient-statement.1+json',
+    generateGenericMetadata('Ingredient Statement'),
+  ],
+
+  [
     'application/vnd.trellisfw.be-ingredient-statement.1+json',
     generateGenericMetadata('Bioengineered (BE) Ingredient Statement'),
   ],
@@ -144,6 +149,11 @@ const transformers = new Map<string, Transformer>([
   ],
 
   [
+    'application/vnd.trellisfw.srm-statement-audit.1+json',
+    generateGenericMetadata('Specified Risk Materials (SRM) Statement / Audit'),
+  ],
+
+  [
     'application/vnd.trellisfw.srm-corrective-actions.1+json',
     generateGenericMetadata(
       'Specified Risk Materials (SRM) Corrective Actions'
@@ -156,13 +166,18 @@ const transformers = new Map<string, Transformer>([
   ],
 
   [
-    'application/vnd.trellisfw.foreign-material-control-plans.1+json',
+    'application/vnd.trellisfw.foreign-material-control-plan.1+json',
     generateGenericMetadata('Foreign Material Control Plan'),
   ],
 
   [
     'application/vnd.trellisfw.animal-welfare-audit.1+json',
     generateGenericMetadata('Animal Welfare Audit'),
+  ],
+
+  [
+    'application/vnd.trellisfw.tpa-animal-welfare-audit.1+json',
+    generateGenericMetadata('Third Party Animal Welfare Audit'),
   ],
 
   [
@@ -211,6 +226,13 @@ const transformers = new Map<string, Transformer>([
   ],
 
   [
+    'application/vnd.trellisfw.tpa-food-safety-audit.1+json',
+    generateGenericMetadata(
+      'Third Party Food Safety GMP Audit'
+    ),
+  ],
+
+  [
     'application/vnd.trellisfw.tpa-corrective-actions.1+json',
     generateGenericMetadata(
       'Third Party Food Safety GMP Audit Corrective Actions'
@@ -230,8 +252,18 @@ const transformers = new Map<string, Transformer>([
   ],
 
   [
+    'application/vnd.trellisfw.tpa-animal-welfare-corrective-actions.1+json',
+    generateGenericMetadata('Third Party Animal Welfare Corrective Actions'),
+  ],
+
+  [
     'application/vnd.trellisfw.fsqa-certificate.1+json',
     generateGenericMetadata('Third Party Food Safety GMP Certificate'),
+  ],
+
+  [
+    'application/vnd.trellisfw.gfsi-certificate.1+json',
+    generateGenericMetadata('GFSI Certificate'),
   ],
 
   [
@@ -262,5 +294,20 @@ const transformers = new Map<string, Transformer>([
   [
     'application/vnd.trellisfw.msa.1+json',
     generateGenericMetadata('Master Service Agreement (MSA)'),
+  ],
+
+  [
+    'application/vnd.trellisfw.letter-of-guarantee.1+json',
+    generateGenericMetadata('Pure Food Guaranty and Indemnification Agreement (LOG)'),
+  ],
+
+  [
+    'application/vnd.trellisfw.signed-vendor-acknowledgement-form.1+json',
+    generateGenericMetadata('Signed Vendor Acknowledgement Form'),
+  ],
+
+  [
+    'application/vnd.trellisfw..1+json',
+    generateGenericMetadata(''),
   ],
 ]);
