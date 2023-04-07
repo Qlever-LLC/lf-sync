@@ -110,6 +110,9 @@ rules:
          */
       onNonMatchingHeader: append
       nonMatchingTolerance: 0.7
+  unicorn/prevent-abbreviations:
+    [warn, { replacements: { db: false, req: false, doc: false, docs: false } }]
+  '@typescript-eslint/no-shadow': [warn, { allow: [_] }]
   sonarjs/no-duplicate-string: [warn, 5]
   sonarjs/cognitive-complexity: warn
   eslint-comments/no-unused-disable: off

@@ -16,9 +16,10 @@
  */
 
 import type { Metadata } from '../cws/metadata.js';
+import type Resource from '@oada/types/oada/resource.js';
 import { has } from '../utils.js';
 
-export function coiMetadata(document: unknown): Metadata {
+export function coiMetadata(document: Resource): Metadata {
   let metadata: Metadata = {
     'Document Type': 'Certificate of Insurance',
   };
@@ -41,7 +42,7 @@ export function coiMetadata(document: unknown): Metadata {
     const effectiveDate = new Date(
       Math.max(
         ...Object.values(policies).map((p) =>
-          Number(new Date(p.effective_date))
+          Number(new Date(p.effective_date as string))
         )
       )
     );

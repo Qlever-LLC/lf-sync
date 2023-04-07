@@ -43,7 +43,7 @@ export function has<T, K extends string>(
   value: T,
   key: K
 ): value is T & { [P in K]: unknown } {
-  return value && key in value;
+  return value && typeof value === 'object' && key in value;
 }
 
 export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
@@ -204,9 +204,8 @@ export async function getPdfVdocs(
   // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
   const r = await oada.get({ path: join(document._id, '_meta/vdoc') });
 
-  // @ts-expect-error
-  // FIXME: Make proper format and assert the type
-  return r.data.pdf as VDocList;
+  // @ts-expect-error FIXME: Make proper format and assert the type
+  return r.data!.pdf as VDocList;
 }
 
 /**
@@ -220,7 +219,7 @@ export async function tradingPartnerNameByMasterId(
     path: join(MASTERID_LIST, masterId, 'name'),
   });
 
-  return (name ?? '').toString();
+  return name?.toString() ?? '';
 }
 
 /**

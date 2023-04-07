@@ -16,13 +16,14 @@
  */
 
 import type { Metadata } from '../cws/metadata.js';
+import type Resource from '@oada/types/oada/resource.js';
 
 export function generateGenericMetadata(type: string) {
-  return function (document: any): Metadata {
+  return function (document: Resource): Metadata {
     // FIXME: Should this assert the base type with @oada/formats?
 
     const documentDate = document.document_date
-      ? new Date(document.document_date)
+      ? new Date(document.document_date as string)
       : new Date();
 
     const metadata: Metadata = {
@@ -31,12 +32,13 @@ export function generateGenericMetadata(type: string) {
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
-      if (document[trellisKey]) {
-        if (lfField.includes('Date')) {
-          metadata[lfField] = new Date(document[trellisKey]).toISOString();
-        } else {
-          metadata[lfField] = document[trellisKey];
-        }
+      // eslint-disable-next-line security/detect-object-injection
+      const value = document[trellisKey] as string;
+      if (value) {
+        // eslint-disable-next-line security/detect-object-injection
+        metadata[lfField] = lfField.includes('Date')
+          ? new Date(value).toISOString()
+          : value;
       }
     }
 
@@ -49,6 +51,7 @@ const metadataMappings = {
   expire_date: 'Expiration Date',
   audit_date: 'Audit Date',
   certifying_body: 'Certifying Body',
+  // eslint-disable-next-line no-secrets/no-secrets
   // 'fsis_directive_108001_compliance',
   effective_date: 'Effective Date', // 'certifying_body.name',
   score: 'Grade Score', // 'score.value',
@@ -62,4 +65,4 @@ const metadataMappings = {
   // 'failures':
   // 'reaudit_date':
   // 'scheme':
-};
+} as const;

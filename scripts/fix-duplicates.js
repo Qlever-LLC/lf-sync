@@ -80,13 +80,13 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
   }
 }
 
-async function relinkDocument(oada, documentBase, document) {
-  const { data } = await oada.get({ path: documentBase });
+async function relinkDocument(conn, documentBase, document) {
+  const { data } = await conn.get({ path: documentBase });
   const link = data[document];
 
   console.log(`Relinking: ${join(documentBase, document)}`);
-  await oada.delete({ path: join(documentBase, document) });
-  await oada.put({ path: join(documentBase, document), data: link });
+  await conn.delete({ path: join(documentBase, document) });
+  await conn.put({ path: join(documentBase, document), data: link });
 }
 
 function dropTrellis(document) {

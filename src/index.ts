@@ -18,6 +18,8 @@
 // Import this first to setup the environment
 import config from './config.js';
 
+import '@oada/pino-debug';
+
 import { join } from 'node:path';
 
 import { CronJob } from 'cron';
@@ -26,6 +28,8 @@ import makeDebug from 'debug';
 // Promise queue to avoid spamming LF
 import PQueue from 'p-queue';
 
+// TODO: Add custom prometheus metrics
+import '@oada/lib-prom';
 import { type Change, ListWatch } from '@oada/list-lib';
 import { type OADAClient, connect } from '@oada/client';
 import {
@@ -33,7 +37,14 @@ import {
   assert as assertResource,
 } from '@oada/types/oada/resource.js';
 
-import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST, masteridTree, tpDocTypesTree, docTypesTree } from './tree.js';
+import {
+  DOCS_LIST,
+  LF_AUTOMATION_FOLDER,
+  MASTERID_LIST,
+  docTypesTree,
+  masteridTree,
+  tpDocTypesTree,
+} from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
   browse,
@@ -145,7 +156,7 @@ async function processDocument(
 
   // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
   for await (const [key, value] of Object.entries(vdocs)) {
-    // TODO: Remove when target-helper vdoc extra link bug is fiexed
+    // TODO: Remove when target-helper vdoc extra link bug is fixed
     if (key === '_id') continue;
 
     const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
@@ -169,9 +180,9 @@ async function processDocument(
     currentFields = { ...syncMetadata.fields, ...currentFields };
 
     // Only take new automation values if not manually changed in the past
-    for (const [key, value] of Object.entries(fieldList)) {
-      if (syncMetadata.fields[key] === currentFields[key]) {
-        currentFields[key] = value;
+    for (const [k, v] of Object.entries(fieldList)) {
+      if (syncMetadata.fields[k] === currentFields[k]) {
+        currentFields[k] = v;
       }
     }
 
@@ -213,6 +224,7 @@ async function processDocument(
     }
 
     trace('Recording lf-sync metadata to Trellis document');
+    // TODO: Shouldn't this be awaited?
     updateSyncMetadata(oada, document, key, syncMetadata);
 
     // Let the LF monitor know we finished if this doc happens to be from LF
@@ -226,7 +238,7 @@ async function processDocument(
 
 function watchPartnerDocs(
   conn: OADAClient,
-  work: (masterId: string, item: Resource) => void
+  callback: (masterId: string, item: Resource) => void
 ) {
   info('Monitoring %s for new/current partners', MASTERID_LIST);
   // TODO: Update these to new ListWatch v4 API
@@ -240,7 +252,7 @@ function watchPartnerDocs(
       const documentPath = join(MASTERID_LIST, masterId, DOCS_LIST);
 
       info('Monitoring %s for new/current document types', documentPath);
-      const watch = new ListWatch({
+      const docTypeWatch = new ListWatch({
         conn,
         name: `lf-sync:to-lf:${masterId}`,
         resume: false,
@@ -251,7 +263,7 @@ function watchPartnerDocs(
           const path = join(documentPath, type);
 
           info('Monitoring %s for new documents of type %s', path, type);
-          const watch = new ListWatch({
+          const docWatch = new ListWatch({
             conn,
             name: `lf-sync:to-lf:${masterId}:${type}`,
             // Only watch for actually new items
@@ -259,13 +271,13 @@ function watchPartnerDocs(
             path,
             assertItem: assertResource,
             onAddItem(item: Resource) {
-              work(masterId, item);
+              callback(masterId, item);
             },
           });
-          process.on('beforeExit', async () => watch.stop());
+          process.on('beforeExit', async () => docWatch.stop());
         },
       });
-      process.on('beforeExit', async () => watch.stop());
+      process.on('beforeExit', async () => docTypeWatch.stop());
     },
   });
   process.on('beforeExit', async () => watch.stop());
@@ -273,7 +285,7 @@ function watchPartnerDocs(
 
 function watchSelfDocs(
   conn: OADAClient,
-  work: (item: Resource) => Promise<void>
+  callback: (item: Resource) => Promise<void>
 ) {
   // Watching "self" documents are /bookmarks/trellisfw/documents
   // TODO: Update these to new ListWatch v4 API
@@ -288,7 +300,7 @@ function watchSelfDocs(
       const path = join(DOCS_LIST, key);
       trace(`Monitoring ${path} for new/current document types`);
 
-      const watch = new ListWatch({
+      const docTypeWatch = new ListWatch({
         conn,
         name: `lf-sync:to-lf-own`,
         resume: true,
@@ -297,7 +309,7 @@ function watchSelfDocs(
         // TODO: Can I use onItem here? I don't really recall way I couldn't...
         async onAddItem(item: Resource, documentKey: string) {
           trace(`Got work (new): ${join(path, documentKey)}`);
-          await work(item);
+          await callback(item);
         },
         async onChangeItem(change: Change, documentKey: string) {
           if (selfChange.has(change)) {
@@ -313,10 +325,10 @@ function watchSelfDocs(
           });
           const item = data.data as Resource;
 
-          await work(item);
+          await callback(item);
         },
       });
-      process.on('beforeExit', async () => watch.stop());
+      process.on('beforeExit', async () => docTypeWatch.stop());
     },
   });
   process.on('beforeExit', async () => watch.stop());

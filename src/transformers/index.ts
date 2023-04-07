@@ -21,7 +21,7 @@ import type { Metadata } from '../cws/index.js';
 import { coiMetadata } from './coi.js';
 import { generateGenericMetadata } from './generic.js';
 
-type Transformer = (document: unknown) => Metadata;
+type Transformer = (document: Resource) => Metadata;
 
 export function getTransformer(contentType: string): Transformer | undefined {
   return transformers.get(contentType);
@@ -227,9 +227,7 @@ const transformers = new Map<string, Transformer>([
 
   [
     'application/vnd.trellisfw.tpa-food-safety-audit.1+json',
-    generateGenericMetadata(
-      'Third Party Food Safety GMP Audit'
-    ),
+    generateGenericMetadata('Third Party Food Safety GMP Audit'),
   ],
 
   [
@@ -298,7 +296,9 @@ const transformers = new Map<string, Transformer>([
 
   [
     'application/vnd.trellisfw.letter-of-guarantee.1+json',
-    generateGenericMetadata('Pure Food Guaranty and Indemnification Agreement (LOG)'),
+    generateGenericMetadata(
+      'Pure Food Guaranty and Indemnification Agreement (LOG)'
+    ),
   ],
 
   [
@@ -306,8 +306,5 @@ const transformers = new Map<string, Transformer>([
     generateGenericMetadata('Signed Vendor Acknowledgement Form'),
   ],
 
-  [
-    'application/vnd.trellisfw..1+json',
-    generateGenericMetadata(''),
-  ],
+  ['application/vnd.trellisfw..1+json', generateGenericMetadata('')],
 ]);

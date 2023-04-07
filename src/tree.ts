@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+/* eslint-disable sonarjs/no-duplicate-string */
+
 import type { Tree } from '@oada/types/oada/tree/v1.js';
 
 /**
@@ -84,15 +86,15 @@ export const masteridTree: Tree = {
     _type: 'application/vnd.oada.bookmarks.1+json',
     _rev: 0,
     trellisfw: {
-      _type: 'application/vnd.oada.trellisfw.1+json',
-      _rev: 0,
+      '_type': 'application/vnd.oada.trellisfw.1+json',
+      '_rev': 0,
       'trading-partners': {
-        _type: 'application/vnd.oada.trellisfw.trading-partners.1+json',
+        '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
         '*': {
           _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
         },
         'masterid-index': {
-          _type: 'application/vnd.oada.trellisfw.trading-partners.1+json',
+          '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
           '*': {
             _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
           },
@@ -100,22 +102,22 @@ export const masteridTree: Tree = {
       },
     },
   },
-}
+};
 
 export const tpDocTypesTree: Tree = {
   bookmarks: {
     _type: 'application/vnd.oada.bookmarks.1+json',
     _rev: 0,
     trellisfw: {
-      _type: 'application/vnd.oada.trellisfw.1+json',
-      _rev: 0,
+      '_type': 'application/vnd.oada.trellisfw.1+json',
+      '_rev': 0,
       'trading-partners': {
-        _type: 'application/vnd.oada.trellisfw.trading-partners.1+json',
+        '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
         '*': {
           _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
         },
         'masterid-index': {
-          _type: 'application/vnd.oada.trellisfw.trading-partners.1+json',
+          '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
           '*': {
             _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
             bookmarks: {
@@ -123,7 +125,8 @@ export const tpDocTypesTree: Tree = {
               trellisfw: {
                 _type: 'application/vnd.oada.trellisfw.1+json',
                 documents: {
-                  _type: 'application/vnd.oada.trellisfw.documentType.1+json',
+                  // eslint-disable-next-line no-secrets/no-secrets
+                  '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
                   '*': {
                     _type: 'application/vnd.oada.trellisfw.documents.1+json',
                   },
@@ -135,7 +138,7 @@ export const tpDocTypesTree: Tree = {
       },
     },
   },
-}
+};
 
 export const docTypesTree: Tree = {
   bookmarks: {
@@ -149,7 +152,7 @@ export const docTypesTree: Tree = {
         '_rev': 0,
         '*': {
           // eslint-disable-next-line no-secrets/no-secrets
-          '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
+          _type: 'application/vnd.oada.trellisfw.documentType.1+json',
         },
       },
     },
