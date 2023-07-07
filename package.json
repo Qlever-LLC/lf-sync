@@ -54,7 +54,7 @@
     "@oada/lib-prom": "^3.8.0",
     "@oada/list-lib": "^4.2.6",
     "@oada/pino-debug": "^3.9.1",
-    "@oada/types": "^3.4.5",
+    "@oada/types": "^3.5.2",
     "bs58": "^5.0.0",
     "convict": "^6.2.4",
     "cron": "^2.3.0",
