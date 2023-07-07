@@ -60,7 +60,7 @@
     "cron": "^2.3.0",
     "debug": "^4.3.4",
     "dotenv": "^16.0.3",
-    "formdata-node": "^5.0.0",
+    "formdata-node": "^5.0.1",
     "got": "^12.6.0",
     "json-ptr": "^3.1.1",
     "ksuid": "^3.0.0",
