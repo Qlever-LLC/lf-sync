@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import config from '../config.js';
+import { config } from '../config.js';
 
 import { join, sep } from 'node:path';
 

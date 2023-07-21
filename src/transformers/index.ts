@@ -20,17 +20,21 @@ import type Resource from '@oada/types/oada/resource.js';
 import type { Metadata } from '../cws/index.js';
 import { coiMetadata } from './coi.js';
 import { generateGenericMetadata } from './generic.js';
+import { ticketMetadata } from './ticket.js';
+import { type OADAClient } from '@oada/client';
 
-type Transformer = (document: Resource) => Metadata;
+type Transformer = (document: Resource, oada?: OADAClient) => Metadata | Promise<Metadata>;
 
 export function getTransformer(contentType: string): Transformer | undefined {
   return transformers.get(contentType);
 }
 
-export function transform(document: Resource): Metadata {
+export async function transform(document: Resource, oada?: OADAClient): Promise<Metadata> {
   const t = getTransformer(document._type);
 
-  return t ? t(document) : {};
+  return t ? document._type === 'application/vnd.zendesk.ticket.1+json' ?
+    await t(document, oada) : t(document)
+  : {};
 }
 
 const transformers = new Map<string, Transformer>([
@@ -307,4 +311,8 @@ const transformers = new Map<string, Transformer>([
   ],
 
   ['application/vnd.trellisfw..1+json', generateGenericMetadata('')],
+
+  [
+    'application/vnd.zendesk.ticket.1+json', ticketMetadata,
+  ],
 ]);

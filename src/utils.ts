@@ -25,7 +25,7 @@ import type { Link } from '@oada/types/oada/link/v1.js';
 import type { OADAClient } from '@oada/client';
 import type Resource from '@oada/types/oada/resource.js';
 
-import { BY_LF_PATH, MASTERID_LIST, tree } from './tree.js';
+import { BY_LF_PATH, tree } from './tree.js';
 import type { DocumentEntry, DocumentId } from './cws/index.js';
 import { getEntryId, retrieveDocumentContent } from './cws/index.js';
 
@@ -143,6 +143,16 @@ export async function getBuffer(
 
   return buffer;
 }
+/**
+ * fetch the filename on a vdoc resource
+ * @param oada
+ */
+export async function fetchVdocFilename(oada: OADAClient, vdocResourceId: string) {
+  const { data: meta } = await oada.get({
+    path: `/${vdocResourceId}/_meta/filename`
+  })
+  return meta;
+}
 
 /**
  * Fetch the sync metadata stored in Trellis from prior operations
@@ -211,15 +221,15 @@ export async function getPdfVdocs(
 /**
  * Lookup the English name for a Trading partner by masterid
  */
-export async function tradingPartnerNameByMasterId(
+export async function tradingPartnerByMasterId(
   oada: OADAClient,
   masterId: string
-): Promise<string> {
-  const { data: name } = await oada.get({
-    path: join(MASTERID_LIST, masterId, 'name'),
+): Promise<{name: string; externalIds: string[]}> {
+  const { data } = await oada.get({
+    path: `/${masterId}`,
   });
 
-  return name?.toString() ?? '';
+  return data;
 }
 
 /**

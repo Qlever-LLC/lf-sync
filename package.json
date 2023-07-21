@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "dev": "tsc -b --watch",
     "start": "node ${INSPECT:-} --enable-source-maps dist/index.js",
     "test": "yarn build test && c8 ava",
     "test:debug": "ava -T 60m -svc 1 --no-worker-threads",
@@ -50,7 +51,8 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@oada/client": "^4.5.0",
+    "@oada/client": "^4.5.5",
+    "@oada/lib-config": "^3.9.1",
     "@oada/lib-prom": "^3.8.0",
     "@oada/list-lib": "^4.2.6",
     "@oada/pino-debug": "^3.9.1",
@@ -64,8 +66,8 @@
     "got": "^12.6.0",
     "json-ptr": "^3.1.1",
     "ksuid": "^3.0.0",
-    "p-queue": "^7.3.4",
-    "tslib": "^2.5.0"
+    "mssql": "^9.1.1",
+    "p-queue": "^7.3.4"
   },
   "devDependencies": {
     "@ava/typescript": "^4.0.0",
@@ -73,6 +75,7 @@
     "@types/convict": "^6.1.1",
     "@types/cron": "^2.0.1",
     "@types/debug": "^4.1.7",
+    "@types/mssql": "^8.1.2",
     "@types/node": "^16.18.23",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "@typescript-eslint/parser": "^5.57.1",
@@ -107,6 +110,7 @@
     "eslint-plugin-sonarjs": "^0.19.0",
     "eslint-plugin-unicorn": "^46.0.0",
     "prettier": "^2.8.7",
+    "tslib": "^2.6.0",
     "type-fest": "^3.8.0",
     "typescript": "5.0.3"
   },

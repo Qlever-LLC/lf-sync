@@ -17,18 +17,14 @@
 
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/consistent-type-assertions */
-
+import libConfig from '@oada/lib-config';
+import { DOCS_LIST, LF_AUTOMATION_FOLDER, TRADING_PARTNER_LIST } from './tree.js';
 import { join } from 'node:path';
 
-import 'dotenv/config';
-import convict from 'convict';
-
-import { DOCS_LIST, LF_AUTOMATION_FOLDER, MASTERID_LIST } from './tree.js';
-
-const config = convict({
+export const { config } = await libConfig({
   watch: {
     partners: {
-      doc: `Watch the ${MASTERID_LIST} for documents`,
+      doc: `Watch the ${TRADING_PARTNER_LIST} for documents`,
       format: Boolean,
       default: true,
       env: 'LF_SYNC_WATCH_PARTNERS',
@@ -110,7 +106,7 @@ const config = convict({
           format: String,
           env: 'CWS_USER',
           arg: 'cws-user',
-        } as convict.SchemaObj<string | null>,
+        },
         password: {
           doc: 'CWS login password',
           nullable: true,
@@ -118,7 +114,7 @@ const config = convict({
           format: String,
           env: 'CWS_PASSWORD',
           arg: 'cws-password',
-        } as convict.SchemaObj<string | null>,
+        },
         serverName: {
           doc: 'CWS server name',
           nullable: true,
@@ -126,7 +122,7 @@ const config = convict({
           format: String,
           env: 'CWS_SERVER',
           arg: 'cws-server',
-        } as convict.SchemaObj<string | null>,
+        },
       },
       token: {
         doc: 'CWS API token',
@@ -135,7 +131,7 @@ const config = convict({
         format: String,
         env: 'CWS_TOKEN',
         arg: 'cws-token',
-      } as convict.SchemaObj<string | null>,
+      },
       apiRoot: {
         doc: 'CWS API root URL',
         default: 'http://localhost/CWSAPI/',
@@ -145,18 +141,47 @@ const config = convict({
       },
     },
   },
+  'lfdynamic': {
+    password: {
+      doc: 'password for accessing LFDynamic MSSQL Table',
+      format: String,
+      default: '',
+      env: 'LFDYNAMIC_PASS',
+      arg: 'lfdynamic-pass',
+    },
+    port: {
+      doc: 'port for accessing LFDynamic',
+      format: Number,
+      default: 0,
+      env: 'LFDYNAMIC_PORT',
+      arg: 'lfdynamic-DB',
+    },
+    database: {
+      doc: 'Database for accessing LFDynamic',
+      format: String,
+      default: '',
+      env: 'LFDYNAMIC_DB',
+      arg: 'lfdynamic-db',
+    },
+    user: {
+      doc: 'Username for accessing LFDynamic',
+      format: String,
+      default: '',
+      env: 'LFDYNAMIC_USER',
+      arg: 'lfdynamic-user',
+    },
+    server: {
+      doc: 'Username for accessing LFDynamic',
+      format: String,
+      default: '',
+      env: 'LFDYNAMIC_SERVER',
+      arg: 'lfdynamic-server',
+    },
+  },
 });
-
-/**
- * Error if our options are invalid.
- * Warn if extra options found.
- */
-config.validate({ allowed: 'warn' });
 
 // Normalize the folder path
 config.set(
   'laserfiche.baseFolder',
   join('/', config.get('laserfiche.baseFolder') ?? '') as `/${string}`
 );
-
-export default config;

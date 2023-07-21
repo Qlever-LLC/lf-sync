@@ -16,7 +16,7 @@
  */
 
 // Import this first to setup the environment
-import config from './config.js';
+import { config } from './config.js';
 
 import '@oada/pino-debug';
 
@@ -40,10 +40,10 @@ import {
 import {
   DOCS_LIST,
   LF_AUTOMATION_FOLDER,
-  MASTERID_LIST,
+  TRADING_PARTNER_LIST,
   docTypesTree,
-  masteridTree,
   tpDocTypesTree,
+  tradingPartnerTree,
 } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
@@ -56,12 +56,13 @@ import {
 } from './cws/index.js';
 import {
   fetchSyncMetadata,
+  fetchVdocFilename,
   getBuffer,
   getPdfVdocs,
   has,
   lookupByLf,
   pushToTrellis,
-  tradingPartnerNameByMasterId,
+  tradingPartnerByMasterId,
   updateSyncMetadata,
 } from './utils.js';
 import type { LfSyncMetaData } from './utils.js';
@@ -140,7 +141,7 @@ async function processDocument(
   masterId: string | false,
   document: Resource
 ) {
-  const fieldList = transform(document);
+  const fieldList = await transform(document, conn);
 
   trace('Fetching vdocs for %s', document._id);
   const vdocs = await getPdfVdocs(conn, document);
@@ -150,14 +151,24 @@ async function processDocument(
   // proper master data lookup, we can't resolve trading partner aliases. So for now,
   // we just use the name as known in Trellis.
   if (masterId) {
-    const name = await tradingPartnerNameByMasterId(conn, masterId);
-    fieldList.Entity = name;
+    const { name, externalIds } = await tradingPartnerByMasterId(conn, masterId);
+    fieldList.Entity = name.toString() ?? '';
+    const xids = externalIds
+      .filter((xid: string) => xid.startsWith('sap:'))
+      .map((xid: string) => xid.replace(/^sap:/, ''))
+      .join(',')
+    fieldList['SAP Number'] = xids;
   }
 
   // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
   for await (const [key, value] of Object.entries(vdocs)) {
     // TODO: Remove when target-helper vdoc extra link bug is fixed
     if (key === '_id') continue;
+
+    // I apologize for the hackery.  We need a way to set fields on a per-vdoc basis...
+    if (fieldList['Document Type'] === 'Zendesk Ticket') {
+      fieldList['Original Filename'] = await fetchVdocFilename(oada, value._id)
+    }
 
     const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
     let currentFields: LfSyncMetaData['fields'] = {};
@@ -240,16 +251,16 @@ function watchPartnerDocs(
   conn: OADAClient,
   callback: (masterId: string, item: Resource) => void
 ) {
-  info('Monitoring %s for new/current partners', MASTERID_LIST);
+  info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
   const watch = new ListWatch({
     conn,
     name: 'lf-sync:to-lf',
     resume: false,
-    path: MASTERID_LIST,
-    tree: masteridTree,
+    path: TRADING_PARTNER_LIST,
+    tree: tradingPartnerTree,
     onAddItem(_: unknown, masterId: string) {
-      const documentPath = join(MASTERID_LIST, masterId, DOCS_LIST);
+      const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
 
       info('Monitoring %s for new/current document types', documentPath);
       const docTypeWatch = new ListWatch({
@@ -334,6 +345,11 @@ function watchSelfDocs(
   process.on('beforeExit', async () => watch.stop());
 }
 
+/**
+ *  The polling loop for running a task on LF documents
+ * @param task a task to perform on a LF Document
+ * @returns a method for how to clean up this type of task
+ */
 function watchLaserfiche(
   task: (file: DocumentEntry) => void
 ): (id: EntryIdLike) => void {
