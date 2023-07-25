@@ -1,6 +1,6 @@
 {
   "name": "@qlever-llc/lf-sync",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "Trellis LaserFiche sync service",
   "main": "dist/index.js",
   "type": "module",
@@ -117,8 +117,5 @@
   "packageManager": "yarn@3.5.0",
   "volta": {
     "node": "16.15.1"
-  },
-  "resolutions": {
-    "@oada/client": "portal:/home/sanoel/client"
   }
 }
