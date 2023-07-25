@@ -15,20 +15,17 @@
  * limitations under the License.
  */
 import type { Metadata } from '../cws/metadata.js';
-import type { OADAClient } from '@oada/client';
 import type Resource from '@oada/types/oada/resource.js';
 
-export async function ticketMetadata(document: Resource, oada: OADAClient): Promise<Metadata> {
+export async function ticketMetadata(document: Resource): Promise<Metadata> {
 
-  const { data: meta } = await oada.get({
-    path: `/${document._id}/_meta/filename`
-  })
+  const doc = document as unknown as Ticket;
 
   return {
-    'Entity': document.organization.name,
+    'Entity': doc.organization.name,
     'Document Type': 'Zendesk Ticket',
-    'Document Date': document.created_at,
-    'Zendesk Ticket ID': document.id,
+    'Document Date': doc.created_at,
+    'Zendesk Ticket ID': doc.id.toString(),
     'Share Mode': 'Shared From Smithfield',
   }
 }

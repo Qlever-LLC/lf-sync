@@ -21,20 +21,17 @@ import type { Metadata } from '../cws/index.js';
 import { coiMetadata } from './coi.js';
 import { generateGenericMetadata } from './generic.js';
 import { ticketMetadata } from './ticket.js';
-import { type OADAClient } from '@oada/client';
 
-type Transformer = (document: Resource, oada?: OADAClient) => Metadata | Promise<Metadata>;
+type Transformer = (document: Resource) => Metadata | Promise<Metadata>;
 
 export function getTransformer(contentType: string): Transformer | undefined {
   return transformers.get(contentType);
 }
 
-export async function transform(document: Resource, oada?: OADAClient): Promise<Metadata> {
+export async function transform(document: Resource): Promise<Metadata> {
   const t = getTransformer(document._type);
 
-  return t ? document._type === 'application/vnd.zendesk.ticket.1+json' ?
-    await t(document, oada) : t(document)
-  : {};
+  return t ? t(document) : {};
 }
 
 const transformers = new Map<string, Transformer>([

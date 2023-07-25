@@ -151,7 +151,7 @@ export async function fetchVdocFilename(oada: OADAClient, vdocResourceId: string
   const { data: meta } = await oada.get({
     path: `/${vdocResourceId}/_meta/filename`
   })
-  return meta;
+  return meta as unknown as string;
 }
 
 /**
@@ -212,7 +212,7 @@ export async function getPdfVdocs(
   document: Resource | Link
 ): Promise<VDocList> {
   // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
-  const r = await oada.get({ path: join(document._id, '_meta/vdoc') });
+  const r = await oada.get({ path: `/${join(document._id, '_meta/vdoc')}` });
 
   // @ts-expect-error FIXME: Make proper format and assert the type
   return r.data!.pdf as VDocList;
@@ -227,7 +227,7 @@ export async function tradingPartnerByMasterId(
 ): Promise<{name: string; externalIds: string[]}> {
   const { data } = await oada.get({
     path: `/${masterId}`,
-  });
+  }) as unknown as { data: { name: string; externalIds: string[] } };
 
   return data;
 }

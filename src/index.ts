@@ -73,6 +73,7 @@ const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
 const trace = makeDebug('lf-sync:trace');
 const info = makeDebug('lf-sync:info');
 const warn = makeDebug('lf-sync:warn');
+const error = makeDebug('lf-sync:error');
 
 // Stuff from config
 const { token: tokens, domain } = config.get('oada');
@@ -141,109 +142,114 @@ async function processDocument(
   masterId: string | false,
   document: Resource
 ) {
-  const fieldList = await transform(document, conn);
+  try {
+    const fieldList = await transform(document);
 
-  trace('Fetching vdocs for %s', document._id);
-  const vdocs = await getPdfVdocs(conn, document);
+    trace('Fetching vdocs for %s', document._id);
+    const vdocs = await getPdfVdocs(conn, document);
 
-  // TODO: Replace block with proper master data lookup
-  // We should we probably just use the data from the PDF (target), but without a
-  // proper master data lookup, we can't resolve trading partner aliases. So for now,
-  // we just use the name as known in Trellis.
-  if (masterId) {
-    const { name, externalIds } = await tradingPartnerByMasterId(conn, masterId);
-    fieldList.Entity = name.toString() ?? '';
-    const xids = externalIds
-      .filter((xid: string) => xid.startsWith('sap:'))
-      .map((xid: string) => xid.replace(/^sap:/, ''))
-      .join(',')
-    fieldList['SAP Number'] = xids;
-  }
-
-  // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
-  for await (const [key, value] of Object.entries(vdocs)) {
-    // TODO: Remove when target-helper vdoc extra link bug is fixed
-    if (key === '_id') continue;
-
-    // I apologize for the hackery.  We need a way to set fields on a per-vdoc basis...
-    if (fieldList['Document Type'] === 'Zendesk Ticket') {
-      fieldList['Original Filename'] = await fetchVdocFilename(oada, value._id)
+    // TODO: Replace block with proper master data lookup
+    // We should we probably just use the data from the PDF (target), but without a
+    // proper master data lookup, we can't resolve trading partner aliases. So for now,
+    // we just use the name as known in Trellis.
+    if (masterId) {
+      const { name, externalIds } = await tradingPartnerByMasterId(conn, `resources${masterId}`);
+      fieldList.Entity = name.toString() ?? '';
+      const xids = externalIds
+        .filter((xid: string) => xid.startsWith('sap:'))
+        .map((xid: string) => xid.replace(/^sap:/, ''))
+        .join(',')
+      fieldList['SAP Number'] = xids;
     }
 
-    const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
-    let currentFields: LfSyncMetaData['fields'] = {};
+    // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
+    for await (const [key, value] of Object.entries(vdocs)) {
+      // TODO: Remove when target-helper vdoc extra link bug is fixed
+      if (key === '_id') continue;
 
-    // Document is new to LF
-    if (syncMetadata.LaserficheEntryID) {
-      // Fetch the current LF fields to compare for changes
-      const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
-      currentFields = metadata.LaserficheFieldList.reduce(
-        (o, f) =>
-          has(f, 'Value') && f.Value !== '' ? { ...o, [f.Name]: f.Value } : o,
-        {}
-      );
-    }
+      // I apologize for the hackery.  We need a way to set fields on a per-vdoc basis...
+      if (fieldList['Document Type'] === 'Zendesk Ticket') {
+        fieldList['Original Filename'] = await fetchVdocFilename(oada, value._id);
+      }
 
-    if (!syncMetadata.fields) {
-      syncMetadata.fields = {};
-    }
+      const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
+      let currentFields: LfSyncMetaData['fields'] = {};
 
-    currentFields = { ...syncMetadata.fields, ...currentFields };
+      // Document is new to LF
+      if (syncMetadata.LaserficheEntryID) {
+        // Fetch the current LF fields to compare for changes
+        const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
+        currentFields = metadata.LaserficheFieldList.reduce(
+          (o, f) =>
+            has(f, 'Value') && f.Value !== '' ? { ...o, [f.Name]: f.Value } : o,
+          {}
+        );
+      }
 
-    // Only take new automation values if not manually changed in the past
-    for (const [k, v] of Object.entries(fieldList)) {
-      if (syncMetadata.fields[k] === currentFields[k]) {
-        currentFields[k] = v;
+      if (!syncMetadata.fields) {
+        syncMetadata.fields = {};
+      }
+
+      currentFields = { ...syncMetadata.fields, ...currentFields };
+
+      // Only take new automation values if not manually changed in the past
+      for (const [k, v] of Object.entries(fieldList)) {
+        if (syncMetadata.fields[k] === currentFields[k]) {
+          currentFields[k] = v;
+        }
+      }
+
+      syncMetadata.fields = currentFields;
+
+      // Aka, an empty object
+      if (Object.keys(syncMetadata.fields).length === 0) {
+        trace(`Document vdoc ${key} has no data yet. Skipping.`);
+        continue;
+      }
+
+      // Upsert into LF
+      if (syncMetadata.LaserficheEntryID) {
+        trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
+        await setMetadata(
+          syncMetadata.LaserficheEntryID,
+          syncMetadata.fields || {},
+          syncMetadata.fields['Document Type']
+        );
+
+        trace(`Moving the LF document to _Incoming for filing`);
+        await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
+
+        // New to LF
+      } else {
+        info('Document is new to LF');
+
+        trace('Uploading document to Laserfiche');
+        const lfDocument = await createDocument({
+          name: `${document._id}-${key}.pdf`,
+          path: '/_Incoming',
+          metadata: syncMetadata.fields || {},
+          template: syncMetadata.fields['Document Type'],
+          buffer: await getBuffer(conn, value),
+        });
+
+        info(`Created LF document ${lfDocument.LaserficheEntryID}`);
+        syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
+      }
+
+      trace('Recording lf-sync metadata to Trellis document');
+      // TODO: Shouldn't this be awaited?
+      updateSyncMetadata(oada, document, key, syncMetadata);
+
+      // Let the LF monitor know we finished if this doc happens to be from LF
+      // FIXME: This cleanup channel seems hacked in.
+      if (lfCleanup) {
+        trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
+        lfCleanup(syncMetadata.LaserficheEntryID);
       }
     }
-
-    syncMetadata.fields = currentFields;
-
-    // Aka, an empty object
-    if (Object.keys(syncMetadata.fields).length === 0) {
-      trace(`Document vdoc ${key} has no data yet. Skipping.`);
-      continue;
-    }
-
-    // Upsert into LF
-    if (syncMetadata.LaserficheEntryID) {
-      trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
-      await setMetadata(
-        syncMetadata.LaserficheEntryID,
-        syncMetadata.fields || {},
-        syncMetadata.fields['Document Type']
-      );
-
-      trace(`Moving the LF document to _Incoming for filing`);
-      await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
-
-      // New to LF
-    } else {
-      info('Document is new to LF');
-
-      trace('Uploading document to Laserfiche');
-      const lfDocument = await createDocument({
-        name: `${document._id}-${key}.pdf`,
-        path: '/_Incoming',
-        metadata: syncMetadata.fields || {},
-        template: syncMetadata.fields['Document Type'],
-        buffer: await getBuffer(conn, value),
-      });
-
-      info(`Created LF document ${lfDocument.LaserficheEntryID}`);
-      syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
-    }
-
-    trace('Recording lf-sync metadata to Trellis document');
-    // TODO: Shouldn't this be awaited?
-    updateSyncMetadata(oada, document, key, syncMetadata);
-
-    // Let the LF monitor know we finished if this doc happens to be from LF
-    // FIXME: This cleanup channel seems hacked in.
-    if (lfCleanup) {
-      trace(`Marked ${syncMetadata.LaserficheEntryID} as finished.`);
-      lfCleanup(syncMetadata.LaserficheEntryID);
-    }
+  } catch (err: any) {
+    error(`Could not sync document ${document._id}. Error occurred:`);
+    error(err);
   }
 }
 
