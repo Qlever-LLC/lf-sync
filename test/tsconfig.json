@@ -5,7 +5,7 @@
     "rootDir": ".",
     "outDir": "../.test"
   },
-  "include": ["."],
+  "include": [".", "../src/requeueNeedsReview.ts"],
   "references": [
     {
       "path": "../"

@@ -162,6 +162,19 @@ async function processDocument(
       fieldList['SAP Number'] = xids;
     }
 
+    if (!fieldList['Share Mode']) {
+      try {
+        const { data: shareMode } = (await oada.get({
+          path: `/${document._id}/_meta/shared`,
+        })) as unknown as { data: string };
+        fieldList['Share Mode'] = shareMode === 'incoming' ?
+          'Shared To Smithfield'
+          : 'Shared From Smithfield';
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
     // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
     for await (const [key, value] of Object.entries(vdocs)) {
       // TODO: Remove when target-helper vdoc extra link bug is fixed

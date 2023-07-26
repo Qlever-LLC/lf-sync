@@ -35,6 +35,7 @@ export interface DocumentEntry extends BaseEntry {
   LaserficheEntryID: DocumentId;
   Type: 'Document';
   FieldDataList: FieldData[];
+  TemplateName: string;
 }
 
 export interface FieldData {

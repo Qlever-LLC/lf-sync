@@ -26,7 +26,7 @@ export async function ticketMetadata(document: Resource): Promise<Metadata> {
     'Document Type': 'Zendesk Ticket',
     'Document Date': doc.created_at,
     'Zendesk Ticket ID': doc.id.toString(),
-    'Share Mode': 'Shared From Smithfield',
+    //'Share Mode': 'Shared From Smithfield',
   }
 }
 
