@@ -172,6 +172,7 @@ async function processDocument(
           : 'Shared From Smithfield';
       } catch (err) {
         console.log(err);
+        fieldList['Share Mode'] = 'incoming';
       }
     }
 
