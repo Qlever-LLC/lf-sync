@@ -155,3 +155,7 @@ dist
 !.yarn/plugins
 !.yarn/versions
 .pnp.*
+
+# some script files git build complained about?
+requeueNeedsReview.ts
+pruneDuplicates.ts
