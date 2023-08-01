@@ -43,7 +43,6 @@ import {
   TRADING_PARTNER_LIST,
   docTypesTree,
   tpDocTypesTree,
-  tradingPartnerTree,
 } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
