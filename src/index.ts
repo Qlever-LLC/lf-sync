@@ -171,7 +171,7 @@ async function processDocument(
           'Shared To Smithfield'
           : 'Shared From Smithfield';
       } catch (err) {
-        console.log(err);
+        error.log(err);
         fieldList['Share Mode'] = 'incoming';
       }
     }
@@ -278,7 +278,7 @@ function watchPartnerDocs(
     name: 'lf-sync:to-lf',
     resume: false,
     path: TRADING_PARTNER_LIST,
-    tree: tradingPartnerTree,
+    tree: tpDocTypesTree,
     onAddItem(_: unknown, masterId: string) {
       const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
 
