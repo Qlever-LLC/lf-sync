@@ -59,6 +59,21 @@ export const tree: Tree = {
             _type: 'application/vnd.oada.trellisfw.1+json',
           },
         },
+        'jobs': {
+          '_type': 'application/vnd.oada.service..1+json',
+          '_rev': 0,
+          'reports': {
+            '_type': 'application/vnd.oada.service.reports.1+json',
+            '*': {
+              _type: 'application/vnd.oada.service.report.1+json',
+              'day-index': {
+                '*': {
+                  _type: 'application/vnd.oada.service.report.1+json',
+                },
+              },
+            },
+          },
+        },
       },
     },
     trellisfw: {

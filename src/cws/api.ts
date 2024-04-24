@@ -27,7 +27,7 @@ import got from 'got';
 
 const {
   repository,
-  cws: { apiRoot, login, token },
+  cws: { apiRoot, login, timeout, token },
 } = config.get('laserfiche');
 
 const client = got.extend({
@@ -36,7 +36,7 @@ const client = got.extend({
     rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
   },
   timeout: {
-    request: 10_000,
+    request: timeout,
   },
 });
 

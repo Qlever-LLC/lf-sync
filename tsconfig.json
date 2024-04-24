@@ -6,7 +6,7 @@
     "moduleResolution": "node16",
     "removeComments": true,
     "stripInternal": true,
-    "importHelpers": true,
+    "importHelpers": false,
     "alwaysStrict": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,

@@ -60,6 +60,13 @@ export const { config } = await libConfig({
       env: 'DOMAIN',
       arg: 'domain',
     },
+    timeout: {
+      doc: 'OADA client timeout used on requests',
+      format: Number,
+      default: 10000,
+      env: 'OADA_TIMEOUT',
+      arg: 'timeout',
+    },
     token: {
       doc: 'OADA API token',
       format: Array,
@@ -139,6 +146,13 @@ export const { config } = await libConfig({
         env: 'CWS_API',
         arg: 'cws-api',
       },
+      timeout: {
+        doc: 'CWS API timeout for individual requests',
+        default: 10_000,
+        format: Number,
+        env: 'CWS_TIMEOUT',
+        arg: 'cws-timeout',
+      }
     },
   },
   'lfdynamic': {

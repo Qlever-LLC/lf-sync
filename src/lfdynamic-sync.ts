@@ -18,7 +18,8 @@
 import { config } from './config.js';
 
 import type { JsonObject } from '@oada/client';
-import { connect, doJob, type OADAClient } from '@oada/client';
+import { connect, type OADAClient } from '@oada/client';
+import { doJob } from '@oada/client/jobs';
 import sql from 'mssql';
 import debug from 'debug';
 const info = debug('lf-sync--lfdynamic:info');

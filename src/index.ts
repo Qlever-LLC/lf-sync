@@ -27,9 +27,10 @@ import { JsonPointer } from 'json-ptr';
 import makeDebug from 'debug';
 // Promise queue to avoid spamming LF
 import PQueue from 'p-queue';
+import ksuid from 'ksuid'
 
 // TODO: Add custom prometheus metrics
-import '@oada/lib-prom';
+import { Counter, /*Gauge, Histogram, Summary*/ } from '@oada/lib-prom';
 import { type Change, ListWatch } from '@oada/list-lib';
 import { type OADAClient, connect } from '@oada/client';
 import {
@@ -43,6 +44,7 @@ import {
   TRADING_PARTNER_LIST,
   docTypesTree,
   tpDocTypesTree,
+  tree,
 } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
@@ -79,6 +81,21 @@ const { token: tokens, domain } = config.get('oada');
 const CONCURRENCY = config.get('concurrency');
 const LF_POLL_RATE = config.get('laserfiche.pollRate');
 const LF_JOB_TIMEOUT = config.get('laserfiche.timeout');
+const REPORT_PATH = '/bookmarks/services/lf-sync/jobs/reports/docs-synced';
+
+// Prometheus Metrics
+const incoming = new Counter({
+  name: 'lf_sync_items_received',
+  help: 'Number of items received',
+});
+const done = new Counter({
+  name: 'lf_sync_items_done',
+  help: 'Number of items completed',
+});
+const errors = new Counter({
+  name: 'lf_sync_lf_errors',
+  help: 'Number of items that errored',
+});
 
 /**
  * Shared OADA client instance?
@@ -102,6 +119,9 @@ async function run(token: string) {
   const conn = oada
     ? oada.clone(token)
     : (oada = await connect({ token, domain }));
+
+  // Ensure the reporting endpoint is created
+  await oada.ensure({ path: REPORT_PATH, data: {}, tree });
 
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
@@ -142,6 +162,7 @@ async function processDocument(
   document: Resource
 ) {
   try {
+    incoming.inc();
     const fieldList = await transform(document);
 
     trace('Fetching vdocs for %s', document._id);
@@ -247,6 +268,14 @@ async function processDocument(
 
         info(`Created LF document ${lfDocument.LaserficheEntryID}`);
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
+        await reportItem(oada, {
+          masterId,
+          name: syncMetadata.fields['Entity'],
+          type: syncMetadata.fields['Document Type'],
+          lfEntryId: lfDocument.LaserficheEntryID,
+          trellisDocumentKey: document._id,
+          trellisDocumentId: document._id,
+        })
       }
 
       trace('Recording lf-sync metadata to Trellis document');
@@ -260,9 +289,11 @@ async function processDocument(
         lfCleanup(syncMetadata.LaserficheEntryID);
       }
     }
+    done.inc();
   } catch (err: any) {
     error(`Could not sync document ${document._id}. Error occurred:`);
     error(err);
+    errors.inc();
   }
 }
 
@@ -410,4 +441,22 @@ function watchLaserfiche(
   return (id: EntryIdLike) => {
     workQueue.delete(getEntryId(id));
   };
+}
+
+/**
+ *  Report on each item synced
+ */
+async function reportItem(conn: OADAClient, item: any) {
+  let key = ksuid.randomSync() as unknown as string;
+  let date = new Date().toISOString().split('T')[0];
+  let path = `${REPORT_PATH}/${date}`;
+  await conn.put({
+    path,
+    data: {
+      [key]: item,
+    },
+    tree
+  });
+  info(`Reported item to ${path}/${key}`);
+
 }
