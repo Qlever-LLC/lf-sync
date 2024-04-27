@@ -136,9 +136,14 @@ export async function getBuffer(
   document: Resource | Link
 ): Promise<Buffer> {
   trace('Fetching document from %s', document._id);
-  const { data: buffer } = await oada.get({ path: document._id });
+  let { data: buffer } = await oada.get({ path: document._id });
   if (!Buffer.isBuffer(buffer)) {
-    throw new TypeError(`Expected binary Buffer but got ${typeof buffer}`);
+    if (buffer instanceof Uint8Array) {
+      buffer = Buffer.from(buffer);
+    }
+    if (!Buffer.isBuffer(buffer)) {
+      throw new TypeError(`Expected binary Buffer but got ${typeof buffer}`);
+    }
   }
 
   return buffer;
@@ -169,7 +174,7 @@ export async function fetchSyncMetadata(
     // FIXME: Make proper format and assert type
     return r.data as LfSyncMetaData;
   } catch (cError: any) {
-    if (cError?.status !== 404) {
+    if (cError?.status !== 404 && cError?.code !== '404') {
       trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
       throw cError as Error;
     }
@@ -195,7 +200,7 @@ export async function lookupByLf(
     // TODO: Proper assert?
     return data as Resource;
   } catch (cError: any) {
-    if (cError?.status !== 404) {
+    if (cError?.status !== 404 && cError?.code !== 404) {
       error(cError, 'Unexpected error with Trellis!');
       throw cError as Error;
     }

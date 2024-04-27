@@ -1,6 +1,6 @@
 {
   "name": "@qlever-llc/lf-sync",
-  "version": "2.5.7",
+  "version": "2.5.8",
   "description": "Trellis LaserFiche sync service",
   "main": "dist/index.js",
   "type": "module",
@@ -51,10 +51,11 @@
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@oada/client": "^5.0.0",
+    "@oada/client": "^5.0.1",
+    "@oada/jobs": "^4.5.1",
     "@oada/lib-config": "^3.9.1",
     "@oada/lib-prom": "^3.8.0",
-    "@oada/list-lib": "^5.0.2",
+    "@oada/list-lib": "^5.0.4",
     "@oada/pino-debug": "^3.9.1",
     "@oada/types": "^3.4.5",
     "bs58": "^5.0.0",
@@ -70,7 +71,7 @@
     "p-queue": "^7.3.4"
   },
   "devDependencies": {
-    "@ava/typescript": "^4.0.0",
+    "@ava/typescript": "^4.1.0",
     "@tsconfig/node16": "^1.0.3",
     "@types/convict": "^6.1.1",
     "@types/cron": "^2.0.1",

@@ -273,8 +273,9 @@ async function processDocument(
           name: syncMetadata.fields['Entity'],
           type: syncMetadata.fields['Document Type'],
           lfEntryId: lfDocument.LaserficheEntryID,
-          trellisDocumentKey: document._id,
-          trellisDocumentId: document._id,
+          timeReported: new Date().toISOString(),
+          trellisDocument: document._id,
+          vdocKey: key,
         })
       }
 
@@ -323,6 +324,7 @@ function watchPartnerDocs(
           // Watch for new documents of type `type`
           const path = join(documentPath, type);
 
+          //FIXME: Remove this before production
           info('Monitoring %s for new documents of type %s', path, type);
           const docWatch = new ListWatch({
             conn,
@@ -331,6 +333,7 @@ function watchPartnerDocs(
             resume: true,
             path,
             assertItem: assertResource,
+            tree: tpDocTypesTree,
             onAddItem(item: Resource) {
               callback(masterId, item);
             },
@@ -447,9 +450,9 @@ function watchLaserfiche(
  *  Report on each item synced
  */
 async function reportItem(conn: OADAClient, item: any) {
-  let key = ksuid.randomSync() as unknown as string;
+  let key = ksuid.randomSync().string;
   let date = new Date().toISOString().split('T')[0];
-  let path = `${REPORT_PATH}/${date}`;
+  let path = `${REPORT_PATH}/day-index/${date}`;
   await conn.put({
     path,
     data: {
