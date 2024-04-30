@@ -30,7 +30,7 @@ import PQueue from 'p-queue';
 import ksuid from 'ksuid'
 
 // TODO: Add custom prometheus metrics
-import { Counter, /*Gauge, Histogram, Summary*/ } from '@oada/lib-prom';
+import { Counter, Gauge, /*Histogram, Summary*/ } from '@oada/lib-prom';
 import { type Change, ListWatch } from '@oada/list-lib';
 import { type OADAClient, connect } from '@oada/client';
 import {
@@ -92,8 +92,13 @@ const done = new Counter({
   name: 'lf_sync_items_done',
   help: 'Number of items completed',
 });
-const errors = new Counter({
-  name: 'lf_sync_lf_errors',
+const inTransit = new Gauge({
+  name: 'lf-sync-in-transit',
+  help: 'number of documents that have been received, but are not done or errored'
+
+})
+const errored = new Counter({
+  name: 'lf_sync_lf_errored',
   help: 'Number of items that errored',
 });
 
@@ -163,6 +168,7 @@ async function processDocument(
 ) {
   try {
     incoming.inc();
+    inTransit.inc();
     const fieldList = await transform(document);
 
     trace('Fetching vdocs for %s', document._id);
@@ -291,10 +297,12 @@ async function processDocument(
       }
     }
     done.inc();
+    inTransit.dec()
   } catch (err: any) {
     error(`Could not sync document ${document._id}. Error occurred:`);
     error(err);
-    errors.inc();
+    errored.inc();
+    inTransit.dec();
   }
 }
 
