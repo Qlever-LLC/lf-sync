@@ -93,7 +93,7 @@ const done = new Counter({
   help: 'Number of items completed',
 });
 const inTransit = new Gauge({
-  name: 'lf-sync-in-transit',
+  name: 'lf_sync_in_transit',
   help: 'number of documents that have been received, but are not done or errored'
 
 })
