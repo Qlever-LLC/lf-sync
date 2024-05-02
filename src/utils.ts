@@ -231,7 +231,7 @@ export async function tradingPartnerByMasterId(
   masterId: string
 ): Promise<{name: string; externalIds: string[]}> {
   const { data } = await oada.get({
-    path: `/${masterId}`,
+    path: `/bookmarks/trellisfw/trading-partners${masterId}`,
   }) as unknown as { data: { name: string; externalIds: string[] } };
 
   return data;

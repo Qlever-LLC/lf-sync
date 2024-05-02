@@ -179,7 +179,7 @@ async function processDocument(
     // proper master data lookup, we can't resolve trading partner aliases. So for now,
     // we just use the name as known in Trellis.
     if (masterId) {
-      const { name, externalIds } = await tradingPartnerByMasterId(conn, `resources${masterId}`);
+      const { name, externalIds } = await tradingPartnerByMasterId(conn, masterId);
       fieldList.Entity = name.toString() ?? '';
       const xids = externalIds
         .filter((xid: string) => xid.startsWith('sap:'))
@@ -196,8 +196,8 @@ async function processDocument(
         fieldList['Share Mode'] = shareMode === 'incoming' ?
           'Shared To Smithfield'
           : 'Shared From Smithfield';
-      } catch (err) {
-        error.log(err);
+      } catch (err: any) {
+        if (err.status !== 404 || err.code !== '404') throw err;
         fieldList['Share Mode'] = 'incoming';
       }
     }
@@ -275,7 +275,7 @@ async function processDocument(
         info(`Created LF document ${lfDocument.LaserficheEntryID}`);
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
         await reportItem(oada, {
-          masterId,
+          tp: `/bookmarks/trellisfw/trading-partners/${masterId}`,
           name: syncMetadata.fields['Entity'],
           type: syncMetadata.fields['Document Type'],
           lfEntryId: lfDocument.LaserficheEntryID,
@@ -322,33 +322,33 @@ function watchPartnerDocs(
       const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
 
       info('Monitoring %s for new/current document types', documentPath);
-      const docTypeWatch = new ListWatch({
-        conn,
-        name: `lf-sync:to-lf:${masterId}`,
-        resume: false,
-        path: documentPath,
-        tree: tpDocTypesTree,
-        onAddItem(_: unknown, type: string) {
-          // Watch for new documents of type `type`
-          const path = join(documentPath, type);
+        const docTypeWatch = new ListWatch({
+          conn,
+          name: `lf-sync:to-lf:${masterId}`,
+          resume: false,
+          path: documentPath,
+          tree: tpDocTypesTree,
+          onAddItem(_: unknown, type: string) {
+            // Watch for new documents of type `type`
+            const path = join(documentPath, type);
 
-          //FIXME: Remove this before production
-          info('Monitoring %s for new documents of type %s', path, type);
-          const docWatch = new ListWatch({
-            conn,
-            name: `lf-sync:to-lf:${masterId}:${type}`,
-            // Only watch for actually new items
-            resume: true,
-            path,
-            assertItem: assertResource,
-            tree: tpDocTypesTree,
-            onAddItem(item: Resource) {
-              callback(masterId, item);
-            },
-          });
-          process.on('beforeExit', async () => docWatch.stop());
-        },
-      });
+            //FIXME: Remove this before production
+            info('Monitoring %s for new documents of type %s', path, type);
+            const docWatch = new ListWatch({
+              conn,
+              name: `lf-sync:to-lf:${masterId}:${type}`,
+              // Only watch for actually new items
+              resume: true,
+              path,
+              assertItem: assertResource,
+              tree: tpDocTypesTree,
+              onAddItem(item: Resource) {
+                callback(masterId, item);
+              },
+            });
+            process.on('beforeExit', async () => docWatch.stop());
+          },
+        });
       process.on('beforeExit', async () => docTypeWatch.stop());
     },
   });
