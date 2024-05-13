@@ -84,7 +84,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
               documentBase,
               document,
               '_meta/services/lf-sync/LaserficheEntryID',
-              pdf
+              pdf,
             ),
           });
 
@@ -92,7 +92,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
         } catch (error) {
           if (Number(error.code) === 404) {
             console.log(
-              `WARN: ${join(documentBase, document)} not pushed to Laserfiche`
+              `WARN: ${join(documentBase, document)} not pushed to Laserfiche`,
             );
             pushed = false;
           } else {
@@ -106,7 +106,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
         } else {
           count.notPushed++;
           count.notPushedPaths.push(
-            join(documentBase, document, '_meta/vdoc/pdf', pdf)
+            join(documentBase, document, '_meta/vdoc/pdf', pdf),
           );
         }
 
@@ -139,7 +139,7 @@ for (const [documentType, stats] of documentTypeCount) {
     `${documentType}: ${stats.pushed} / ${stats.pushed + stats.notPushed} (${(
       (stats.pushed * 100) /
       (stats.pushed + stats.notPushed)
-    ).toFixed(2)} %)`
+    ).toFixed(2)} %)`,
   );
 }
 
@@ -148,5 +148,5 @@ console.log(
   `TOTAL: ${totalPushed} / ${totalPushed + totalNotPushed} (${(
     (totalPushed * 100) /
     (totalPushed + totalNotPushed)
-  ).toFixed(2)} %)`
+  ).toFixed(2)} %)`,
 );

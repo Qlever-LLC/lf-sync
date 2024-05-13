@@ -39,7 +39,7 @@ export default function setup(
     fixtureDir = fileURLToPath(test.meta.snapshotDirectory),
     headerFilter,
     ...rest
-  }: Parameters<typeof configure>[0] = {}
+  }: Parameters<typeof configure>[0] = {},
 ) {
   function filterVariables(input: string): string {
     let output = input;

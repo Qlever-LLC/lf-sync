@@ -37,19 +37,19 @@ export type FieldList = Array<MetadataFieldMulti | MetadataFieldSingle>;
 export type Metadata = Record<string, string>; /* | readonly string[]>;*/
 
 export function toFieldList(
-  metadata: Metadata | FieldList
+  metadata: Metadata | FieldList,
 ): Array<Omit<MetadataFieldSingle | MetadataFieldMulti, 'IsMulti'>> {
   return Array.isArray(metadata)
     ? metadata
     : Object.entries(metadata).map(([name, value]) =>
         Array.isArray(value)
           ? { Name: name, Values: value }
-          : { Name: name, Value: value }
+          : { Name: name, Value: value },
       );
 }
 
 export async function getMetadata<E extends Entry = Entry>(
-  entry: EntryIdLike<E>
+  entry: EntryIdLike<E>,
 ) {
   const id = getEntryId(entry);
   return cws
@@ -64,7 +64,7 @@ export async function getMetadata<E extends Entry = Entry>(
 export async function setMetadata(
   entry: EntryIdLike,
   metadata: Metadata | FieldList,
-  template?: string
+  template?: string,
 ) {
   const id = getEntryId(entry);
   return cws.post<void>('api/SetMetadata', {

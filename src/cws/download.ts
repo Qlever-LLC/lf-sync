@@ -19,7 +19,7 @@ import { type DocumentEntry, type EntryIdLike, getEntryId } from './entries.js';
 import cws from './api.js';
 
 export async function retrieveDocumentContent(
-  document: EntryIdLike<DocumentEntry>
+  document: EntryIdLike<DocumentEntry>,
 ) {
   const id = getEntryId(document);
   return cws

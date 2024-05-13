@@ -66,7 +66,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
           path: join(
             documentBase,
             document,
-            '_meta/services/lf-sync/LaserficheEntryID'
+            '_meta/services/lf-sync/LaserficheEntryID',
           ),
         });
       } catch (error) {

@@ -42,16 +42,16 @@ export function coiMetadata(document: Resource): Metadata {
     const effectiveDate = new Date(
       Math.max(
         ...Object.values(policies).map((p) =>
-          Number(new Date(p.effective_date as string))
-        )
-      )
+          Number(new Date(p.effective_date as string)),
+        ),
+      ),
     );
 
     // TODO: Is this the summary they want?
     const expireDate = new Date(
       Math.max(
-        ...Object.values(policies).map((p) => Number(new Date(p.expire_date)))
-      )
+        ...Object.values(policies).map((p) => Number(new Date(p.expire_date))),
+      ),
     );
 
     metadata = {

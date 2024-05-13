@@ -69,7 +69,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
       // Old type vdoc.
       if (vdoc.pdf && vdoc.pdf._id) {
         console.log(
-          `Fixing path ${join(documentBase, document, '_meta/vdoc')}`
+          `Fixing path ${join(documentBase, document, '_meta/vdoc')}`,
         );
 
         delete vdoc.pdf._id;

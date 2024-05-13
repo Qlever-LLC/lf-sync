@@ -46,7 +46,7 @@ const client = got.extend({
 async function getToken() {
   // "Password" is base64 encoded JSON string of login info
   const auth = Buffer.from(
-    JSON.stringify({ repositoryName: repository, ...login })
+    JSON.stringify({ repositoryName: repository, ...login }),
   ).toString('base64');
   const { access_token: accessToken, token_type: type } = await client
     .post('api/ConnectionToLaserfiche', {

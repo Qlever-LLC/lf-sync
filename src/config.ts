@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 
-/* eslint-disable @typescript-eslint/ban-types */
-/* eslint-disable @typescript-eslint/consistent-type-assertions */
 import libConfig from '@oada/lib-config';
-import { DOCS_LIST, LF_AUTOMATION_FOLDER, TRADING_PARTNER_LIST } from './tree.js';
+import {
+  DOCS_LIST,
+  LF_AUTOMATION_FOLDER,
+  TRADING_PARTNER_LIST,
+} from './tree.js';
 import { join } from 'node:path';
 
 export const { config } = await libConfig({
@@ -63,7 +65,7 @@ export const { config } = await libConfig({
     timeout: {
       doc: 'OADA client timeout used on requests',
       format: Number,
-      default: 10000,
+      default: 10_000,
       env: 'OADA_TIMEOUT',
       arg: 'timeout',
     },
@@ -152,10 +154,10 @@ export const { config } = await libConfig({
         format: Number,
         env: 'CWS_TIMEOUT',
         arg: 'cws-timeout',
-      }
+      },
     },
   },
-  'lfdynamic': {
+  lfdynamic: {
     password: {
       doc: 'password for accessing LFDynamic MSSQL Table',
       format: String,
@@ -197,5 +199,5 @@ export const { config } = await libConfig({
 // Normalize the folder path
 config.set(
   'laserfiche.baseFolder',
-  join('/', config.get('laserfiche.baseFolder') ?? '') as `/${string}`
+  join('/', config.get('laserfiche.baseFolder') ?? '') as `/${string}`,
 );

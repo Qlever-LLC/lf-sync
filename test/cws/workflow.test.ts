@@ -56,7 +56,7 @@ test('smallUpload', async (t) => {
   t.regex(
     entry.Path,
     /^\\FSQA\\Trellis\\Trading Partners\\.*/,
-    'Should be moved by workflow'
+    'Should be moved by workflow',
   );
   t.log(entry);
   try {
@@ -87,7 +87,7 @@ test('streamUpload', async (t) => {
   t.regex(
     entry.Path,
     /^\\FSQA\\Trellis\\Trading Partners\\.*/,
-    'Should be moved by workflow'
+    'Should be moved by workflow',
   );
   t.log(entry);
   try {

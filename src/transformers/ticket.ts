@@ -20,7 +20,6 @@ import type Resource from '@oada/types/oada/resource.js';
 const SAP_FIELD = 'sap_id';
 
 export async function ticketMetadata(document: Resource): Promise<Metadata> {
-
   const doc = document as unknown as TicketArchive;
 
   return {
@@ -28,106 +27,106 @@ export async function ticketMetadata(document: Resource): Promise<Metadata> {
     'Document Type': 'Zendesk Ticket',
     'Document Date': doc.ticket.created_at,
     'Zendesk Ticket ID': doc.ticket.id.toString(),
-    //'Share Mode': 'Shared From Smithfield',
-  }
+    // 'Share Mode': 'Shared From Smithfield',
+  };
 }
 
 export interface Ticket {
-  "url": string;
-  "id": number;
-  "external_id": number | null,
-  "via": {
-    "channel": number;
-    "source": {
-      "from": {
-        "address": string;
-        "name": string;
-      },
-      "to": {
-        "name": string;
-        "address": string;
-      },
-      "rel": string | null;
-    }
-  },
-  "created_at": string;
-  "updated_at": string;
-  "type": null,
-  "subject": string;
-  "raw_subject": string;
-  "description": string;
-  "priority": string;
-  "status": string;
-  "recipient": string;
-  "requester_id": number;
-  "submitter_id": number;
-  "assignee_id": number;
-  "organization_id": number | null;
-  "group_id": number;
-  "collaborator_ids": any[];
-  "follower_ids": any[];
-  "email_cc_ids": any[];
-  "forum_topic_id": null;
-  "problem_id": null;
-  "has_incidents": false;
-  "is_public": true;
-  "due_at": null;
-  "tags": any[];
-  "custom_fields": Array<{
-    "id": number;
-    "value": any;
+  url: string;
+  id: number;
+  external_id: number | undefined;
+  via: {
+    channel: number;
+    source: {
+      from: {
+        address: string;
+        name: string;
+      };
+      to: {
+        name: string;
+        address: string;
+      };
+      rel: string | undefined;
+    };
+  };
+  created_at: string;
+  updated_at: string;
+  type: undefined;
+  subject: string;
+  raw_subject: string;
+  description: string;
+  priority: string;
+  status: string;
+  recipient: string;
+  requester_id: number;
+  submitter_id: number;
+  assignee_id: number;
+  organization_id: number | undefined;
+  group_id: number;
+  collaborator_ids: any[];
+  follower_ids: any[];
+  email_cc_ids: any[];
+  forum_topic_id: undefined;
+  problem_id: undefined;
+  has_incidents: false;
+  is_public: true;
+  due_at: undefined;
+  tags: any[];
+  custom_fields: Array<{
+    id: number;
+    value: any;
   }>;
-  "satisfaction_rating": any;
-  "sharing_agreement_ids": any[];
-  "custom_status_id": number;
-  "fields": Array<{
-    "id": number;
-    "value": any;
+  satisfaction_rating: any;
+  sharing_agreement_ids: any[];
+  custom_status_id: number;
+  fields: Array<{
+    id: number;
+    value: any;
   }>;
-  "followup_ids": string[],
-  "ticket_form_id": number;
-  "brand_id": number;
-  "allow_channelback": boolean;
-  "allow_attachments": boolean;
-  "from_messaging_channel": boolean;
-  "result_type": string;
-  "organization": {
-    "name": string;
-  }
+  followup_ids: string[];
+  ticket_form_id: number;
+  brand_id: number;
+  allow_channelback: boolean;
+  allow_attachments: boolean;
+  from_messaging_channel: boolean;
+  result_type: string;
+  organization: {
+    name: string;
+  };
 }
 
 export interface Attachment {
-  "url": string;
-  "id": number;
-  "file_name": string;
-  "content_url": string;
-  "mapped_content_url": string;
-  "content_type": string;
-  "size": number;
-  "width": null | string;
-  "height": null | string;
-  "inline": boolean;
-  "deleted": boolean;
-  "malware_access_override": boolean;
-  "malware_scan_result": string;
-  "thumbnails": []
+  url: string;
+  id: number;
+  file_name: string;
+  content_url: string;
+  mapped_content_url: string;
+  content_type: string;
+  size: number;
+  width: undefined | string;
+  height: undefined | string;
+  inline: boolean;
+  deleted: boolean;
+  malware_access_override: boolean;
+  malware_scan_result: string;
+  thumbnails: [];
 }
 
 export interface TicketArchive {
   ticket: Ticket;
   org: Org;
-  comments: Array<Comment>;
+  comments: Comment[];
   orgs: Record<string | number, Org>;
   groups: Record<string | number, Group>;
   users: Record<string | number, User>;
   fields: Record<string | number, Field>;
   attachments: Record<string | number, Attachment>;
-  sideConversations: Array<SideConversationArchive>;
+  sideConversations: SideConversationArchive[];
 }
 
-//////////
+/// ///////
 // User //
-//////////
+/// ///////
 export interface User {
   id: number;
   name: string;
@@ -137,40 +136,40 @@ export interface User {
   updated_at: string;
   time_zone: string;
   iana_time_zone: string;
-  phone: null;
-  shared_phone_number: null;
-  photo: null;
+  phone: undefined;
+  shared_phone_number: undefined;
+  photo: undefined;
   locale_id: number;
   locale: string;
-  organization_id: null | number;
+  organization_id: undefined | number;
   role: string;
   verified: boolean;
-  external_id: null;
-  tags: Array<string>;
-  alias: null;
+  external_id: undefined;
+  tags: string[];
+  alias: undefined;
   active: boolean;
   shared: boolean;
   shared_agent: boolean;
-  last_login_at: string | null;
-  two_factor_auth_enabled: null;
-  signature: null;
-  details: null;
-  notes: null;
-  role_type: number | null;
-  custom_role_id: number | null;
+  last_login_at: string | undefined;
+  two_factor_auth_enabled: undefined;
+  signature: undefined;
+  details: undefined;
+  notes: undefined;
+  role_type: number | undefined;
+  custom_role_id: number | undefined;
   moderator: boolean;
-  ticket_restriction: string | null;
+  ticket_restriction: string | undefined;
   only_private_comments: boolean;
   restricted_agent: boolean;
   suspended: boolean;
-  default_group_id: number | null;
+  default_group_id: number | undefined;
   report_csv: boolean;
-  user_fields: {};
+  user_fields: Record<string, unknown>;
 }
 
-///////////
+/// ////////
 // Group //
-///////////
+/// ////////
 export interface Group {
   url: string;
   id: number;
@@ -189,16 +188,16 @@ export interface Org {
   name: string;
   shared_tickets: boolean;
   shared_comments: boolean;
-  external_id: null;
+  external_id: undefined;
   created_at: string;
   updated_at: string;
-  domain_names: Array<string>;
+  domain_names: string[];
   details: string;
   notes: string;
-  group_id: null;
-  tags: Array<string>;
+  group_id: undefined;
+  tags: string[];
   organization_fields: {
-    [SAP_FIELD]: string | null;
+    [SAP_FIELD]: string | undefined;
   };
 }
 
@@ -214,18 +213,18 @@ export interface Field {
   active: boolean;
   required: boolean;
   collapsed_for_agents: boolean;
-  regexp_for_validation: null;
+  regexp_for_validation: undefined;
   title_in_portal: string;
   raw_title_in_portal: string;
   visible_in_portal: boolean;
   editable_in_portal: boolean;
   required_in_portal: boolean;
-  tag: null;
+  tag: undefined;
   created_at: string;
   updated_at: string;
   removable: boolean;
-  key: null;
-  agent_description: null | string;
+  key: undefined;
+  agent_description: undefined | string;
   system_field_options?: Array<{ name: string; value: string }>;
   custom_statuses?: Array<{
     url: string;
@@ -260,26 +259,26 @@ export interface Comment {
   html_body: string;
   plain_body: string;
   public: boolean;
-  attachments: Array<Attachment>;
+  attachments: Attachment[];
   audit_id: number;
   via: {
     channel: string;
     source: {
       from:
-      | {}
-      | {
-        address: string;
-        name: string | null;
-        organization_recipients: Array<string> | null;
-      };
+        | Record<string, unknown>
+        | {
+            address: string;
+            name: string | undefined;
+            organization_recipients: string[] | undefined;
+          };
       to:
-      | {}
-      | {
-        name: string | null;
-        address: string;
-        email_ccs: Array<number>;
-      };
-      rel: null;
+        | Record<string, unknown>
+        | {
+            name: string | undefined;
+            address: string;
+            email_ccs: number[];
+          };
+      rel: undefined;
     };
   };
   created_at: string;
@@ -287,7 +286,7 @@ export interface Comment {
 
 export interface SideConversationArchive {
   sideConversation: SideConversation;
-  events: Array<SideConversationEvent>;
+  events: SideConversationEvent[];
   users: Record<string | number, User>;
   attachments: Record<string | number, SideConversationAttachment>;
 }
@@ -310,10 +309,10 @@ export interface SideConversation {
   message_added_at: string;
   state_updated_at: string;
   external_ids:
-  | {}
-  | {
-    targetTicketId: string;
-  };
+    | Record<string, unknown>
+    | {
+        targetTicketId: string;
+      };
 }
 
 export interface SideConversationAttachment {
@@ -338,31 +337,33 @@ export interface SideConversationEvent {
   type: string;
   via: string;
   created_at: string;
-  message: {
-    subject: string | null;
-    preview_text: string;
-    from: {
-      user_id: number;
-      group_id?: number;
-      name: string;
-      email: string;
-    };
-    to: Array<{
-      user_id: number;
-      group_id?: number;
-      name: string;
-      email: string;
-    }>;
-    body: string;
-    html_body: string;
-    external_ids: {
-      ticketAuditId: string;
-      targetTicketAuditId?: string;
-      outboundEmail?: string;
-      inboundEmail?: string;
-    };
-    attachments: Array<SideConversationAttachment>;
-  } | null;
-  updates: {};
+  message:
+    | {
+        subject: string | undefined;
+        preview_text: string;
+        from: {
+          user_id: number;
+          group_id?: number;
+          name: string;
+          email: string;
+        };
+        to: Array<{
+          user_id: number;
+          group_id?: number;
+          name: string;
+          email: string;
+        }>;
+        body: string;
+        html_body: string;
+        external_ids: {
+          ticketAuditId: string;
+          targetTicketAuditId?: string;
+          outboundEmail?: string;
+          inboundEmail?: string;
+        };
+        attachments: SideConversationAttachment[];
+      }
+    | undefined;
+  updates: Record<string, unknown>;
   ticket_id: number;
 }

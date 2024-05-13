@@ -41,7 +41,7 @@ const error = debug('lf-sync:utils:error');
 
 export function has<T, K extends string>(
   value: T,
-  key: K
+  key: K,
 ): value is T & { [P in K]: unknown } {
   return value && typeof value === 'object' && key in value;
 }
@@ -68,12 +68,12 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
     })
     .then((r) => r.headers['content-location']!.replace(/^\/resources\//, ''));
   trace(
-    `Created unidentified Trellis document: /resources/${trellisDocumentKey}`
+    `Created unidentified Trellis document: /resources/${trellisDocumentKey}`,
   );
 
   // Link PDF into Trellis document
   const fileHash = bs58.encode(
-    createHash('sha256').update(documentBuffer).digest()
+    createHash('sha256').update(documentBuffer).digest(),
   );
   await oada.put({
     path: `resources/${trellisDocumentKey}/_meta`,
@@ -87,7 +87,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
 
   // Put the existing metadata into Trellis
   const lfData = Object.fromEntries(
-    file.FieldDataList.map((f) => [f.Name, f.Value])
+    file.FieldDataList.map((f) => [f.Name, f.Value]),
   );
   await oada.put({
     path: join('resources', trellisDocumentKey, '_meta/services/lf-sync'),
@@ -133,7 +133,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
 
 export async function getBuffer(
   oada: OADAClient,
-  document: Resource | Link
+  document: Resource | Link,
 ): Promise<Buffer> {
   trace('Fetching document from %s', document._id);
   let { data: buffer } = await oada.get({ path: document._id });
@@ -141,6 +141,7 @@ export async function getBuffer(
     if (buffer instanceof Uint8Array) {
       buffer = Buffer.from(buffer);
     }
+
     if (!Buffer.isBuffer(buffer)) {
       throw new TypeError(`Expected binary Buffer but got ${typeof buffer}`);
     }
@@ -148,14 +149,18 @@ export async function getBuffer(
 
   return buffer;
 }
+
 /**
- * fetch the filename on a vdoc resource
+ * Fetch the filename on a vdoc resource
  * @param oada
  */
-export async function fetchVdocFilename(oada: OADAClient, vdocResourceId: string) {
+export async function fetchVdocFilename(
+  oada: OADAClient,
+  vdocResourceId: string,
+) {
   const { data: meta } = await oada.get({
-    path: `/${vdocResourceId}/_meta/filename`
-  })
+    path: `/${vdocResourceId}/_meta/filename`,
+  });
   return meta as unknown as string;
 }
 
@@ -165,7 +170,7 @@ export async function fetchVdocFilename(oada: OADAClient, vdocResourceId: string
 export async function fetchSyncMetadata(
   oada: OADAClient,
   id: string,
-  key: string
+  key: string,
 ): Promise<LfSyncMetaData> {
   try {
     const r = await oada.get({
@@ -189,7 +194,7 @@ export async function fetchSyncMetadata(
  */
 export async function lookupByLf(
   oada: OADAClient,
-  file: DocumentEntry
+  file: DocumentEntry,
 ): Promise<Resource | undefined> {
   // Check if document is already in Trellis. If so, trigger a re-process. Otherwise, upload it to Trellis.
   try {
@@ -214,7 +219,7 @@ export async function lookupByLf(
  */
 export async function getPdfVdocs(
   oada: OADAClient,
-  document: Resource | Link
+  document: Resource | Link,
 ): Promise<VDocList> {
   // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
   const r = await oada.get({ path: `/${join(document._id, '_meta/vdoc')}` });
@@ -228,11 +233,11 @@ export async function getPdfVdocs(
  */
 export async function tradingPartnerByMasterId(
   oada: OADAClient,
-  masterId: string
-): Promise<{name: string; externalIds: string[]}> {
-  const { data } = await oada.get({
+  masterId: string,
+): Promise<{ name: string; externalIds: string[] }> {
+  const { data } = (await oada.get({
     path: `/bookmarks/trellisfw/trading-partners${masterId}`,
-  }) as unknown as { data: { name: string; externalIds: string[] } };
+  })) as unknown as { data: { name: string; externalIds: string[] } };
 
   return data;
 }
@@ -244,7 +249,7 @@ export async function updateSyncMetadata(
   oada: OADAClient,
   document: Resource,
   key: string,
-  syncMetadata: LfSyncMetaData
+  syncMetadata: LfSyncMetaData,
 ) {
   await oada.put({
     path: join(document._id, '_meta/services/lf-sync/', key),

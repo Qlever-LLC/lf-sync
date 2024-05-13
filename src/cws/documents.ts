@@ -89,7 +89,7 @@ export async function createDocument({
     await pipeline(
       Readable.from(buffer),
       streamUpload(r.LaserficheEntryID, extname(name).slice(1), buffer.length),
-      new PassThrough()
+      new PassThrough(),
     );
   }
 
@@ -138,14 +138,14 @@ export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {
  */
 export async function searchDocument(
   phrase: string,
-  metadata?: ReadonlyArray<string | { Name: string }>
+  metadata?: ReadonlyArray<string | { Name: string }>,
 ) {
   return cws
     .post('api/SearchDocument', {
       json: {
         LaserficheSearchPhrase: phrase,
         MetaDataObjectList: metadata?.map((field) =>
-          typeof field === 'string' ? { Name: field } : field
+          typeof field === 'string' ? { Name: field } : field,
         ),
       },
     })

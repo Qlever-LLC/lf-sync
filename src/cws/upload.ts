@@ -83,7 +83,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
 export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
   extension: string,
-  length: number
+  length: number,
 ): Writable {
   const id = getEntryId(document);
   return cws.stream.put(`api/Document/${id}/${extension}`, {
@@ -95,7 +95,7 @@ export function streamUpload(
 
 export async function smallUpload(
   document: EntryIdLike<DocumentEntry>,
-  file: Buffer
+  file: Buffer,
 ) {
   const id = getEntryId(document);
   return cws.post(`api/Document/${id}`, {

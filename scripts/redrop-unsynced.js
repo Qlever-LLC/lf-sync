@@ -73,7 +73,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
               documentBase,
               document,
               '_meta/services/lf-sync/LaserficheEntryID',
-              pdf
+              pdf,
             ),
           });
         } catch (error) {
@@ -119,7 +119,7 @@ for (const [documentType, stats] of docTypeCount) {
     `${documentType}: ${stats.pushed} / ${stats.pushed + stats.notPushed} (${(
       (stats.pushed * 100) /
       (stats.pushed + stats.notPushed)
-    ).toFixed(2)} %)`
+    ).toFixed(2)} %)`,
   );
 }
 
@@ -128,5 +128,5 @@ console.log(
   `TOTAL: ${totalPushed} / ${totalPushed + totalNotPushed} (${(
     (totalPushed * 100) /
     (totalPushed + totalNotPushed)
-  ).toFixed(2)} %)`
+  ).toFixed(2)} %)`,
 );
