@@ -45,8 +45,8 @@ export default function setup(
     let output = input;
     for (const [name, value] of Object.entries(variables)) {
       const template = `{{ ${name} }}`;
-      // eslint-disable-next-line security/detect-non-literal-regexp
-      output = output.replace(new RegExp(String(value), 'g'), template);
+
+      output = output.replaceAll(new RegExp(String(value), 'g'), template);
     }
 
     return output;

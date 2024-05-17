@@ -174,7 +174,7 @@ export async function pruneEntities(
 // Remove special characters; truncate to allowable nvarchar(100) size
 function sanitize(string_: string) {
   return string_
-    .replace(/[%[\]^_]/g, '')
+    .replaceAll(/[%[\]^_]/g, '')
     .slice(0, Math.max(0, ENTITY_NAME_LENGTH));
 }
 

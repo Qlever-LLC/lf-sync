@@ -32,10 +32,8 @@ export function generateGenericMetadata(type: string) {
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
-      // eslint-disable-next-line security/detect-object-injection
       const value = document[trellisKey] as string;
       if (value) {
-        // eslint-disable-next-line security/detect-object-injection
         metadata[lfField] = lfField.includes('Date')
           ? new Date(value).toISOString()
           : value;
