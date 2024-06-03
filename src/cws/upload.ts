@@ -83,12 +83,14 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
 export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
   extension: string,
+  mimetype: string,
   length: number
 ): Writable {
   const id = getEntryId(document);
   return cws.stream.put(`api/Document/${id}/${extension}`, {
     headers: {
       'Content-Length': `${length}`,
+      'Content-Type': mimetype,
     },
   });
 }

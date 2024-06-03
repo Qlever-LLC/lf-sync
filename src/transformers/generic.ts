@@ -17,6 +17,7 @@
 
 import type { Metadata } from '../cws/metadata.js';
 import type Resource from '@oada/types/oada/resource.js';
+import { getFormattedDate } from '../utils.js';
 
 export function generateGenericMetadata(type: string) {
   return function (document: Resource): Metadata {
@@ -28,7 +29,7 @@ export function generateGenericMetadata(type: string) {
 
     const metadata: Metadata = {
       'Document Type': type,
-      'Document Date': documentDate.toISOString(),
+      'Document Date': getFormattedDate(documentDate),
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
@@ -37,7 +38,7 @@ export function generateGenericMetadata(type: string) {
       if (value) {
         // eslint-disable-next-line security/detect-object-injection
         metadata[lfField] = lfField.includes('Date')
-          ? new Date(value).toISOString()
+          ? getFormattedDate(new Date(value))
           : value;
       }
     }

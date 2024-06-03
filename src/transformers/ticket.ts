@@ -16,6 +16,7 @@
  */
 import type { Metadata } from '../cws/metadata.js';
 import type Resource from '@oada/types/oada/resource.js';
+import { getFormattedDate } from '../utils.js';
 
 const SAP_FIELD = 'sap_id';
 
@@ -26,7 +27,7 @@ export async function ticketMetadata(document: Resource): Promise<Metadata> {
   return {
     'Entity': doc.org.name,
     'Document Type': 'Zendesk Ticket',
-    'Document Date': doc.ticket.created_at,
+    'Document Date': getFormattedDate(new Date(doc.ticket.created_at)),
     'Zendesk Ticket ID': doc.ticket.id.toString(),
     //'Share Mode': 'Shared From Smithfield',
   }

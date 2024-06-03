@@ -95,6 +95,9 @@ export const tree: Tree = {
   },
 };
 
+export const selfDocsTree = JSON.parse(JSON.stringify(tree));
+delete selfDocsTree?.bookmarks?.trellisfw?.documents?.['*'];
+
 // These trees from here and below were used in the ListWatches with resume: false,
 // which requires a tree. That tree must be pruned down to a minimum as the
 // recursiveGet will attempt to retrieve an excessive amount of stuff.
@@ -167,6 +170,12 @@ export const tpDocTypesTree: Tree = {
     },
   },
 };
+
+export let tpTree: Tree = JSON.parse(JSON.stringify(tpDocTypesTree));
+delete tpTree?.bookmarks?.trellisfw?.['trading-partners']?.['*'];
+
+export let tpDocsTree: Tree = JSON.parse(JSON.stringify(tpDocTypesTree));
+delete tpDocsTree?.bookmarks?.trellisfw?.['trading-partners']?.['*']?.bookmarks?.trellisfw?.documents?.['*'];
 
 export const docTypesTree: Tree = {
   bookmarks: {

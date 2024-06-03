@@ -52,6 +52,7 @@ import { streamUpload } from './upload.js';
 export async function createDocument({
   path,
   name,
+  mimetype,
   volume = 'Default',
   template,
   metadata,
@@ -60,6 +61,7 @@ export async function createDocument({
 }: {
   path: Path;
   name: string;
+  mimetype: string
   volume?: string;
   template?: string;
   metadata?: Metadata | FieldList;
@@ -88,7 +90,7 @@ export async function createDocument({
   if (buffer) {
     await pipeline(
       Readable.from(buffer),
-      streamUpload(r.LaserficheEntryID, extname(name).slice(1), buffer.length),
+      streamUpload(r.LaserficheEntryID, extname(name).slice(1), mimetype, buffer.length),
       new PassThrough()
     );
   }

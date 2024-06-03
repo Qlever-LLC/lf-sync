@@ -90,6 +90,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
     file.FieldDataList.map((f) => [f.Name, f.Value])
   );
   await oada.put({
+    //path: join('resources', trellisDocumentKey, 'vdocs/pdf', fileHash, '_meta/services/lf-sync'),
     path: join('resources', trellisDocumentKey, '_meta/services/lf-sync'),
     data: {
       [fileHash]: {
@@ -134,9 +135,9 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
 export async function getBuffer(
   oada: OADAClient,
   document: Resource | Link
-): Promise<Buffer> {
+): Promise<{buffer: Buffer, mimetype: string }> {
   trace('Fetching document from %s', document._id);
-  let { data: buffer } = await oada.get({ path: document._id });
+  let { data: buffer, headers } = await oada.get({ path: document._id });
   if (!Buffer.isBuffer(buffer)) {
     if (buffer instanceof Uint8Array) {
       buffer = Buffer.from(buffer);
@@ -146,7 +147,7 @@ export async function getBuffer(
     }
   }
 
-  return buffer;
+  return { mimetype: headers['content-type'] || headers['Content-Type'] || '', buffer };
 }
 /**
  * fetch the filename on a vdoc resource
@@ -169,7 +170,9 @@ export async function fetchSyncMetadata(
 ): Promise<LfSyncMetaData> {
   try {
     const r = await oada.get({
-      path: join(id, '_meta/services/lf-sync', key),
+      //considered moving these into each of the vdocs to fix some change propogation issues
+      //path: join(id, '_meta/vdocs/pdf', key, '_meta/services/lf-sync'),
+      path: join(id, '_meta/services/lf-sync', key)
     });
     // FIXME: Make proper format and assert type
     return r.data as LfSyncMetaData;
@@ -178,6 +181,21 @@ export async function fetchSyncMetadata(
       trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
       throw cError as Error;
     }
+
+    // Try the old path where meta was previously stored
+    /*
+    try {
+      const r = await oada.get({
+        path: join(id, '_meta/services/lf-sync', key)
+      });
+      return r.data as LfSyncMetaData;
+    } catch (cError: any) {
+      if (cError?.status !== 404 && cError?.code !== '404') {
+        trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
+        throw cError as Error;
+      }
+    }
+    */
   }
 
   return {};
@@ -248,9 +266,19 @@ export async function updateSyncMetadata(
 ) {
   await oada.put({
     path: join(document._id, '_meta/services/lf-sync/', key),
+    //considered moving these into each of the vdocs to fix some change propogation issues
+    //path: `${document._id}_meta/vdocs/pdf/${key.replaceAll('/', '')}/_meta/services/lf-sync`,
     data: {
       ...syncMetadata,
       lastSync: new Date().toISOString(),
     },
   });
+}
+
+export function getFormattedDate(date: Date): string {
+  let year = date.getFullYear();
+  let month = (1 + date.getMonth()).toString();
+  let day = date.getDate().toString();
+
+  return month + '/' + day + '/' + year +' 12:00:00 AM';
 }

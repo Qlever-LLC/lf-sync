@@ -17,10 +17,11 @@
 
 // Import this first to setup the environment
 import { config } from './config.js';
+import equal from 'deep-equal';
 
 import '@oada/pino-debug';
 
-import { join } from 'node:path';
+import { join, extname } from 'node:path';
 
 import { CronJob } from 'cron';
 import { JsonPointer } from 'json-ptr';
@@ -31,7 +32,7 @@ import ksuid from 'ksuid'
 
 // TODO: Add custom prometheus metrics
 import { Counter, Gauge, /*Histogram, Summary*/ } from '@oada/lib-prom';
-import { type Change, ListWatch } from '@oada/list-lib';
+import { AssumeState, type Change, ChangeType, ListWatch } from '@oada/list-lib';
 import { type OADAClient, connect } from '@oada/client';
 import {
   type default as Resource,
@@ -42,9 +43,11 @@ import {
   DOCS_LIST,
   LF_AUTOMATION_FOLDER,
   TRADING_PARTNER_LIST,
-  docTypesTree,
-  tpDocTypesTree,
   tree,
+  selfDocsTree,
+  tpDocTypesTree,
+  tpDocsTree,
+  tpTree
 } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
@@ -207,18 +210,17 @@ async function processDocument(
       // TODO: Remove when target-helper vdoc extra link bug is fixed
       if (key === '_id') continue;
 
-      // I apologize for the hackery.  We need a way to set fields on a per-vdoc basis...
-      if (fieldList['Document Type'] === 'Zendesk Ticket') {
-        fieldList['Original Filename'] = await fetchVdocFilename(oada, value._id);
-      }
+      fieldList['Original Filename'] = await fetchVdocFilename(oada, value._id);
 
       const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
+      const syncMetaCopy = {...syncMetadata };
       let currentFields: LfSyncMetaData['fields'] = {};
 
-      // Document is new to LF
+      // Document is not new to LF
       if (syncMetadata.LaserficheEntryID) {
         // Fetch the current LF fields to compare for changes
         const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
+        // Only keep fields that have a value
         currentFields = metadata.LaserficheFieldList.reduce(
           (o, f) =>
             has(f, 'Value') && f.Value !== '' ? { ...o, [f.Name]: f.Value } : o,
@@ -249,30 +251,32 @@ async function processDocument(
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
-        trace(`Updating LF metadata for LF ${syncMetadata.LaserficheEntryID}`);
+        info(`LF Entry ${syncMetadata.LaserficheEntryID} (vdoc ${key}) already exists. Updating.`);
         await setMetadata(
           syncMetadata.LaserficheEntryID,
           syncMetadata.fields || {},
           syncMetadata.fields['Document Type']
         );
 
-        trace(`Moving the LF document to _Incoming for filing`);
+        trace(`Moving the LF document back to _Incoming for filing`);
         await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
 
         // New to LF
       } else {
-        info('Document is new to LF');
+        info(`Document (vdoc ${key}) is new to LF`);
 
+        const { buffer, mimetype } = await getBuffer(conn, value);
         trace('Uploading document to Laserfiche');
         const lfDocument = await createDocument({
-          name: `${document._id}-${key}.pdf`,
+          name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] || '').slice(1)}`,
           path: '/_Incoming',
+          mimetype,
           metadata: syncMetadata.fields || {},
           template: syncMetadata.fields['Document Type'],
-          buffer: await getBuffer(conn, value),
+          buffer,
         });
 
-        info(`Created LF document ${lfDocument.LaserficheEntryID}`);
+        info(`Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`);
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
         await reportItem(oada, {
           tp: `/bookmarks/trellisfw/trading-partners/${masterId}`,
@@ -286,8 +290,11 @@ async function processDocument(
       }
 
       trace('Recording lf-sync metadata to Trellis document');
-      // TODO: Shouldn't this be awaited?
-      updateSyncMetadata(oada, document, key, syncMetadata);
+
+      // Update the sync metadata in Trellis only if it has actually changed
+      if (!equal(syncMetaCopy, syncMetadata)) {
+        await updateSyncMetadata(oada, document, key, syncMetadata);
+      }
 
       // Let the LF monitor know we finished if this doc happens to be from LF
       // FIXME: This cleanup channel seems hacked in.
@@ -317,73 +324,43 @@ function watchPartnerDocs(
     name: 'lf-sync:to-lf',
     resume: false,
     path: TRADING_PARTNER_LIST,
-    tree: tpDocTypesTree,
-    onAddItem(_: unknown, masterId: string) {
-      const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
-
-      info('Monitoring %s for new/current document types', documentPath);
-        const docTypeWatch = new ListWatch({
-          conn,
-          name: `lf-sync:to-lf:${masterId}`,
-          resume: false,
-          path: documentPath,
-          tree: tpDocTypesTree,
-          onAddItem(_: unknown, type: string) {
-            // Watch for new documents of type `type`
-            const path = join(documentPath, type);
-
-            //FIXME: Remove this before production
-            info('Monitoring %s for new documents of type %s', path, type);
-            const docWatch = new ListWatch({
-              conn,
-              name: `lf-sync:to-lf:${masterId}:${type}`,
-              // Only watch for actually new items
-              resume: true,
-              path,
-              assertItem: assertResource,
-              tree: tpDocTypesTree,
-              onAddItem(item: Resource) {
-                callback(masterId, item);
-              },
-            });
-            process.on('beforeExit', async () => docWatch.stop());
-          },
-        });
-      process.on('beforeExit', async () => docTypeWatch.stop());
-    },
+    onNewList: AssumeState.New,
+    tree: tpTree,
   });
-  process.on('beforeExit', async () => watch.stop());
-}
+  watch.on(ChangeType.ItemAdded, async({pointer: masterId} : {pointer: string}) => {
+    const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
 
-function watchSelfDocs(
-  conn: OADAClient,
-  callback: (item: Resource) => Promise<void>
-) {
-  // Watching "self" documents are /bookmarks/trellisfw/documents
-  // TODO: Update these to new ListWatch v4 API
-  const watch = new ListWatch({
-    conn,
-    name: 'lf-sync:to-lf-own',
-    resume: false,
-    path: DOCS_LIST,
-    tree: docTypesTree,
-    onAddItem(_: unknown, key: string) {
-      // Watch documents at /bookmarks/trellisfw/documents/<type=key>
-      const path = join(DOCS_LIST, key);
-      trace(`Monitoring ${path} for new/current document types`);
-
+//    if (masterId !== '/2TA8ikqFp44u7nfz2UYK7FQweF1' ) return;
+//    if (masterId !== '/55c0f771d58d3f0001000020' || masterId === '/2fZ3qnoDID1fcNtBrsiKNKBezK4') {
+      info('Monitoring %s for new/current document types', documentPath);
       const docTypeWatch = new ListWatch({
         conn,
-        name: `lf-sync:to-lf-own`,
-        resume: true,
-        path,
-        assertItem: assertResource,
-        // TODO: Can I use onItem here? I don't really recall way I couldn't...
-        async onAddItem(item: Resource, documentKey: string) {
-          trace(`Got work (new): ${join(path, documentKey)}`);
-          await callback(item);
-        },
-        async onChangeItem(change: Change, documentKey: string) {
+        name: `lf-sync:to-lf:${masterId.replace('/', '')}`,
+        resume: false,
+        path: documentPath,
+        onNewList: AssumeState.New,
+        tree: tpDocsTree,
+      })
+      docTypeWatch.on(ChangeType.ItemAdded, async({ pointer: type }: { pointer: string }) => {
+        // Watch for new documents of type `type`
+        const path = join(documentPath, type);
+
+        //if (!type.toLowerCase().includes('tickets')) return;
+        //FIXME: Remove this before production
+        info('Monitoring %s for new documents of type %s', path, type);
+        const docWatch = new ListWatch({
+          conn,
+          name: `lf-sync:to-lf:${masterId.replace('/', '')}:${type.replace('/', '')}`,
+          resume: true,
+          path,
+          assertItem: assertResource,
+          onNewList: AssumeState.Handled,
+          tree: tpDocTypesTree,
+        })
+        docWatch.on(ChangeType.ItemAdded, async ({ item }: {item: Promise<Resource> }) => {
+          await callback(masterId, await item);
+        });
+        docWatch.on(ChangeType.ItemChanged, async ({ change, pointer: documentKey }: {change: Change, pointer: string}) => {
           if (selfChange.has(change)) {
             trace('Ignoring self made change to resource.');
             return;
@@ -397,13 +374,66 @@ function watchSelfDocs(
           });
           const item = data.data as Resource;
 
-          await callback(item);
-        },
-      });
+          await callback(masterId, item);
+        });
+        process.on('beforeExit', async () => docWatch.stop());
+      })
       process.on('beforeExit', async () => docTypeWatch.stop());
-    },
-  });
+    //}
+  })
   process.on('beforeExit', async () => watch.stop());
+}
+
+function watchSelfDocs(
+  conn: OADAClient,
+  callback: (item: Resource) => Promise<void>
+) {
+  // Watching "self" documents are /bookmarks/trellisfw/documents
+  // TODO: Update these to new ListWatch v4 API
+  const docTypeWatch = new ListWatch({
+    conn,
+    name: 'lf-sync:to-lf-own',
+    resume: false,
+    path: DOCS_LIST,
+    tree: selfDocsTree
+  });
+  trace(`Monitoring ${DOCS_LIST} for new/current document types`);
+  docTypeWatch.on(ChangeType.ItemAdded, async({pointer: type} : {pointer: string}) => {
+    // Watch documents at /bookmarks/trellisfw/documents/<type=key>
+    const path = join(DOCS_LIST, type);
+
+    const docWatch = new ListWatch({
+      conn,
+      name: `lf-sync:to-lf-own`,
+      resume: true,
+      path,
+      assertItem: assertResource,
+      tree,
+    });
+    trace(`Monitoring ${path} for new documents`);
+    docWatch.on(ChangeType.ItemAdded, async ({ item, pointer: documentKey }: {item: Promise<Resource>, pointer: string}) => {
+      trace(`Got work (new): ${join(path, documentKey)}`);
+      await callback(await item);
+    })
+    docWatch.on(ChangeType.ItemChanged, async ({ change, pointer: documentKey }: {change: Change, pointer: string}) => {
+      if (selfChange.has(change)) {
+        trace('Ignoring self made change to resource.');
+        return;
+      }
+
+      trace(`Got work (change): ${join(path, documentKey)}`);
+
+      // Fetch resource
+      const data = await oada.get({
+        path: change.resource_id,
+      });
+      const item = data.data as Resource;
+
+      await callback(item);
+    });
+    process.on('beforeExit', async () => docWatch.stop());
+  });
+  process.on('beforeExit', async () => docTypeWatch.stop());
 }
 
 /**

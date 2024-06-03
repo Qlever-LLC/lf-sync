@@ -18,6 +18,7 @@
 import type { Metadata } from '../cws/metadata.js';
 import type Resource from '@oada/types/oada/resource.js';
 import { has } from '../utils.js';
+import { getFormattedDate } from '../utils.js';
 
 export function coiMetadata(document: Resource): Metadata {
   let metadata: Metadata = {
@@ -65,8 +66,8 @@ export function coiMetadata(document: Resource): Metadata {
       'Workers Comp and Employers Liability': (
         policies["Employers' Liability"]?.el_each_accident || ''
       ).toString(),
-      'Document Date': effectiveDate.toISOString(),
-      'Expiration Date': expireDate.toISOString(),
+      'Document Date': getFormattedDate(effectiveDate),
+      'Expiration Date': getFormattedDate(expireDate),
     };
   }
 
