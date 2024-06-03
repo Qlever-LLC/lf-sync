@@ -5,21 +5,21 @@ extends:
   - plugin:github/recommended
   - plugin:promise/recommended
   - plugin:regexp/recommended
-  - plugin:array-func/recommended
+  #- plugin:array-func/recommended
   - plugin:optimize-regex/recommended
   - plugin:import/recommended
   - plugin:unicorn/recommended
-  - plugin:security/recommended
-  - plugin:sonarjs/recommended
+  #- plugin:security/recommended
+  #- plugin:sonarjs/recommended
   - xo
-  - prettier
+  - plugin:prettier/recommended
 
 plugins:
   - node
   - github
   - promise
   - regexp
-  - array-func
+  #- array-func
   - optimize-regex
   - no-constructor-bind
   - import
@@ -33,7 +33,7 @@ parser: '@typescript-eslint/parser'
 
 parserOptions:
   ecmaVersion: 2020
-  project: './tsconfig*.json'
+  project: ./tsconfig*.json
 
 overrides:
   - files: '*.ts'
@@ -41,11 +41,12 @@ overrides:
       - plugin:github/typescript
       - plugin:import/typescript
       - xo-typescript
-      - prettier
+      - plugin:prettier/recommended
     parserOptions:
       ecmaVersion: 2020
-      project: './tsconfig*.json'
+      project: ./tsconfig*.json
     rules:
+      prettier/prettier: off
       '@typescript-eslint/naming-convention':
         [
           error,
@@ -74,7 +75,7 @@ overrides:
 
           { selector: typeLike, format: [PascalCase] },
         ]
-      '@typescript-eslint/restrict-template-expressions': off
+      '@typescript-eslint/restrict-template-expressions': 0
       '@typescript-eslint/no-shadow': warn
       '@typescript-eslint/no-unused-vars':
         [
@@ -82,13 +83,14 @@ overrides:
           {
             args: after-used,
             ignoreRestSiblings: true,
-            varsIgnorePattern: '^_',
-            argsIgnorePattern: '^_',
+            varsIgnorePattern: ^_,
+            argsIgnorePattern: ^_,
           },
         ]
       '@typescript-eslint/consistent-type-definitions': [warn, interface]
 
 rules:
+  prettier/prettier: off
   notice/notice:
     - error
     - template: |
@@ -113,7 +115,7 @@ rules:
   unicorn/prevent-abbreviations:
     [warn, { replacements: { db: false, req: false, doc: false, docs: false } }]
   '@typescript-eslint/no-shadow': [warn, { allow: [_] }]
-  sonarjs/no-duplicate-string: [warn, 5]
+  sonarjs/no-duplicate-string: [warn, { threshold: 5 }]
   sonarjs/cognitive-complexity: warn
   eslint-comments/no-unused-disable: off
   import/extensions: off
@@ -125,8 +127,8 @@ rules:
   eslint-comments/no-use: off
   no-secrets/no-secrets: error
   no-empty-label: off
-  no-return-await: off
-  no-warning-comments: off
+  no-return-await: 0
+  no-warning-comments: 0
   node/no-missing-import: off
   import/no-unresolved: off
   unicorn/prefer-spread: off

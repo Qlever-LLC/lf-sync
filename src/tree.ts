@@ -25,8 +25,7 @@ import type { Tree } from '@oada/types/oada/tree/v1.js';
 export const MASTERID_LIST =
   '/bookmarks/trellisfw/trading-partners/masterid-index';
 
-export const TRADING_PARTNER_LIST=
-  '/bookmarks/trellisfw/trading-partners';
+export const TRADING_PARTNER_LIST = '/bookmarks/trellisfw/trading-partners';
 /**
  * List to check/watch for a trading-partner's document types
  */
@@ -60,12 +59,12 @@ export const tree: Tree = {
           },
         },
         'jobs': {
-          '_type': 'application/vnd.oada.service..1+json',
-          '_rev': 0,
-          'reports': {
+          _type: 'application/vnd.oada.service..1+json',
+          _rev: 0,
+          reports: {
             '_type': 'application/vnd.oada.service.reports.1+json',
             '*': {
-              _type: 'application/vnd.oada.service.report.1+json',
+              '_type': 'application/vnd.oada.service.report.1+json',
               'day-index': {
                 '*': {
                   _type: 'application/vnd.oada.service.report.1+json',

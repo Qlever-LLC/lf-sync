@@ -97,7 +97,7 @@ export function streamUpload(
 
 export async function smallUpload(
   document: EntryIdLike<DocumentEntry>,
-  file: Buffer
+  file: Buffer,
 ) {
   const id = getEntryId(document);
   return cws.post(`api/Document/${id}`, {

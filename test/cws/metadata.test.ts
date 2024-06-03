@@ -43,7 +43,7 @@ test('setMetadata', async (t) => {
   const body = await getMetadata(document);
   t.like(
     body.LaserficheFieldList.find(({ Name: name }) => name === 'Author'),
-    { Value: 'Trellis Test' }
+    { Value: 'Trellis Test' },
   );
   try {
     await deleteDocument(document.LaserficheEntryID);

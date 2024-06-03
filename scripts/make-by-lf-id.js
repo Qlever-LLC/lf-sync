@@ -58,7 +58,7 @@ for await (const tp of tpKeys) {
     if (documentType === 'code' || documentType === 'name') {
       console.log(
         'FOUND bad doctype',
-        `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`
+        `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
       );
       await oada.delete({
         path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
@@ -102,7 +102,7 @@ for await (const tp of tpKeys) {
         console.log(
           'FOUND AN OLD VDOC PDF',
           `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta`,
-          meta.vdoc.pdf
+          meta.vdoc.pdf,
         );
         await oada.delete({
           path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/vdoc`,
@@ -183,8 +183,8 @@ for await (const tp of tpKeys) {
             path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,
           },
           undefined,
-          2
-        )
+          2,
+        ),
       );
       await oada.delete({
         path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,

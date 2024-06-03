@@ -140,14 +140,14 @@ export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {
  */
 export async function searchDocument(
   phrase: string,
-  metadata?: ReadonlyArray<string | { Name: string }>
+  metadata?: ReadonlyArray<string | { Name: string }>,
 ) {
   return cws
     .post('api/SearchDocument', {
       json: {
         LaserficheSearchPhrase: phrase,
         MetaDataObjectList: metadata?.map((field) =>
-          typeof field === 'string' ? { Name: field } : field
+          typeof field === 'string' ? { Name: field } : field,
         ),
       },
     })

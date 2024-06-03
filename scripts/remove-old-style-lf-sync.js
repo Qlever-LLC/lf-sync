@@ -68,14 +68,14 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
           path: join(
             documentBase,
             document,
-            '_meta/services/lf-sync/LaserficheEntryID'
+            '_meta/services/lf-sync/LaserficheEntryID',
           ),
         });
 
         // Old type, delete it
         if (Number.parseInt(lfId)) {
           console.log(
-            `Deleteing lfId: ${lfId} from path: ${join(documentBase, document)}`
+            `Deleteing lfId: ${lfId} from path: ${join(documentBase, document)}`,
           );
           try {
             await deleteDocument(lfId);

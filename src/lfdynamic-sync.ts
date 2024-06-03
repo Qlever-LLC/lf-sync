@@ -17,8 +17,7 @@
 
 import { config } from './config.js';
 
-import type { JsonObject } from '@oada/client';
-import { connect, type OADAClient } from '@oada/client';
+import { type JsonObject, type OADAClient, connect } from '@oada/client';
 import { doJob } from '@oada/client/jobs';
 import sql from 'mssql';
 import debug from 'debug';
@@ -26,11 +25,10 @@ const info = debug('lf-sync--lfdynamic:info');
 const error = debug('lf-sync--lfdynamic:error');
 process.env.NODE_TLS_REJECT_AUTHORIZED = '0';
 
-
 const { domain, token } = config.get('oada');
 const { database, password, port, server, user } = config.get('lfdynamic');
-//const VENDOR_SHEET = 'LFA1';
-//const NAME_COL = 'Name 1';
+// Const VENDOR_SHEET = 'LFA1';
+// const NAME_COL = 'Name 1';
 const PRODUCTION = true;
 const ENTITY_NAME_LENGTH = 51;
 
@@ -60,35 +58,36 @@ if (PRODUCTION) {
   };
 }
 
-
 async function main() {
   try {
     await sql.connect(sqlConfig);
 
     // Get some table info
-    //const qresult = await sql.query`select * from SYSOBJECTS WHERE xtype = 'U'`;
-    //const rresult = await sql.query`select * from LFDynamic.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'SFI_Entities'`;
-    //const rresult = await sql.query`ALTER TABLE [dbo].[SFI_Entities] ADD trellis_masterid VARCHAR(255) NOT NULL`;
+    // const qresult = await sql.query`select * from SYSOBJECTS WHERE xtype = 'U'`;
+    // const rresult = await sql.query`select * from LFDynamic.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'SFI_Entities'`;
+    // const rresult = await sql.query`ALTER TABLE [dbo].[SFI_Entities] ADD trellis_masterid VARCHAR(255) NOT NULL`;
     // Our user permissions
-    //const rresult = await sql.query`select * FROM sys.fn_my_permissions(NULL, 'SERVER')`;
+    // const rresult = await sql.query`select * FROM sys.fn_my_permissions(NULL, 'SERVER')`;
     // All possible permissions
-    //const rresult = await sql.query`select * FROM sys.fn_builtin_permissions(DEFAULT)`;
-    //console.log(JSON.stringify(rresult, null, 2));
-    //let res = await sql.query`select * from SFI_Entities`;
-    //const r = await sql.query`select COL_LENGTH('dbo.SFI_Entities', 'Entity Name') AS Result`
-    //console.log(r);
+    // const rresult = await sql.query`select * FROM sys.fn_builtin_permissions(DEFAULT)`;
+    // console.log(JSON.stringify(rresult, null, 2));
+    // let res = await sql.query`select * from SFI_Entities`;
+    // const r = await sql.query`select COL_LENGTH('dbo.SFI_Entities', 'Entity Name') AS Result`
+    // console.log(r);
     const name = 'Reynolds Presto Products, Inc. dba Presto Products Company';
 
     try {
-      const result = await sql.query`DECLARE @NAME NVARCHAR(100) SET @NAME=(${sanitize(name)}) INSERT INTO SFI_Entities ("Entity Name") VALUES (@NAME)`;
-      const res = await sql.query`select * from SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
-      console.log(JSON.stringify({res, result}, null, 2));
-//      const result = await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
+      const result =
+        await sql.query`DECLARE @NAME NVARCHAR(100) SET @NAME=(${sanitize(name)}) INSERT INTO SFI_Entities ("Entity Name") VALUES (@NAME)`;
+      const res =
+        await sql.query`select * from SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
+      console.log(JSON.stringify({ res, result }, null, 2));
+      //      Const result = await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
       console.log(result);
-    } catch (err) {
-      console.log(err);
+    } catch (error_) {
+      console.log(error_);
     }
-    //let res = await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${name})`;
+    // Let res = await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${name})`;
 
     /*
     // Get the current table content
@@ -101,7 +100,7 @@ async function main() {
   } catch (error_) {
     error(error_);
   }
-//  process.exit();
+  //  Process.exit();
 }
 
 /*
@@ -126,7 +125,7 @@ export async function addEntity(name: string) {
   try {
     return await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
     // Await sql.query`INSERT INTO SFI_Entities ("Entity Name", "masterid") VALUES (${name}, ${masterid})`;
-  } catch (error_: unknown) {
+  } catch {
     error('ERRORED ON THIS ONE', name);
     error(error);
     throw error;
@@ -144,7 +143,7 @@ export async function fetchTradingPartners() {
   });
   return {
     trellisList: Object.values(tps as JsonObject) as unknown as trellisEntry[],
-    oada
+    oada,
   };
 }
 
@@ -153,57 +152,76 @@ async function removeDupeEntities(records: SqlEntry[]) {
   for await (const rec of records) {
     await removeEntity(rec.rowguid);
   }
+
   return record;
 }
 
 // Remove entries if no trading-partners mention their rowguid
-export async function pruneEntities(trellis: trellisEntry[], sqlList: SqlEntry[]) {
+export async function pruneEntities(
+  trellis: trellisEntry[],
+  sqlList: SqlEntry[],
+) {
   for await (const ent of sqlList) {
     const lfdynamic = `lfdynamic:${ent.rowguid}`;
-    const foundTp = trellis.find((tp) => tp.externalIds.includes(lfdynamic))
-    info(`pruneEntities found no matches for ${ent['Entity Name']} [${ent.rowguid}]`);
+    const foundTp = trellis.find((tp) => tp.externalIds.includes(lfdynamic));
+    info(
+      `pruneEntities found no matches for ${ent['Entity Name']} [${ent.rowguid}]`,
+    );
     if (!foundTp) removeEntity(ent.rowguid);
   }
 }
 
 // Remove special characters; truncate to allowable nvarchar(100) size
-function sanitize(str:string) {
-  return str.replace(/[%_\[\]\^]/g, '').substring(0, ENTITY_NAME_LENGTH);
+function sanitize(string_: string) {
+  return string_
+    .replaceAll(/[%[\]^_]/g, '')
+    .slice(0, Math.max(0, ENTITY_NAME_LENGTH));
 }
 
-export async function handleEntities(oada: OADAClient, trellis: trellisEntry[]) {//sqlList: SqlEntry[]) {
+export async function handleEntities(
+  oada: OADAClient,
+  trellis: trellisEntry[],
+) {
+  // SqlList: SqlEntry[]) {
   // Find if an existing row exists
   for await (const tp of trellis) {
     if (!tp.externalIds) continue;
     if (!tp.externalIds.some((id: string) => id.startsWith('lfdynamic'))) {
-      let res = await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
+      let res =
+        await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
       let record;
-      if (res?.recordset.length > 1) {
-        record = await removeDupeEntities([...res.recordset]);
-      } else {
-        record = res?.recordset?.[0];
-      }
+      record =
+        res?.recordset.length > 1
+          ? await removeDupeEntities(Array.from(res.recordset))
+          : res?.recordset?.[0];
       if (!record) {
-        console.log('No result for TP', tp.name)
+        console.log('No result for TP', tp.name);
         // Does not exist. Create it
         try {
           await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
-          res = await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
+          res =
+            await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
           record = res?.recordset?.[0];
-        } catch(err: any) {
-          error(`Was an error updating a LFDynamic entity to match trading partner ${tp.name} [${tp.masterid}]`);
-          error(err);
-          if (err.message.includes('String or binary data would be truncated')) {
-
+        } catch (error_: any) {
+          error(
+            `Was an error updating a LFDynamic entity to match trading partner ${tp.name} [${tp.masterid}]`,
+          );
+          error(error_);
+          if (
+            error_.message.includes('String or binary data would be truncated')
+          ) {
           }
+
           continue;
         }
       }
+
       const { rowguid } = record;
       if (!record || !rowguid) {
-        console.log('Missing rowguid',)
+        console.log('Missing rowguid');
         continue;
       }
+
       const lfdynamic = `lfdynamic:${rowguid}`;
       await doJob(oada, {
         type: 'trading-partners-update',
@@ -212,8 +230,8 @@ export async function handleEntities(oada: OADAClient, trellis: trellisEntry[]) 
           element: {
             masterid: tp.masterid,
             externalIds: Array.from(new Set([...tp.externalIds, lfdynamic])),
-          }
-        }
+          },
+        },
       });
     }
   }
@@ -291,5 +309,5 @@ export interface SAPVendor {
 }
 
 await main();
-//const rows = grabVendors();
-//console.log(rows);
+// Const rows = grabVendors();
+// console.log(rows);

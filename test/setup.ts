@@ -39,14 +39,14 @@ export default function setup(
     fixtureDir = fileURLToPath(test.meta.snapshotDirectory),
     headerFilter,
     ...rest
-  }: Parameters<typeof configure>[0] = {}
+  }: Parameters<typeof configure>[0] = {},
 ) {
   function filterVariables(input: string): string {
     let output = input;
     for (const [name, value] of Object.entries(variables)) {
       const template = `{{ ${name} }}`;
-      // eslint-disable-next-line security/detect-non-literal-regexp
-      output = output.replace(new RegExp(String(value), 'g'), template);
+
+      output = output.replaceAll(new RegExp(String(value), 'g'), template);
     }
 
     return output;

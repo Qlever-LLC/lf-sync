@@ -28,7 +28,7 @@ import { JsonPointer } from 'json-ptr';
 import makeDebug from 'debug';
 // Promise queue to avoid spamming LF
 import PQueue from 'p-queue';
-import ksuid from 'ksuid'
+import ksuid from 'ksuid';
 
 // TODO: Add custom prometheus metrics
 import { Counter, Gauge, /*Histogram, Summary*/ } from '@oada/lib-prom';
@@ -97,9 +97,8 @@ const done = new Counter({
 });
 const inTransit = new Gauge({
   name: 'lf_sync_in_transit',
-  help: 'number of documents that have been received, but are not done or errored'
-
-})
+  help: 'number of documents that have been received, but are not done or errored',
+});
 const errored = new Counter({
   name: 'lf_sync_lf_errored',
   help: 'Number of items that errored',
@@ -134,14 +133,14 @@ async function run(token: string) {
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
     watchPartnerDocs(conn, async (masterId, item) =>
-      work.add(async () => processDocument(conn, masterId, item))
+      work.add(async () => processDocument(conn, masterId, item)),
     );
   }
 
   // Watch for new "self" documents to process
   if (config.get('watch.own')) {
     watchSelfDocs(conn, async (item) =>
-      work.add(async () => processDocument(conn, false, item))
+      work.add(async () => processDocument(conn, false, item)),
     );
   }
 
@@ -167,7 +166,7 @@ await Promise.all(tokens.map(async (element) => run(element)));
 async function processDocument(
   conn: OADAClient,
   masterId: string | false,
-  document: Resource
+  document: Resource,
 ) {
   try {
     incoming.inc();
@@ -182,12 +181,15 @@ async function processDocument(
     // proper master data lookup, we can't resolve trading partner aliases. So for now,
     // we just use the name as known in Trellis.
     if (masterId) {
-      const { name, externalIds } = await tradingPartnerByMasterId(conn, masterId);
+      const { name, externalIds } = await tradingPartnerByMasterId(
+        conn,
+        masterId,
+      );
       fieldList.Entity = name.toString() ?? '';
       const xids = externalIds
         .filter((xid: string) => xid.startsWith('sap:'))
         .map((xid: string) => xid.replace(/^sap:/, ''))
-        .join(',')
+        .join(',');
       fieldList['SAP Number'] = xids;
     }
 
@@ -196,11 +198,12 @@ async function processDocument(
         const { data: shareMode } = (await oada.get({
           path: `/${document._id}/_meta/shared`,
         })) as unknown as { data: string };
-        fieldList['Share Mode'] = shareMode === 'incoming' ?
-          'Shared To Smithfield'
-          : 'Shared From Smithfield';
-      } catch (err: any) {
-        if (err.status !== 404 || err.code !== '404') throw err;
+        fieldList['Share Mode'] =
+          shareMode === 'incoming'
+            ? 'Shared To Smithfield'
+            : 'Shared From Smithfield';
+      } catch (error_: any) {
+        if (error_.status !== 404 || error_.code !== '404') throw error_;
         fieldList['Share Mode'] = 'incoming';
       }
     }
@@ -224,13 +227,11 @@ async function processDocument(
         currentFields = metadata.LaserficheFieldList.reduce(
           (o, f) =>
             has(f, 'Value') && f.Value !== '' ? { ...o, [f.Name]: f.Value } : o,
-          {}
+          {},
         );
       }
 
-      if (!syncMetadata.fields) {
-        syncMetadata.fields = {};
-      }
+      syncMetadata.fields ||= {};
 
       currentFields = { ...syncMetadata.fields, ...currentFields };
 
@@ -255,7 +256,7 @@ async function processDocument(
         await setMetadata(
           syncMetadata.LaserficheEntryID,
           syncMetadata.fields || {},
-          syncMetadata.fields['Document Type']
+          syncMetadata.fields['Document Type'],
         );
 
         trace(`Moving the LF document back to _Incoming for filing`);
@@ -280,13 +281,13 @@ async function processDocument(
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
         await reportItem(oada, {
           tp: `/bookmarks/trellisfw/trading-partners/${masterId}`,
-          name: syncMetadata.fields['Entity'],
+          name: syncMetadata.fields.Entity,
           type: syncMetadata.fields['Document Type'],
           lfEntryId: lfDocument.LaserficheEntryID,
           timeReported: new Date().toISOString(),
           trellisDocument: document._id,
           vdocKey: key,
-        })
+        });
       }
 
       trace('Recording lf-sync metadata to Trellis document');
@@ -303,11 +304,12 @@ async function processDocument(
         lfCleanup(syncMetadata.LaserficheEntryID);
       }
     }
+
     done.inc();
-    inTransit.dec()
-  } catch (err: any) {
+    inTransit.dec();
+  } catch (error_: any) {
     error(`Could not sync document ${document._id}. Error occurred:`);
-    error(err);
+    error(error_);
     errored.inc();
     inTransit.dec();
   }
@@ -315,7 +317,7 @@ async function processDocument(
 
 function watchPartnerDocs(
   conn: OADAClient,
-  callback: (masterId: string, item: Resource) => void
+  callback: (masterId: string, item: Resource) => void,
 ) {
   info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
@@ -329,9 +331,6 @@ function watchPartnerDocs(
   });
   watch.on(ChangeType.ItemAdded, async({pointer: masterId} : {pointer: string}) => {
     const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
-
-//    if (masterId !== '/2TA8ikqFp44u7nfz2UYK7FQweF1' ) return;
-//    if (masterId !== '/55c0f771d58d3f0001000020' || masterId === '/2fZ3qnoDID1fcNtBrsiKNKBezK4') {
       info('Monitoring %s for new/current document types', documentPath);
       const docTypeWatch = new ListWatch({
         conn,
@@ -442,7 +441,7 @@ function watchSelfDocs(
  * @returns a method for how to clean up this type of task
  */
 function watchLaserfiche(
-  task: (file: DocumentEntry) => void
+  task: (file: DocumentEntry) => void,
 ): (id: EntryIdLike) => void {
   const workQueue = new Map<number, number>();
 
@@ -488,16 +487,15 @@ function watchLaserfiche(
  *  Report on each item synced
  */
 async function reportItem(conn: OADAClient, item: any) {
-  let key = ksuid.randomSync().string;
-  let date = new Date().toISOString().split('T')[0];
-  let path = `${REPORT_PATH}/day-index/${date}`;
+  const key = ksuid.randomSync().string;
+  const date = new Date().toISOString().split('T')[0];
+  const path = `${REPORT_PATH}/day-index/${date}`;
   await conn.put({
     path,
     data: {
       [key]: item,
     },
-    tree
+    tree,
   });
   info(`Reported item to ${path}/${key}`);
-
 }

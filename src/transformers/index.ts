@@ -45,7 +45,7 @@ const transformers = new Map<string, Transformer>([
   [
     'application/vnd.trellisfw.pfgia.1+json',
     generateGenericMetadata(
-      'Pure Food Guaranty and Indemnification Agreement (LOG)'
+      'Pure Food Guaranty and Indemnification Agreement (LOG)',
     ),
   ],
 
@@ -62,7 +62,7 @@ const transformers = new Map<string, Transformer>([
   [
     'application.vnd.trellisfw.sars.1+json',
     generateGenericMetadata(
-      'Specifications that indicate acceptable requirements'
+      'Specifications that indicate acceptable requirements',
     ),
   ],
 
@@ -157,7 +157,7 @@ const transformers = new Map<string, Transformer>([
   [
     'application/vnd.trellisfw.srm-corrective-actions.1+json',
     generateGenericMetadata(
-      'Specified Risk Materials (SRM) Corrective Actions'
+      'Specified Risk Materials (SRM) Corrective Actions',
     ),
   ],
 
@@ -234,7 +234,7 @@ const transformers = new Map<string, Transformer>([
   [
     'application/vnd.trellisfw.tpa-corrective-actions.1+json',
     generateGenericMetadata(
-      'Third Party Food Safety GMP Audit Corrective Actions'
+      'Third Party Food Safety GMP Audit Corrective Actions',
     ),
   ],
 
@@ -298,7 +298,7 @@ const transformers = new Map<string, Transformer>([
   [
     'application/vnd.trellisfw.letter-of-guarantee.1+json',
     generateGenericMetadata(
-      'Pure Food Guaranty and Indemnification Agreement (LOG)'
+      'Pure Food Guaranty and Indemnification Agreement (LOG)',
     ),
   ],
 
@@ -309,7 +309,5 @@ const transformers = new Map<string, Transformer>([
 
   ['application/vnd.trellisfw..1+json', generateGenericMetadata('')],
 
-  [
-    'application/vnd.zendesk.ticket.1+json', ticketMetadata,
-  ],
+  ['application/vnd.zendesk.ticket.1+json', ticketMetadata],
 ]);

@@ -58,15 +58,15 @@ export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
   return typeof entry === 'number'
     ? entry
     : entry.LaserficheEntryID
-    ? (entry.LaserficheEntryID as EntryId<T>)
-    : (entry.EntryId as EntryId<T>);
+      ? (entry.LaserficheEntryID as EntryId<T>)
+      : (entry.EntryId as EntryId<T>);
 }
 
 type EntryEntry<E extends Entry> = Omit<E, 'LaserficheEntryID'> & {
   EntryId: EntryId<E>;
 };
 export async function retrieveEntry<E extends Entry>(
-  entry: EntryIdLike<E> | Path
+  entry: EntryIdLike<E> | Path,
 ): Promise<EntryEntry<E>> {
   if (typeof entry === 'string') {
     return cws
@@ -93,14 +93,14 @@ export async function retrieveEntry<E extends Entry>(
  */
 export async function searchEntries(
   phrase: string,
-  metadata?: ReadonlyArray<string | { Name: string }>
+  metadata?: ReadonlyArray<string | { Name: string }>,
 ) {
   return cws
     .post('api/SearchEntries', {
       json: {
         LaserficheSearchPhrase: phrase,
         MetaDataObjectList: metadata?.map((field) =>
-          typeof field === 'string' ? { Name: field } : field
+          typeof field === 'string' ? { Name: field } : field,
         ),
       },
     })
