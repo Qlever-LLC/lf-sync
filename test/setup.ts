@@ -57,9 +57,10 @@ export default function setup(
     fixtureDir,
     headerFilter: {
       // Don't record tokens
+      // eslint-disable-next-line unicorn/no-null
       'authorization': () => null,
       // Don't record content lengths?
-      // eslint-disable-next-line @typescript-eslint/naming-convention
+      // eslint-disable-next-line @typescript-eslint/naming-convention, unicorn/no-null
       'content-length': () => null,
       'content-location': filterVariables,
       ...headerFilter,

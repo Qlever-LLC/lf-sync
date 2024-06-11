@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 
-import libConfig from '@oada/lib-config';
+/* eslint-disable unicorn/no-null */
+
 import {
   DOCS_LIST,
   LF_AUTOMATION_FOLDER,
   TRADING_PARTNER_LIST,
 } from './tree.js';
+import libConfig from '@oada/lib-config';
+
 import { join } from 'node:path';
 
 export const { config } = await libConfig({

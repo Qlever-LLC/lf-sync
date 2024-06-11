@@ -50,7 +50,7 @@ const metadataMappings = {
   expire_date: 'Expiration Date',
   audit_date: 'Audit Date',
   certifying_body: 'Certifying Body',
-  // eslint-disable-next-line no-secrets/no-secrets
+
   // 'fsis_directive_108001_compliance',
   effective_date: 'Effective Date', // 'certifying_body.name',
   score: 'Grade Score', // 'score.value',

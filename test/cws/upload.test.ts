@@ -57,7 +57,12 @@ test('stream upload', async (t) => {
     path: '/',
     name: 'test.stream.txt',
   });
-  const upload = streamUpload(body.LaserficheEntryID, 'txt', 'text/plain', file.length);
+  const upload = streamUpload(
+    body.LaserficheEntryID,
+    'txt',
+    'text/plain',
+    file.length,
+  );
   await pipeline(Readable.from(file), upload, new PassThrough());
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
   t.is(document.toString(), 'test test');

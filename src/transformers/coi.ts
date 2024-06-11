@@ -15,10 +15,18 @@
  * limitations under the License.
  */
 
+import { getFormattedDate, has } from '../utils.js';
 import type { Metadata } from '../cws/metadata.js';
 import type Resource from '@oada/types/oada/resource.js';
-import { has } from '../utils.js';
-import { getFormattedDate } from '../utils.js';
+
+export interface Policy {
+  type: string;
+  effective_date: string;
+  expire_date: string;
+  general_aggregate: string;
+  combined_single_limit: string;
+  el_each_accident: string;
+}
 
 export function coiMetadata(document: Resource): Metadata {
   let metadata: Metadata = {
@@ -32,9 +40,9 @@ export function coiMetadata(document: Resource): Metadata {
     document.policies
   ) {
     // TODO: Is this the summary they want?
-    const policies = Object.values<any>(document.policies).reduce<
-      Record<string, any>
-    >((v, p) => {
+    const policies = Object.values(
+      document.policies as Record<string, Policy>,
+    ).reduce<Record<string, Policy>>((v, p) => {
       v[p.type] = p;
       return v;
     }, {});
@@ -43,7 +51,7 @@ export function coiMetadata(document: Resource): Metadata {
     const effectiveDate = new Date(
       Math.max(
         ...Object.values(policies).map((p) =>
-          Number(new Date(p.effective_date as string)),
+          Number(new Date(p.effective_date)),
         ),
       ),
     );
@@ -58,13 +66,13 @@ export function coiMetadata(document: Resource): Metadata {
     metadata = {
       ...metadata,
       'General Liability': (
-        policies['Commercial General Liability']?.general_aggregate || ''
+        policies['Commercial General Liability']?.general_aggregate ?? ''
       ).toString(),
       'Automotive Liability': (
-        policies['Automobile Liability']?.combined_single_limit || ''
+        policies['Automobile Liability']?.combined_single_limit ?? ''
       ).toString(),
       'Workers Comp and Employers Liability': (
-        policies["Employers' Liability"]?.el_each_accident || ''
+        policies["Employers' Liability"]?.el_each_accident ?? ''
       ).toString(),
       'Document Date': getFormattedDate(effectiveDate),
       'Expiration Date': getFormattedDate(expireDate),

@@ -21,7 +21,7 @@ import equal from 'deep-equal';
 
 import '@oada/pino-debug';
 
-import { join, extname } from 'node:path';
+import { extname, join } from 'node:path';
 
 import { CronJob } from 'cron';
 import { JsonPointer } from 'json-ptr';
@@ -30,9 +30,14 @@ import makeDebug from 'debug';
 import PQueue from 'p-queue';
 import ksuid from 'ksuid';
 
+import {
+  AssumeState,
+  type Change,
+  ChangeType,
+  ListWatch,
+} from '@oada/list-lib';
 // TODO: Add custom prometheus metrics
-import { Counter, Gauge, /*Histogram, Summary*/ } from '@oada/lib-prom';
-import { AssumeState, type Change, ChangeType, ListWatch } from '@oada/list-lib';
+import { Counter, Gauge /* Histogram, Summary*/ } from '@oada/lib-prom';
 import { type OADAClient, connect } from '@oada/client';
 import {
   type default as Resource,
@@ -43,11 +48,11 @@ import {
   DOCS_LIST,
   LF_AUTOMATION_FOLDER,
   TRADING_PARTNER_LIST,
-  tree,
   selfDocsTree,
   tpDocTypesTree,
   tpDocsTree,
-  tpTree
+  tpTree,
+  tree,
 } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import {
@@ -186,11 +191,11 @@ async function processDocument(
         masterId,
       );
       fieldList.Entity = name.toString() ?? '';
-      const xids = externalIds
+      const xIds = externalIds
         .filter((xid: string) => xid.startsWith('sap:'))
         .map((xid: string) => xid.replace(/^sap:/, ''))
         .join(',');
-      fieldList['SAP Number'] = xids;
+      fieldList['SAP Number'] = xIds;
     }
 
     if (!fieldList['Share Mode']) {
@@ -202,7 +207,8 @@ async function processDocument(
           shareMode === 'incoming'
             ? 'Shared To Smithfield'
             : 'Shared From Smithfield';
-      } catch (error_: any) {
+      } catch (error_: unknown) {
+        // @ts-expect-error error nonsense
         if (error_.status !== 404 || error_.code !== '404') throw error_;
         fieldList['Share Mode'] = 'incoming';
       }
@@ -216,7 +222,7 @@ async function processDocument(
       fieldList['Original Filename'] = await fetchVdocFilename(oada, value._id);
 
       const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
-      const syncMetaCopy = {...syncMetadata };
+      const syncMetaCopy = { ...syncMetadata };
       let currentFields: LfSyncMetaData['fields'] = {};
 
       // Document is not new to LF
@@ -252,7 +258,9 @@ async function processDocument(
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
-        info(`LF Entry ${syncMetadata.LaserficheEntryID} (vdoc ${key}) already exists. Updating.`);
+        info(
+          `LF Entry ${syncMetadata.LaserficheEntryID} (vdoc ${key}) already exists. Updating.`,
+        );
         await setMetadata(
           syncMetadata.LaserficheEntryID,
           syncMetadata.fields || {},
@@ -269,7 +277,7 @@ async function processDocument(
         const { buffer, mimetype } = await getBuffer(conn, value);
         trace('Uploading document to Laserfiche');
         const lfDocument = await createDocument({
-          name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] || '').slice(1)}`,
+          name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
           path: '/_Incoming',
           mimetype,
           metadata: syncMetadata.fields || {},
@@ -277,7 +285,9 @@ async function processDocument(
           buffer,
         });
 
-        info(`Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`);
+        info(
+          `Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`,
+        );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
         await reportItem(oada, {
           tp: `/bookmarks/trellisfw/trading-partners/${masterId}`,
@@ -307,9 +317,8 @@ async function processDocument(
 
     done.inc();
     inTransit.dec();
-  } catch (error_: any) {
-    error(`Could not sync document ${document._id}. Error occurred:`);
-    error(error_);
+  } catch (error_: unknown) {
+    error(error_, `Could not sync document ${document._id}.`);
     errored.inc();
     inTransit.dec();
   }
@@ -317,7 +326,7 @@ async function processDocument(
 
 function watchPartnerDocs(
   conn: OADAClient,
-  callback: (masterId: string, item: Resource) => void,
+  callback: (masterId: string, item: Resource) => void | PromiseLike<void>,
 ) {
   info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
@@ -329,8 +338,10 @@ function watchPartnerDocs(
     onNewList: AssumeState.New,
     tree: tpTree,
   });
-  watch.on(ChangeType.ItemAdded, async({pointer: masterId} : {pointer: string}) => {
-    const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
+  watch.on(
+    ChangeType.ItemAdded,
+    async ({ pointer: masterId }: { pointer: string }) => {
+      const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
       info('Monitoring %s for new/current document types', documentPath);
       const docTypeWatch = new ListWatch({
         conn,
@@ -339,27 +350,117 @@ function watchPartnerDocs(
         path: documentPath,
         onNewList: AssumeState.New,
         tree: tpDocsTree,
-      })
-      docTypeWatch.on(ChangeType.ItemAdded, async({ pointer: type }: { pointer: string }) => {
-        // Watch for new documents of type `type`
-        const path = join(documentPath, type);
+      });
+      docTypeWatch.on(
+        ChangeType.ItemAdded,
+        async ({ pointer: type }: { pointer: string }) => {
+          // Watch for new documents of type `type`
+          const path = join(documentPath, type);
 
-        //if (!type.toLowerCase().includes('tickets')) return;
-        //FIXME: Remove this before production
-        info('Monitoring %s for new documents of type %s', path, type);
-        const docWatch = new ListWatch({
-          conn,
-          name: `lf-sync:to-lf:${masterId.replace('/', '')}:${type.replace('/', '')}`,
-          resume: true,
-          path,
-          assertItem: assertResource,
-          onNewList: AssumeState.Handled,
-          tree: tpDocTypesTree,
-        })
-        docWatch.on(ChangeType.ItemAdded, async ({ item }: {item: Promise<Resource> }) => {
-          await callback(masterId, await item);
-        });
-        docWatch.on(ChangeType.ItemChanged, async ({ change, pointer: documentKey }: {change: Change, pointer: string}) => {
+          // If (!type.toLowerCase().includes('tickets')) return;
+          // FIXME: Remove this before production
+          info('Monitoring %s for new documents of type %s', path, type);
+          const docWatch = new ListWatch({
+            conn,
+            name: `lf-sync:to-lf:${masterId.replace('/', '')}:${type.replace('/', '')}`,
+            resume: true,
+            path,
+            assertItem: assertResource,
+            onNewList: AssumeState.Handled,
+            tree: tpDocTypesTree,
+          });
+          docWatch.on(
+            ChangeType.ItemAdded,
+            async ({ item }: { item: Promise<Resource> }) => {
+              await callback(masterId, await item);
+            },
+          );
+          docWatch.on(
+            ChangeType.ItemChanged,
+            async ({
+              change,
+              pointer: documentKey,
+            }: {
+              change: Change;
+              pointer: string;
+            }) => {
+              if (selfChange.has(change)) {
+                trace('Ignoring self made change to resource.');
+                return;
+              }
+
+              trace(`Got work (change): ${join(path, documentKey)}`);
+
+              // Fetch resource
+              const data = await oada.get({
+                path: change.resource_id,
+              });
+              const item = data.data as Resource;
+
+              await callback(masterId, item);
+            },
+          );
+          process.on('beforeExit', async () => docWatch.stop());
+        },
+      );
+      process.on('beforeExit', async () => docTypeWatch.stop());
+      // }
+    },
+  );
+  process.on('beforeExit', async () => watch.stop());
+}
+
+function watchSelfDocs(
+  conn: OADAClient,
+  callback: (item: Resource) => Promise<void>,
+) {
+  // Watching "self" documents are /bookmarks/trellisfw/documents
+  // TODO: Update these to new ListWatch v4 API
+  const docTypeWatch = new ListWatch({
+    conn,
+    name: 'lf-sync:to-lf-own',
+    resume: false,
+    path: DOCS_LIST,
+    tree: selfDocsTree,
+  });
+  trace(`Monitoring ${DOCS_LIST} for new/current document types`);
+  docTypeWatch.on(
+    ChangeType.ItemAdded,
+    async ({ pointer: type }: { pointer: string }) => {
+      // Watch documents at /bookmarks/trellisfw/documents/<type=key>
+      const path = join(DOCS_LIST, type);
+
+      const docWatch = new ListWatch({
+        conn,
+        name: `lf-sync:to-lf-own`,
+        resume: true,
+        path,
+        assertItem: assertResource,
+        tree,
+      });
+      trace(`Monitoring ${path} for new documents`);
+      docWatch.on(
+        ChangeType.ItemAdded,
+        async ({
+          item,
+          pointer: documentKey,
+        }: {
+          item: Promise<Resource>;
+          pointer: string;
+        }) => {
+          trace(`Got work (new): ${join(path, documentKey)}`);
+          await callback(await item);
+        },
+      );
+      docWatch.on(
+        ChangeType.ItemChanged,
+        async ({
+          change,
+          pointer: documentKey,
+        }: {
+          change: Change;
+          pointer: string;
+        }) => {
           if (selfChange.has(change)) {
             trace('Ignoring self made change to resource.');
             return;
@@ -373,65 +474,12 @@ function watchPartnerDocs(
           });
           const item = data.data as Resource;
 
-          await callback(masterId, item);
-        });
-        process.on('beforeExit', async () => docWatch.stop());
-      })
-      process.on('beforeExit', async () => docTypeWatch.stop());
-    //}
-  })
-  process.on('beforeExit', async () => watch.stop());
-}
-
-function watchSelfDocs(
-  conn: OADAClient,
-  callback: (item: Resource) => Promise<void>
-) {
-  // Watching "self" documents are /bookmarks/trellisfw/documents
-  // TODO: Update these to new ListWatch v4 API
-  const docTypeWatch = new ListWatch({
-    conn,
-    name: 'lf-sync:to-lf-own',
-    resume: false,
-    path: DOCS_LIST,
-    tree: selfDocsTree
-  });
-  trace(`Monitoring ${DOCS_LIST} for new/current document types`);
-  docTypeWatch.on(ChangeType.ItemAdded, async({pointer: type} : {pointer: string}) => {
-    // Watch documents at /bookmarks/trellisfw/documents/<type=key>
-    const path = join(DOCS_LIST, type);
-
-    const docWatch = new ListWatch({
-      conn,
-      name: `lf-sync:to-lf-own`,
-      resume: true,
-      path,
-      assertItem: assertResource,
-      tree,
-    });
-    trace(`Monitoring ${path} for new documents`);
-    docWatch.on(ChangeType.ItemAdded, async ({ item, pointer: documentKey }: {item: Promise<Resource>, pointer: string}) => {
-      trace(`Got work (new): ${join(path, documentKey)}`);
-      await callback(await item);
-    })
-    docWatch.on(ChangeType.ItemChanged, async ({ change, pointer: documentKey }: {change: Change, pointer: string}) => {
-      if (selfChange.has(change)) {
-        trace('Ignoring self made change to resource.');
-        return;
-      }
-
-      trace(`Got work (change): ${join(path, documentKey)}`);
-
-      // Fetch resource
-      const data = await oada.get({
-        path: change.resource_id,
-      });
-      const item = data.data as Resource;
-
-      await callback(item);
-    });
-    process.on('beforeExit', async () => docWatch.stop());
-  });
+          await callback(item);
+        },
+      );
+      process.on('beforeExit', async () => docWatch.stop());
+    },
+  );
   process.on('beforeExit', async () => docTypeWatch.stop());
 }
 
@@ -486,14 +534,15 @@ function watchLaserfiche(
 /**
  *  Report on each item synced
  */
-async function reportItem(conn: OADAClient, item: any) {
+async function reportItem(conn: OADAClient, item: unknown) {
   const key = ksuid.randomSync().string;
   const date = new Date().toISOString().split('T')[0];
   const path = `${REPORT_PATH}/day-index/${date}`;
   await conn.put({
     path,
     data: {
-      [key]: item,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+      [key]: item as any,
     },
     tree,
   });

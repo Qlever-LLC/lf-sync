@@ -18,12 +18,12 @@
 import { config } from './config.js';
 
 import { type JsonObject, type OADAClient, connect } from '@oada/client';
+import debug from 'debug';
 import { doJob } from '@oada/client/jobs';
 import sql from 'mssql';
-import debug from 'debug';
+
 const info = debug('lf-sync--lfdynamic:info');
 const error = debug('lf-sync--lfdynamic:error');
-process.env.NODE_TLS_REJECT_AUTHORIZED = '0';
 
 const { domain, token } = config.get('oada');
 const { database, password, port, server, user } = config.get('lfdynamic');
@@ -125,10 +125,10 @@ export async function addEntity(name: string) {
   try {
     return await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
     // Await sql.query`INSERT INTO SFI_Entities ("Entity Name", "masterid") VALUES (${name}, ${masterid})`;
-  } catch {
+  } catch (error_: unknown) {
     error('ERRORED ON THIS ONE', name);
-    error(error);
-    throw error;
+    error(error_);
+    throw error_;
   }
 }
 
@@ -142,7 +142,7 @@ export async function fetchTradingPartners() {
     path: `/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index`,
   });
   return {
-    trellisList: Object.values(tps as JsonObject) as unknown as trellisEntry[],
+    trellisList: Object.values(tps as JsonObject) as unknown as TrellisEntry[],
     oada,
   };
 }
@@ -158,7 +158,7 @@ async function removeDupeEntities(records: SqlEntry[]) {
 
 // Remove entries if no trading-partners mention their rowguid
 export async function pruneEntities(
-  trellis: trellisEntry[],
+  trellis: TrellisEntry[],
   sqlList: SqlEntry[],
 ) {
   for await (const ent of sqlList) {
@@ -167,20 +167,22 @@ export async function pruneEntities(
     info(
       `pruneEntities found no matches for ${ent['Entity Name']} [${ent.rowguid}]`,
     );
-    if (!foundTp) removeEntity(ent.rowguid);
+    if (!foundTp) {
+      await removeEntity(ent.rowguid);
+    }
   }
 }
 
 // Remove special characters; truncate to allowable nvarchar(100) size
-function sanitize(string_: string) {
-  return string_
+function sanitize(value: string) {
+  return value
     .replaceAll(/[%[\]^_]/g, '')
     .slice(0, Math.max(0, ENTITY_NAME_LENGTH));
 }
 
 export async function handleEntities(
   oada: OADAClient,
-  trellis: trellisEntry[],
+  trellis: TrellisEntry[],
 ) {
   // SqlList: SqlEntry[]) {
   // Find if an existing row exists
@@ -284,7 +286,7 @@ interface SqlEntry {
   'Entity Name': string;
 }
 
-interface trellisEntry {
+interface TrellisEntry {
   name: string;
   masterid: string;
   externalIds: string[];

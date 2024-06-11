@@ -90,7 +90,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
     file.FieldDataList.map((f) => [f.Name, f.Value]),
   );
   await oada.put({
-    //path: join('resources', trellisDocumentKey, 'vdocs/pdf', fileHash, '_meta/services/lf-sync'),
+    // Path: join('resources', trellisDocumentKey, 'vdocs/pdf', fileHash, '_meta/services/lf-sync'),
     path: join('resources', trellisDocumentKey, '_meta/services/lf-sync'),
     data: {
       [fileHash]: {
@@ -134,8 +134,8 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
 
 export async function getBuffer(
   oada: OADAClient,
-  document: Resource | Link
-): Promise<{buffer: Buffer, mimetype: string }> {
+  document: Resource | Link,
+): Promise<{ buffer: Uint8Array; mimetype: string }> {
   trace('Fetching document from %s', document._id);
   let { data: buffer, headers } = await oada.get({ path: document._id });
   if (!Buffer.isBuffer(buffer)) {
@@ -148,7 +148,10 @@ export async function getBuffer(
     }
   }
 
-  return { mimetype: headers['content-type'] || headers['Content-Type'] || '', buffer };
+  return {
+    mimetype: headers['content-type'] ?? headers['Content-Type'] ?? '',
+    buffer,
+  };
 }
 
 /**
@@ -175,13 +178,14 @@ export async function fetchSyncMetadata(
 ): Promise<LfSyncMetaData> {
   try {
     const r = await oada.get({
-      //considered moving these into each of the vdocs to fix some change propogation issues
-      //path: join(id, '_meta/vdocs/pdf', key, '_meta/services/lf-sync'),
-      path: join(id, '_meta/services/lf-sync', key)
+      // Considered moving these into each of the vdocs to fix some change propagation issues
+      // path: join(id, '_meta/vdocs/pdf', key, '_meta/services/lf-sync'),
+      path: join(id, '_meta/services/lf-sync', key),
     });
     // FIXME: Make proper format and assert type
     return r.data as LfSyncMetaData;
-  } catch (cError: any) {
+  } catch (cError: unknown) {
+    // @ts-expect-error error nonsense
     if (cError?.status !== 404 && cError?.code !== '404') {
       trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
       throw cError as Error;
@@ -222,7 +226,8 @@ export async function lookupByLf(
 
     // TODO: Proper assert?
     return data as Resource;
-  } catch (cError: any) {
+  } catch (cError: unknown) {
+    // @ts-expect-error error nonsense
     if (cError?.status !== 404 && cError?.code !== 404) {
       error(cError, 'Unexpected error with Trellis!');
       throw cError as Error;
@@ -271,8 +276,8 @@ export async function updateSyncMetadata(
 ) {
   await oada.put({
     path: join(document._id, '_meta/services/lf-sync/', key),
-    //considered moving these into each of the vdocs to fix some change propogation issues
-    //path: `${document._id}_meta/vdocs/pdf/${key.replaceAll('/', '')}/_meta/services/lf-sync`,
+    // Considered moving these into each of the vdocs to fix some change propagation issues
+    // path: `${document._id}_meta/vdocs/pdf/${key.replaceAll('/', '')}/_meta/services/lf-sync`,
     data: {
       ...syncMetadata,
       lastSync: new Date().toISOString(),
@@ -281,9 +286,9 @@ export async function updateSyncMetadata(
 }
 
 export function getFormattedDate(date: Date): string {
-  let year = date.getFullYear();
-  let month = (1 + date.getMonth()).toString();
-  let day = date.getDate().toString();
+  const year = date.getFullYear();
+  const month = (1 + date.getMonth()).toString();
+  const day = date.getDate().toString();
 
-  return month + '/' + day + '/' + year +' 12:00:00 AM';
+  return `${month}/${day}/${year} 12:00:00 AM`;
 }

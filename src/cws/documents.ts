@@ -61,12 +61,12 @@ export async function createDocument({
 }: {
   path: Path;
   name: string;
-  mimetype: string
+  mimetype: string;
   volume?: string;
   template?: string;
   metadata?: Metadata | FieldList;
-  file?: Buffer | Blob;
-  buffer?: Buffer;
+  file?: Uint8Array | Blob;
+  buffer?: Uint8Array;
 }) {
   const form = new FormData();
   const parameters = {
@@ -90,8 +90,13 @@ export async function createDocument({
   if (buffer) {
     await pipeline(
       Readable.from(buffer),
-      streamUpload(r.LaserficheEntryID, extname(name).slice(1), mimetype, buffer.length),
-      new PassThrough()
+      streamUpload(
+        r.LaserficheEntryID,
+        extname(name).slice(1),
+        mimetype,
+        buffer.length,
+      ),
+      new PassThrough(),
     );
   }
 

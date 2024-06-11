@@ -64,25 +64,25 @@ export interface Ticket {
   assignee_id: number;
   organization_id: number | undefined;
   group_id: number;
-  collaborator_ids: any[];
-  follower_ids: any[];
-  email_cc_ids: any[];
+  collaborator_ids: unknown[];
+  follower_ids: unknown[];
+  email_cc_ids: unknown[];
   forum_topic_id: undefined;
   problem_id: undefined;
   has_incidents: false;
   is_public: true;
   due_at: undefined;
-  tags: any[];
+  tags: unknown[];
   custom_fields: Array<{
     id: number;
-    value: any;
+    value: unknown;
   }>;
-  satisfaction_rating: any;
-  sharing_agreement_ids: any[];
+  satisfaction_rating: unknown;
+  sharing_agreement_ids: unknown[];
   custom_status_id: number;
   fields: Array<{
     id: number;
-    value: any;
+    value: unknown;
   }>;
   followup_ids: string[];
   ticket_form_id: number;
@@ -110,7 +110,7 @@ export interface Attachment {
   deleted: boolean;
   malware_access_override: boolean;
   malware_scan_result: string;
-  thumbnails: [];
+  thumbnails: unknown[];
 }
 
 export interface TicketArchive {
@@ -249,7 +249,10 @@ export interface Field {
   }>;
   sub_type_id?: number;
   relationship_target_type?: string;
-  relationship_filter?: { all: []; any: [] };
+  relationship_filter?: {
+    all: unknown[];
+    any: unknown[];
+  };
 }
 
 export interface Comment {

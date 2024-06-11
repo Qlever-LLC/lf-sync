@@ -17,7 +17,7 @@
 
 /* eslint-disable no-console */
 
-import config from '../dist/config.js';
+import { config } from '../dist/config.js';
 
 import { join } from 'node:path';
 

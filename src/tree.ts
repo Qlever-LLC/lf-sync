@@ -82,7 +82,6 @@ export const tree: Tree = {
         '_type': 'application/vnd.oada.trellisfw.documents.1+json',
         '_rev': 0,
         '*': {
-          // eslint-disable-next-line no-secrets/no-secrets
           '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
           '*': {
             _type: 'application/vnd.oada.trellisfw.document.1+json',
@@ -94,7 +93,7 @@ export const tree: Tree = {
   },
 };
 
-export const selfDocsTree = JSON.parse(JSON.stringify(tree));
+export const selfDocsTree = structuredClone(tree);
 delete selfDocsTree?.bookmarks?.trellisfw?.documents?.['*'];
 
 // These trees from here and below were used in the ListWatches with resume: false,
@@ -156,7 +155,6 @@ export const tpDocTypesTree: Tree = {
             trellisfw: {
               _type: 'application/vnd.oada.trellisfw.1+json',
               documents: {
-                // eslint-disable-next-line no-secrets/no-secrets
                 '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
                 '*': {
                   _type: 'application/vnd.oada.trellisfw.documents.1+json',
@@ -170,11 +168,12 @@ export const tpDocTypesTree: Tree = {
   },
 };
 
-export let tpTree: Tree = JSON.parse(JSON.stringify(tpDocTypesTree));
+export const tpTree = structuredClone(tpDocTypesTree);
 delete tpTree?.bookmarks?.trellisfw?.['trading-partners']?.['*'];
 
-export let tpDocsTree: Tree = JSON.parse(JSON.stringify(tpDocTypesTree));
-delete tpDocsTree?.bookmarks?.trellisfw?.['trading-partners']?.['*']?.bookmarks?.trellisfw?.documents?.['*'];
+export const tpDocsTree = structuredClone(tpDocTypesTree);
+delete tpDocsTree?.bookmarks?.trellisfw?.['trading-partners']?.['*']?.bookmarks
+  ?.trellisfw?.documents?.['*'];
 
 export const docTypesTree: Tree = {
   bookmarks: {
@@ -187,7 +186,6 @@ export const docTypesTree: Tree = {
         '_type': 'application/vnd.oada.trellisfw.documents.1+json',
         '_rev': 0,
         '*': {
-          // eslint-disable-next-line no-secrets/no-secrets
           _type: 'application/vnd.oada.trellisfw.documentType.1+json',
         },
       },

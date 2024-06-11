@@ -48,11 +48,11 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     },
     // Write a chuck at a time
     async write(chunk, _encoding, callback) {
-      const body = chunk as string | Buffer;
+      const body = chunk as string | Uint8Array;
       try {
         await cws.post<void>('api/UploadChunk', {
           searchParams: { offset, laserficheEntryID: id },
-          body,
+          body: body instanceof Uint8Array ? Buffer.from(body) : body,
         });
         offset += body.length;
         callback();
@@ -84,7 +84,7 @@ export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
   extension: string,
   mimetype: string,
-  length: number
+  length: number,
 ): Writable {
   const id = getEntryId(document);
   return cws.stream.put(`api/Document/${id}/${extension}`, {
@@ -97,7 +97,7 @@ export function streamUpload(
 
 export async function smallUpload(
   document: EntryIdLike<DocumentEntry>,
-  file: Buffer,
+  file: Uint8Array,
 ) {
   const id = getEntryId(document);
   return cws.post(`api/Document/${id}`, {
@@ -105,6 +105,6 @@ export async function smallUpload(
       'Content-Type': 'application/pdf',
       'Content-Length': `${file.length}`,
     },
-    body: file,
+    body: file instanceof Uint8Array ? Buffer.from(file) : file,
   });
 }

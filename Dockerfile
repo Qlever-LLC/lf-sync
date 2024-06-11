@@ -13,45 +13,44 @@
 # limitations under the License.
 
 ARG NODE_VER=20-alpine
-ARG SERVICE=Qlever-LLC/lf-sync
+ARG DIR=/usr/src/app/
 
-FROM node:$NODE_VER AS install
-ARG SERVICE
-
-WORKDIR /$SERVICE
-
-COPY ./.yarn /$SERVICE/.yarn
-COPY ./package.json ./yarn.lock ./.yarnrc.yml /$SERVICE/
-
-RUN yarn workspaces focus --all --production
-
-FROM install AS build
-ARG SERVICE
-
-# Install dev deps too
-RUN yarn install --immutable
-
-COPY . /$SERVICE/
-
-# Build code and remove dev deps
-RUN yarn build --verbose && rm -rfv .yarn .pnp*
-
-FROM node:$NODE_VER AS production
-ARG SERVICE
+FROM node:$NODE_VER AS base
+ARG DIR
 
 # Install needed packages
 RUN apk add --no-cache \
   dumb-init
 
+WORKDIR ${DIR}
+
+COPY ./.yarn ${DIR}.yarn
+COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}
+
+RUN chown -R node:node ${DIR}
 # Do not run service as root
 USER node
 
-WORKDIR /$SERVICE
-
-COPY --from=install /$SERVICE/ /$SERVICE/
-COPY --from=build /$SERVICE/ /$SERVICE/
+RUN yarn workspaces focus --all --production
 
 # Launch entrypoint with dumb-init
 # Remap SIGTERM to SIGINT https://github.com/Yelp/dumb-init#signal-rewriting
 ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "run"]
 CMD ["start"]
+
+FROM base AS build
+ARG DIR
+
+# Install dev deps too
+RUN yarn install --immutable
+
+COPY . ${DIR}
+
+# Build code
+RUN yarn build --verbose
+
+FROM base AS production
+ARG DIR
+
+# Copy in build code
+COPY --from=build ${DIR}/dist ${DIR}/dist
