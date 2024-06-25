@@ -1,6 +1,6 @@
 {
   "name": "@qlever-llc/lf-sync",
-  "version": "2.5.13",
+  "version": "2.5.14",
   "description": "Trellis LaserFiche sync service",
   "main": "dist/index.js",
   "type": "module",
