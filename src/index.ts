@@ -71,7 +71,7 @@ import {
   has,
   lookupByLf,
   pushToTrellis,
-  tradingPartnerByMasterId,
+  tradingPartnerByTpKey,
   updateSyncMetadata,
 } from './utils.js';
 import type { LfSyncMetaData } from './utils.js';
@@ -137,8 +137,8 @@ async function run(token: string) {
 
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
-    watchPartnerDocs(conn, async (masterId, item) =>
-      work.add(async () => processDocument(conn, masterId, item)),
+    watchPartnerDocs(conn, async (tpKey, item) =>
+      work.add(async () => processDocument(conn, tpKey, item)),
     );
   }
 
@@ -170,7 +170,7 @@ await Promise.all(tokens.map(async (element) => run(element)));
 // FIXME: We really shouldn't need the trading partner to be passed in.
 async function processDocument(
   conn: OADAClient,
-  masterId: string | false,
+  tpKey: string | false,
   document: Resource,
 ) {
   try {
@@ -185,10 +185,10 @@ async function processDocument(
     // We should we probably just use the data from the PDF (target), but without a
     // proper master data lookup, we can't resolve trading partner aliases. So for now,
     // we just use the name as known in Trellis.
-    if (masterId) {
-      const { name, externalIds } = await tradingPartnerByMasterId(
+    if (tpKey) {
+      const { name, externalIds } = await tradingPartnerByTpKey(
         conn,
-        masterId,
+        tpKey,
       );
       fieldList.Entity = name.toString() ?? '';
       const xIds = externalIds
@@ -290,7 +290,7 @@ async function processDocument(
         );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
         await reportItem(oada, {
-          tp: `/bookmarks/trellisfw/trading-partners/${masterId}`,
+          tp: `/bookmarks/trellisfw/trading-partners/${tpKey}`,
           name: syncMetadata.fields.Entity,
           type: syncMetadata.fields['Document Type'],
           lfEntryId: lfDocument.LaserficheEntryID,
@@ -326,27 +326,25 @@ async function processDocument(
 
 function watchPartnerDocs(
   conn: OADAClient,
-  callback: (masterId: string, item: Resource) => void | PromiseLike<void>,
+  callback: (tpKey: string, item: Resource) => void | PromiseLike<void>,
 ) {
   info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
   const watch = new ListWatch({
     conn,
-    name: 'lf-sync:to-lf',
-    resume: false,
+    resume: false, // No oada-list-lib entry in the _meta doc! May have previously, but is no more!
     path: TRADING_PARTNER_LIST,
     onNewList: AssumeState.New,
     tree: tpTree,
   });
   watch.on(
     ChangeType.ItemAdded,
-    async ({ pointer: masterId }: { pointer: string }) => {
-      const documentPath = join(TRADING_PARTNER_LIST, masterId, DOCS_LIST);
+    async ({ pointer: tpKey }: { pointer: string }) => {
+      const documentPath = join(TRADING_PARTNER_LIST, tpKey, DOCS_LIST);
       info('Monitoring %s for new/current document types', documentPath);
       const docTypeWatch = new ListWatch({
         conn,
-        name: `lf-sync:to-lf:${masterId.replace('/', '')}`,
-        resume: false,
+        resume: false, // No oada-list-lib entry in the _meta doc! May have previously, but is no more!
         path: documentPath,
         onNewList: AssumeState.New,
         tree: tpDocsTree,
@@ -362,7 +360,7 @@ function watchPartnerDocs(
           info('Monitoring %s for new documents of type %s', path, type);
           const docWatch = new ListWatch({
             conn,
-            name: `lf-sync:to-lf:${masterId.replace('/', '')}:${type.replace('/', '')}`,
+            name: `lf-sync:to-lf:${tpKey.replace('/', '')}:${type.replace('/', '')}`,
             resume: true,
             path,
             assertItem: assertResource,
@@ -372,7 +370,7 @@ function watchPartnerDocs(
           docWatch.on(
             ChangeType.ItemAdded,
             async ({ item }: { item: Promise<Resource> }) => {
-              await callback(masterId, await item);
+              await callback(tpKey, await item);
             },
           );
           docWatch.on(
@@ -397,7 +395,7 @@ function watchPartnerDocs(
               });
               const item = data.data as Resource;
 
-              await callback(masterId, item);
+              await callback(tpKey, item);
             },
           );
           process.on('beforeExit', async () => docWatch.stop());

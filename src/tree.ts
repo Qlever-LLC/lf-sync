@@ -22,9 +22,6 @@ import type { Tree } from '@oada/types/oada/tree/v1.js';
 /**
  * Top level list to check/watch for all trading-partners
  */
-export const MASTERID_LIST =
-  '/bookmarks/trellisfw/trading-partners/masterid-index';
-
 export const TRADING_PARTNER_LIST = '/bookmarks/trellisfw/trading-partners';
 /**
  * List to check/watch for a trading-partner's document types
@@ -96,32 +93,6 @@ export const tree: Tree = {
 export const selfDocsTree = structuredClone(tree);
 delete selfDocsTree?.bookmarks?.trellisfw?.documents?.['*'];
 
-// These trees from here and below were used in the ListWatches with resume: false,
-// which requires a tree. That tree must be pruned down to a minimum as the
-// recursiveGet will attempt to retrieve an excessive amount of stuff.
-export const masteridTree: Tree = {
-  bookmarks: {
-    _type: 'application/vnd.oada.bookmarks.1+json',
-    _rev: 0,
-    trellisfw: {
-      '_type': 'application/vnd.oada.trellisfw.1+json',
-      '_rev': 0,
-      'trading-partners': {
-        '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
-        '*': {
-          _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
-        },
-        'masterid-index': {
-          '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
-          '*': {
-            _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
-          },
-        },
-      },
-    },
-  },
-};
-
 export const tradingPartnerTree: Tree = {
   bookmarks: {
     _type: 'application/vnd.oada.bookmarks.1+json',
@@ -155,9 +126,9 @@ export const tpDocTypesTree: Tree = {
             trellisfw: {
               _type: 'application/vnd.oada.trellisfw.1+json',
               documents: {
-                '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
+                '_type': 'application/vnd.oada.trellisfw.documents.1+json',
                 '*': {
-                  _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                  _type: 'application/vnd.oada.trellisfw.documentType.1+json',
                 },
               },
             },

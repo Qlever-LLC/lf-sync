@@ -254,12 +254,12 @@ export async function getPdfVdocs(
 /**
  * Lookup the English name for a Trading partner by masterid
  */
-export async function tradingPartnerByMasterId(
+export async function tradingPartnerByTpKey(
   oada: OADAClient,
-  masterId: string,
+  tpKey: string,
 ): Promise<{ name: string; externalIds: string[] }> {
   const { data } = (await oada.get({
-    path: `/bookmarks/trellisfw/trading-partners${masterId}`,
+    path: join(`/bookmarks/trellisfw/trading-partners`, tpKey),
   })) as unknown as { data: { name: string; externalIds: string[] } };
 
   return data;
