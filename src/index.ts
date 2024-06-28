@@ -17,6 +17,7 @@
 
 // Import this first to setup the environment
 import { config } from './config.js';
+import { backOff } from 'exponential-backoff';
 import equal from 'deep-equal';
 
 import '@oada/pino-debug';
@@ -137,15 +138,15 @@ async function run(token: string) {
 
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
-    watchPartnerDocs(conn, async (tpKey, item) =>
-      work.add(async () => processDocument(conn, tpKey, item)),
+    watchPartnerDocs(conn, async (item, docType, tpKey ) =>
+      work.add(async () => processDocument(conn, item, docType, tpKey)),
     );
   }
 
   // Watch for new "self" documents to process
   if (config.get('watch.own')) {
-    watchSelfDocs(conn, async (item) =>
-      work.add(async () => processDocument(conn, false, item)),
+    watchSelfDocs(conn, async (item, docType) =>
+      work.add(async () => processDocument(conn, item, docType)),
     );
   }
 
@@ -156,7 +157,7 @@ async function run(token: string) {
 
       if (document) {
         info('Reprocessing Trellis document %s', document._id);
-        void work.add(async () => processDocument(conn, false, document));
+        void work.add(async () => processDocument(conn, document));
       } else {
         void work.add(async () => pushToTrellis(conn, file));
       }
@@ -167,11 +168,12 @@ async function run(token: string) {
 // Start the service
 await Promise.all(tokens.map(async (element) => run(element)));
 
-// FIXME: We really shouldn't need the trading partner to be passed in.
+// FIXME: How does this thing work when we receive documents from LF via the watchLaserfiche watch?
 async function processDocument(
   conn: OADAClient,
-  tpKey: string | false,
   document: Resource,
+  docType?: string,
+  tpKey?: string,
 ) {
   try {
     incoming.inc();
@@ -256,6 +258,8 @@ async function processDocument(
         continue;
       }
 
+      let creationDate;
+
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
         info(
@@ -269,6 +273,8 @@ async function processDocument(
 
         trace(`Moving the LF document back to _Incoming for filing`);
         await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
+
+        creationDate = syncMetadata.fields.CreationTime!;
 
         // New to LF
       } else {
@@ -289,16 +295,21 @@ async function processDocument(
           `Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`,
         );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
-        await reportItem(oada, {
-          tp: `/bookmarks/trellisfw/trading-partners/${tpKey}`,
-          name: syncMetadata.fields.Entity,
-          type: syncMetadata.fields['Document Type'],
-          lfEntryId: lfDocument.LaserficheEntryID,
-          timeReported: new Date().toISOString(),
-          trellisDocument: document._id,
-          vdocKey: key,
-        });
+        creationDate = new Date().toISOString();
       }
+      await reportItem(oada, {
+        Entity: syncMetadata.fields.Entity!,
+        'Document Type': syncMetadata.fields['Document Type']!,
+        'Document Date': syncMetadata.fields['Document Date']!,
+        'Share Mode': syncMetadata.fields['Share Mode']!,
+        'LF Entry ID': syncMetadata.LaserficheEntryID,
+        'LF Creation Date': creationDate,
+        'Time Reported': new Date().toISOString(),
+        'Trellis Trading Partner ID': tpKey!,
+        'Trellis Document ID': document._id,
+        'Trellis Document Type': docType!,
+        'Trellis File ID': key,
+      });
 
       trace('Recording lf-sync metadata to Trellis document');
 
@@ -326,7 +337,7 @@ async function processDocument(
 
 function watchPartnerDocs(
   conn: OADAClient,
-  callback: (tpKey: string, item: Resource) => void | PromiseLike<void>,
+  callback: (item: Resource, docType: string, tpKey: string ) => void | PromiseLike<void>,
 ) {
   info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
@@ -370,7 +381,7 @@ function watchPartnerDocs(
           docWatch.on(
             ChangeType.ItemAdded,
             async ({ item }: { item: Promise<Resource> }) => {
-              await callback(tpKey, await item);
+              await callback(await item, type, tpKey);
             },
           );
           docWatch.on(
@@ -395,7 +406,7 @@ function watchPartnerDocs(
               });
               const item = data.data as Resource;
 
-              await callback(tpKey, item);
+              await callback(item, type, tpKey);
             },
           );
           process.on('beforeExit', async () => docWatch.stop());
@@ -410,7 +421,7 @@ function watchPartnerDocs(
 
 function watchSelfDocs(
   conn: OADAClient,
-  callback: (item: Resource) => Promise<void>,
+  callback: (item: Resource, docType: string) => Promise<void>,
 ) {
   // Watching "self" documents are /bookmarks/trellisfw/documents
   // TODO: Update these to new ListWatch v4 API
@@ -447,7 +458,7 @@ function watchSelfDocs(
           pointer: string;
         }) => {
           trace(`Got work (new): ${join(path, documentKey)}`);
-          await callback(await item);
+          await callback(await item, type);
         },
       );
       docWatch.on(
@@ -472,7 +483,7 @@ function watchSelfDocs(
           });
           const item = data.data as Resource;
 
-          await callback(item);
+          await callback(item, type);
         },
       );
       process.on('beforeExit', async () => docWatch.stop());
@@ -504,7 +515,7 @@ function watchLaserfiche(
 
     trace(`${start.toISOString()} Polling LaserFiche.`);
 
-    const files = await browse(LF_AUTOMATION_FOLDER);
+    const files = await backOff(async() => await browse(LF_AUTOMATION_FOLDER));
     for await (const file of files) {
       if (!workQueue.has(file.EntryId)) {
         if (file.Type !== 'Document') {
@@ -532,7 +543,7 @@ function watchLaserfiche(
 /**
  *  Report on each item synced
  */
-async function reportItem(conn: OADAClient, item: unknown) {
+async function reportItem(conn: OADAClient, item: ReportEntry) {
   const key = ksuid.randomSync().string;
   const date = new Date().toISOString().split('T')[0];
   const path = `${REPORT_PATH}/day-index/${date}`;
@@ -545,4 +556,18 @@ async function reportItem(conn: OADAClient, item: unknown) {
     tree,
   });
   info(`Reported item to ${path}/${key}`);
+}
+
+interface ReportEntry {
+  'Entity': string; //syncMetadata.fields.Entity,
+  'Document Type': string; //syncMetadata.fields['Document Type'],
+  'Document Date': string; //syncMetadata.fields['Document Date'],
+  'Share Mode': string; //syncMetadata.fields['Share Mode'],
+  'LF Entry ID': number; //syncMetadata.LaserficheEntryID,
+  'LF Creation Date': string; // date the LF Entry was created; tells us whether it was an update/create operation
+  'Time Reported': string; //ISOString date when the item was processed,
+  'Trellis Trading Partner ID': string; //`/bookmarks/trellisfw/trading-partners/${tpKey}`,
+  'Trellis Document ID': string; //`/bookmarks/trellisfw/trading-partners/${tpKey}`,
+  'Trellis Document Type': string;
+  'Trellis File ID': string; // the actual binary doc synced,
 }

@@ -101,6 +101,10 @@ const transformers = new Map<string, Transformer>([
     generateGenericMetadata('Gluten Statement'),
   ],
   [
+    'application/vnd.trellisfw.gluten-claim-statement.1+json',
+    generateGenericMetadata('Gluten Statement'),
+  ],
+  [
     'application/vnd.trellisfw.ingredient-breakdown.1+json',
     generateGenericMetadata('Ingredient Breakdown Range %'),
   ],

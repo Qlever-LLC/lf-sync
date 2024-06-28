@@ -31,6 +31,13 @@ export interface Policy {
 export function coiMetadata(document: Resource): Metadata {
   let metadata: Metadata = {
     'Document Type': 'Certificate of Insurance',
+    'Document Date': getFormattedDate(
+      new Date(
+        Number(
+          new Date((document.document_date || document.effective_date || document.expire_date) as unknown as string)
+        ),
+      ),
+    ),
   };
 
   // FIXME: Should this assert the CoI type with @oada/formats?
@@ -74,7 +81,7 @@ export function coiMetadata(document: Resource): Metadata {
       'Workers Comp and Employers Liability': (
         policies["Employers' Liability"]?.el_each_accident ?? ''
       ).toString(),
-      'Document Date': getFormattedDate(effectiveDate),
+      'Document Date': getFormattedDate(effectiveDate) || metadata['Document Date'] || '',
       'Expiration Date': getFormattedDate(expireDate),
     };
   }
