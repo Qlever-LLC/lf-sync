@@ -27,6 +27,22 @@ import libConfig from '@oada/lib-config';
 import { join } from 'node:path';
 
 export const { config } = await libConfig({
+  timeouts: {
+    sync: {
+      doc: 'OADA client timeout used on requests',
+      format: Number,
+      default: 10_000,
+      env: 'SYNC_JOB_TIMEOUT',
+      arg: 'sync-job-timeout',
+    },
+    getEntry: {
+      doc: 'OADA client timeout used on requests',
+      format: Number,
+      default: 10_000,
+      env: 'ENTRY_JOB_TIMEOUT',
+      arg: 'entry-job-timeout',
+    },
+  },
   watch: {
     partners: {
       doc: `Watch the ${TRADING_PARTNER_LIST} for documents`,
@@ -74,8 +90,8 @@ export const { config } = await libConfig({
     },
     token: {
       doc: 'OADA API token',
-      format: Array,
-      default: ['god'],
+      format: String,
+      default: 'god',
       env: 'TOKEN',
       arg: 'token',
     },
