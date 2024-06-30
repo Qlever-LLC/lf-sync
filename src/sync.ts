@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
+import { config } from './config.js';
 import equal from 'deep-equal';
 import { extname } from 'node:path';
+import { join } from 'node:path';
 import makeDebug from 'debug';
 import '@oada/pino-debug';
 
@@ -49,6 +51,8 @@ const info = makeDebug('lf-sync:info');
 const error = makeDebug('lf-sync:error');
 
 // Stuff from config
+const incomingFolder = join('/', config.get('laserfiche.incomingFolder')) as unknown as `/${string}`;
+
 
 // Prometheus Metrics
 const incoming = new Counter({
@@ -80,10 +84,11 @@ export const sync : WorkerFunction = async function (
     oada: OADAClient
   }
 ): Promise<Json> {
-  let { document, tpKey } = job.config as unknown as any;
+  let { doc, tpKey } = job.config as unknown as any;
   try {
     incoming.inc();
     inTransit.inc();
+    const { data: document } = await conn.get({ path: `/${doc._id}`}) as unknown as any;
     const fieldList = await transform(document);
 
     trace('Fetching vdocs for %s', document._id);
@@ -180,7 +185,7 @@ export const sync : WorkerFunction = async function (
         );
 
         trace(`Moving the LF document back to _Incoming for filing`);
-        await moveEntry(syncMetadata.LaserficheEntryID, '/_Incoming');
+        await moveEntry(syncMetadata.LaserficheEntryID, incomingFolder);
 
         //creationDate = syncMetadata.fields.CreationTime!;
 
@@ -192,7 +197,7 @@ export const sync : WorkerFunction = async function (
         trace('Uploading document to Laserfiche');
         const lfDocument = await createDocument({
           name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
-          path: '/_Incoming',
+          path: incomingFolder,
           mimetype,
           metadata: syncMetadata.fields || {},
           template: syncMetadata.fields['Document Type'],
@@ -235,7 +240,7 @@ export const sync : WorkerFunction = async function (
     inTransit.dec();
     return docsSyncMetadata as unknown as Json;
   } catch (error_: unknown) {
-    error(error_, `Could not sync document ${document._id}.`);
+    error(error_, `Could not sync document ${doc._id}.`);
     errored.inc();
     inTransit.dec();
     throw error_;

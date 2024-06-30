@@ -108,9 +108,17 @@ export const { config } = await libConfig({
       doc: 'Top Laserfiche folder to use',
       default: '/FSQA' as `/${string}`,
       format: String,
-      env: 'FOLDER',
-      arg: 'folder',
+      env: 'LF_FOLDER',
+      arg: 'lf-folder',
     },
+    incomingFolder: {
+      doc: 'Laserfiche folder to drop documents into',
+      default: '/_Incoming',
+      format: String,
+      env: 'LF_INCOMING',
+      arg: 'lf-incoming',
+    },
+
     pollRate: {
       doc: 'Rate to poll LaserFiche for documents to process. In seconds.',
       default: 5,

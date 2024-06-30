@@ -106,7 +106,7 @@ async function startService() {
   svc.on('get-lf-entry', config.get('timeouts.getEntry'), getLfEntry);
 
   // Ensure the reporting endpoint is created
-  await oada.ensure({ path: REPORT_PATH, data: {}, tree });
+//  await oada.ensure({ path: REPORT_PATH, data: {}, tree });
   //svc.addReport({});
 
   const serv = svc.start();
@@ -116,6 +116,22 @@ async function startService() {
   await Promise.all([serv, sjc])
 
 }
+
+/*
+export const sync : WorkerFunction = async function (
+  job: Job,
+  {
+    oada: conn
+  }: {
+    oada: OADAClient
+  }
+): Promise<Json> {
+
+  console.log('I Wouldve sycned a thing', { job });
+
+  return {};
+}
+*/
 
 
 /**
@@ -164,7 +180,6 @@ export function watchLaserfiche(
   };
 }
 
-
 /**
  * Retrieve the LF Entry ID for a given trellis document or wait for it to be created
  */
@@ -176,17 +191,17 @@ const getLfEntry : WorkerFunction = async function(
     oada: OADAClient
   }
 ): Promise<Json> {
-  const { path } = job.config as unknown as any;
+  const { doc } = job.config as unknown as any;
   try {
     const { data } = await conn.get({
-      path: join('/', path, '/_meta/services/lf-sync'),
+      path: join('/', doc, '/_meta/services/lf-sync'),
     })
 
     return entriesFromMeta(data as unknown as any);
   } catch(err: any) {
     if (err.status === 404) {
-      info(`LF Entry ID not found for ${path}`);
-      return waitForEntryId(conn, path);
+      info(`LF Entry ID not found for ${doc}`);
+      return waitForEntryId(conn, doc);
     }
     throw err;
   }
@@ -202,6 +217,7 @@ async function waitForEntryId(conn: OADAClient, path: string): Promise<Json> {
     await changes.return?.();
   }
 
+  // @ts-ignore
   async function watchChanges() {
     for await (const change of changes) {
       if (selfChange.has(change)) {
@@ -210,6 +226,7 @@ async function waitForEntryId(conn: OADAClient, path: string): Promise<Json> {
       }
     }
   };
+  // @ts-ignore
   return pTimeout(watchChanges(), {milliseconds: ENTRY_JOB_TIMEOUT});
 }
 
@@ -220,14 +237,17 @@ async function waitForEntryId(conn: OADAClient, path: string): Promise<Json> {
  */
 //TODO: If the Entry doesn't contain a Path, wait for for a bit
 async function entriesFromMeta(metadoc: Record<string, any>) {
+
   let entries = [];
   for await (const [key, val] of Object.entries(metadoc)) {
     const result = await retrieveEntry(val.LaserficheEntryID);
-    entries.push([key, result])
+    entries.push([key, {
+      ...val,
+      path: result.Path
+    }])
   }
   return Object.fromEntries(entries);
 }
-
 
 
 /**
@@ -268,27 +288,24 @@ async function queueSyncJob(conn: OADAClient, config: SyncJobConfig) {
     data: {
       service: 'lf-sync',
       type: 'sync-doc',
-      config
+      config: {
+        doc: { _id: config.item._id },
+        ...(config.tpKey ? { tpKey: config.tpKey } : undefined)
+      }
     } as unknown as JsonObject,
-    headers: {
-      'Content-Type': 'application/vnd.oada.job.1+json',
-    }
+    contentType: 'application/json',
   });
 
   const _id = result.headers['content-location']!.substring(1);
   const key = result?.headers['content-location']!.replace(/\/resources\//, '');
 
   await conn.put({
-    path: `/bookmarks/services/lf-sync/jobs/queued/${key}`,
+    path: `/bookmarks/services/lf-sync/jobs/pending/${key}`,
     data: {
       _id,
-//      _rev: 0,
     },
-    headers: {
-      'Content-Type': 'application/vnd.oada.job.1+json',
-    }
+    contentType: 'application/json',
   })
-
 }
 
 function watchPartnerDocs(
