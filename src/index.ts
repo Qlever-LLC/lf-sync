@@ -180,6 +180,27 @@ export function watchLaserfiche(
   };
 }
 
+interface LfMetaEntry {
+  LaserficheEntryID: number;
+  fields: Record<string, string>;
+  lastSync: string;
+}
+
+// TODO: Should really be a OADAMetaResource & that crap, but idk what its called atm
+interface MetaEntry {
+  _rev: number,
+  services: {
+    'lf-sync'?: Record<string, LfMetaEntry>;
+  },
+  vdoc: {
+    pdf: {
+      [key: string]: {
+        _id: string;
+      };
+    };
+  }
+}
+
 /**
  * Retrieve the LF Entry ID for a given trellis document or wait for it to be created
  */
@@ -192,25 +213,30 @@ const getLfEntry : WorkerFunction = async function(
   }
 ): Promise<Json> {
   const { doc } = job.config as unknown as any;
+  let data : Record<string, LfMetaEntry> = {};
   try {
-    const { data } = await conn.get({
-      path: join('/', doc, '/_meta/services/lf-sync'),
-    })
+    const { data: meta } = await conn.get({
+      path: join('/', doc, '/_meta'),
+    }) as unknown as {data: MetaEntry};
+    data = meta.services?.['lf-sync'] || {};
 
-    return entriesFromMeta(data as unknown as any);
-  } catch(err: any) {
-    if (err.status === 404) {
-      info(`LF Entry ID not found for ${doc}`);
-      return waitForEntryId(conn, doc);
+    if (Object.keys(meta.vdoc.pdf).every(key => data[key])) {
+      return entriesFromMeta(data);
+    } else {
+      info('Missing LF Entries for vdocs, waiting for remainder');
+      return waitForLfEntries(conn, doc, meta);
     }
+  } catch(err: any) {
     throw err;
   }
 }
 
-async function waitForEntryId(conn: OADAClient, path: string): Promise<Json> {
+async function waitForLfEntries(conn: OADAClient, path: string, meta: MetaEntry): Promise<Json> {
+  let data = meta.services?.['lf-sync'] || {};
   let { changes } = await conn.watch({
     path: join('/', path),
-    type: 'single'
+    type: 'single',
+    rev: meta._rev
   });
 
   const unwatch = async () => {
@@ -221,8 +247,16 @@ async function waitForEntryId(conn: OADAClient, path: string): Promise<Json> {
   async function watchChanges() {
     for await (const change of changes) {
       if (selfChange.has(change)) {
-        unwatch();
-        return entriesFromMeta(selfChange.get(change) as any);
+        info(`Got a change containing a meta entry for one of the vdocs: ${path}`, selfChange.get(change));
+        data = {
+         ...data,
+         ...selfChange.get(change) as unknown as Record<string, LfMetaEntry>,
+        };
+        if (Object.keys(meta.vdoc.pdf).every(key => data[key])) {
+          info(`Got a meta entries for every vdoc of ${path}. Fetching entries`);
+          unwatch();
+          return entriesFromMeta(data);
+        }
       }
     }
   };
@@ -236,11 +270,18 @@ async function waitForEntryId(conn: OADAClient, path: string): Promise<Json> {
  * @returns
  */
 //TODO: If the Entry doesn't contain a Path, wait for for a bit
-async function entriesFromMeta(metadoc: Record<string, any>) {
+async function entriesFromMeta(metadoc: Record<string, LfMetaEntry>) {
 
   let entries = [];
   for await (const [key, val] of Object.entries(metadoc)) {
-    const result = await retrieveEntry(val.LaserficheEntryID);
+    const result = await backOff(async () => {
+      let entry = await retrieveEntry(val.LaserficheEntryID as any);
+      if (entry.Path.startsWith('\\FSQA\\_Incoming')) {
+        throw new Error('Entry is still in _Incoming');
+      } else {
+        return entry;
+      }
+  });
     entries.push([key, {
       ...val,
       path: result.Path
