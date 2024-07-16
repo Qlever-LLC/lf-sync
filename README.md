@@ -43,7 +43,7 @@ const job = {
   }
 }
 
-let result = await doJob(job);
+let { result } = await doJob(job);
 /*
   {
     "453899066e7e8792178b9ee1fa882786": { // keys corresponding to each vdoc
@@ -80,7 +80,7 @@ const job = {
   }
 }
 
-let result = await doJob(job);
+let { result } = await doJob(job);
 /*
   {
     "453899066e7e8792178b9ee1fa882786": { // keys corresponding to each vdoc
@@ -94,5 +94,4 @@ let result = await doJob(job);
     }
   }
 */
-
 
