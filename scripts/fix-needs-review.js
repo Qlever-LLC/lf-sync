@@ -1,4 +1,4 @@
-/*
+/**
  * @license
  * Copyright 2022 Qlever LLC
  *
@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-/* eslint-disable no-console */
+/* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
 
 import { config } from '../dist/config.js';
-
-import { join } from 'node:path';
 
 import { connect } from '@oada/client';
 
@@ -36,23 +34,22 @@ failing. This occurs when necessary metadata elements are missing from the docum
 
 To reuse this in the future, fix the transformers such that the necessary metadata items are
 no longer missing, then run this script to 'retrigger' them to be processed by lf-sync by
-getting them and reputting the resource content.
+getting them and re-putting the resource content.
 */
-
 
 const oada = await connect({ token: tokens[0] || '', domain });
 
-let data = await browse(`/_NeedsReview`);
+const data = await browse(`/_NeedsReview`);
 
 for await (const entry of data) {
-
-  let path = `/${entry.Name.split('-')[0]}`
-  let { data: tDoc } = await oada.get({ path });
+  const path = `/${entry.Name.split('-')[0]}`;
+  const { data: tDoc } = await oada.get({ path });
   await oada.put({
     path,
     data: tDoc,
-    contentType: tDoc._type
+    contentType: tDoc._type,
   });
-  console.log(`completed Entry ${entry.EntryId} at path ${path}`)
+  console.log(`completed Entry ${entry.EntryId} at path ${path}`);
 }
+
 process.exit();

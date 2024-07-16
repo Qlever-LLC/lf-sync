@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-import { backOff } from 'exponential-backoff';
 import { config } from './config.js';
-import { CronJob } from 'cron';
-import esMain from 'es-main';
-import { join } from 'node:path';
-import { JsonPointer } from 'json-ptr';
-import makeDebug from 'debug';
+
 import '@oada/pino-debug';
+
+import { join } from 'node:path';
+
+import { CronJob } from 'cron';
+import { JsonPointer } from 'json-ptr';
+import { backOff } from 'exponential-backoff';
+import esMain from 'es-main';
 import ksuid from 'ksuid';
+import makeDebug from 'debug';
 import pTimeout from 'p-timeout';
-import { sync } from './sync.js';
 
 import {
   AssumeState,
@@ -33,6 +35,7 @@ import {
   ChangeType,
   ListWatch,
 } from '@oada/list-lib';
+import { type Job, type Json, Service, type WorkerFunction } from '@oada/jobs';
 import { type JsonObject, type OADAClient, connect } from '@oada/client';
 import {
   type default as Resource,
@@ -50,14 +53,8 @@ import {
   tree,
 } from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
-import {
-  browse,
-  getEntryId,
-  moveEntry,
-  retrieveEntry,
-} from './cws/index.js';
-
-import { type Json, type Job, Service, type WorkerFunction } from '@oada/jobs';
+import { browse, getEntryId, moveEntry, retrieveEntry } from './cws/index.js';
+import { sync } from './sync.js';
 
 const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
 
@@ -106,19 +103,18 @@ async function startService() {
   svc.on('get-lf-entry', config.get('timeouts.getEntry'), getLfEntry);
 
   // Ensure the reporting endpoint is created
-//  await oada.ensure({ path: REPORT_PATH, data: {}, tree });
-  //svc.addReport({});
+  //  await oada.ensure({ path: REPORT_PATH, data: {}, tree });
+  // svc.addReport({});
 
   const serv = svc.start();
 
   const sjc = startSyncJobCreator(conn);
 
-  await Promise.all([serv, sjc])
-
+  await Promise.all([serv, sjc]);
 }
 
 /*
-export const sync : WorkerFunction = async function (
+Export const sync : WorkerFunction = async function (
   job: Job,
   {
     oada: conn
@@ -127,12 +123,11 @@ export const sync : WorkerFunction = async function (
   }
 ): Promise<Json> {
 
-  console.log('I Wouldve sycned a thing', { job });
+  console.log('I Would have sycned a thing', { job });
 
   return {};
 }
 */
-
 
 /**
  *
@@ -155,7 +150,7 @@ export function watchLaserfiche(
 
     trace(`${start.toISOString()} Polling LaserFiche.`);
 
-    const files = await backOff(async() => await browse(LF_AUTOMATION_FOLDER));
+    const files = await backOff(async () => browse(LF_AUTOMATION_FOLDER));
     for await (const file of files) {
       if (!workQueue.has(file.EntryId)) {
         if (file.Type !== 'Document') {
@@ -188,80 +183,85 @@ interface LfMetaEntry {
 
 // TODO: Should really be a OADAMetaResource & that crap, but idk what its called atm
 interface MetaEntry {
-  _rev: number,
+  _rev: number;
   services: {
     'lf-sync'?: Record<string, LfMetaEntry>;
-  },
+  };
   vdoc: {
-    pdf: {
-      [key: string]: {
+    pdf: Record<
+      string,
+      {
         _id: string;
-      };
-    };
-  }
+      }
+    >;
+  };
 }
 
 /**
  * Retrieve the LF Entry ID for a given trellis document or wait for it to be created
  */
-const getLfEntry : WorkerFunction = async function(
+const getLfEntry: WorkerFunction = async function (
   job: Job,
   {
-    oada: conn
-  } : {
-    oada: OADAClient
-  }
+    oada: conn,
+  }: {
+    oada: OADAClient;
+  },
 ): Promise<Json> {
   const { doc } = job.config as unknown as any;
-  let data : Record<string, LfMetaEntry> = {};
-  try {
-    const { data: meta } = await conn.get({
-      path: join('/', doc, '/_meta'),
-    }) as unknown as {data: MetaEntry};
-    data = meta.services?.['lf-sync'] || {};
+  let data: Record<string, LfMetaEntry> = {};
+  const { data: meta } = (await conn.get({
+    path: join('/', doc, '/_meta'),
+  })) as unknown as { data: MetaEntry };
+  data = meta.services?.['lf-sync'] ?? {};
 
-    if (Object.keys(meta.vdoc.pdf).every(key => data[key])) {
-      return entriesFromMeta(data);
-    } else {
-      info('Missing LF Entries for vdocs, waiting for remainder');
-      return waitForLfEntries(conn, doc, meta);
-    }
-  } catch(err: any) {
-    throw err;
+  if (Object.keys(meta.vdoc.pdf).every((key) => data[key])) {
+    return entriesFromMeta(data);
   }
-}
 
-async function waitForLfEntries(conn: OADAClient, path: string, meta: MetaEntry): Promise<Json> {
-  let data = meta.services?.['lf-sync'] || {};
-  let { changes } = await conn.watch({
+  info('Missing LF Entries for vdocs, waiting for remainder');
+  return waitForLfEntries(conn, doc, meta);
+};
+
+async function waitForLfEntries(
+  conn: OADAClient,
+  path: string,
+  meta: MetaEntry,
+): Promise<Json> {
+  let data = meta.services?.['lf-sync'] ?? {};
+  const { changes } = await conn.watch({
     path: join('/', path),
     type: 'single',
-    rev: meta._rev
+    rev: meta._rev,
   });
 
   const unwatch = async () => {
     await changes.return?.();
-  }
+  };
 
-  // @ts-ignore
   async function watchChanges() {
     for await (const change of changes) {
       if (selfChange.has(change)) {
-        info(`Got a change containing a meta entry for one of the vdocs: ${path}`, selfChange.get(change));
+        info(
+          `Got a change containing a meta entry for one of the vdocs: ${path}`,
+          selfChange.get(change),
+        );
         data = {
-         ...data,
-         ...selfChange.get(change) as unknown as Record<string, LfMetaEntry>,
+          ...data,
+          ...(selfChange.get(change) as Record<string, LfMetaEntry>),
         };
-        if (Object.keys(meta.vdoc.pdf).every(key => data[key])) {
-          info(`Got a meta entries for every vdoc of ${path}. Fetching entries`);
-          unwatch();
+        if (Object.keys(meta.vdoc.pdf).every((key) => data[key])) {
+          info(
+            `Got a meta entries for every vdoc of ${path}. Fetching entries`,
+          );
+          await unwatch();
           return entriesFromMeta(data);
         }
       }
     }
-  };
-  // @ts-ignore
-  return pTimeout(watchChanges(), {milliseconds: ENTRY_JOB_TIMEOUT});
+  }
+
+  return pTimeout(watchChanges(), { milliseconds: ENTRY_JOB_TIMEOUT });
 }
 
 /**
@@ -269,27 +269,29 @@ async function waitForLfEntries(conn: OADAClient, path: string, meta: MetaEntry)
  * @param metadoc
  * @returns
  */
-//TODO: If the Entry doesn't contain a Path, wait for for a bit
+// TODO: If the Entry doesn't contain a Path, wait for for a bit
 async function entriesFromMeta(metadoc: Record<string, LfMetaEntry>) {
-
-  let entries = [];
-  for await (const [key, val] of Object.entries(metadoc)) {
+  const entries = [];
+  for await (const [key, value] of Object.entries(metadoc)) {
     const result = await backOff(async () => {
-      let entry = await retrieveEntry(val.LaserficheEntryID as any);
-      if (entry.Path.startsWith('\\FSQA\\_Incoming')) {
+      const entry = await retrieveEntry(value.LaserficheEntryID as any);
+      if (entry.Path.startsWith(String.raw`\FSQA\_Incoming`)) {
         throw new Error('Entry is still in _Incoming');
       } else {
         return entry;
       }
-  });
-    entries.push([key, {
-      ...val,
-      path: result.Path
-    }])
+    });
+    entries.push([
+      key,
+      {
+        ...value,
+        path: result.Path,
+      },
+    ]);
   }
+
   return Object.fromEntries(entries);
 }
-
 
 /**
  * Start-up for a given user (token)
@@ -297,24 +299,21 @@ async function entriesFromMeta(metadoc: Record<string, LfMetaEntry>) {
 async function startSyncJobCreator(conn: OADAClient) {
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
-    watchPartnerDocs(conn, async (item, tpKey ) =>
-      await queueSyncJob(conn, { item, tpKey })
-    )
+    watchPartnerDocs(conn, async (item, tpKey) =>
+      queueSyncJob(conn, { item, tpKey }),
+    );
   }
 
   // Watch for new "self" documents to process
   if (config.get('watch.own')) {
-    watchSelfDocs(conn, async (item) =>
-      await queueSyncJob(conn, { item })
-    );
+    watchSelfDocs(conn, async (item) => queueSyncJob(conn, { item }));
   }
-
 }
 
 interface SyncJobConfig {
-  item: any,
-  docType?: string,
-  tpKey?: string,
+  item: any;
+  docType?: string;
+  tpKey?: string;
 }
 
 /**
@@ -323,7 +322,6 @@ interface SyncJobConfig {
  * @param doc the
  */
 async function queueSyncJob(conn: OADAClient, config: SyncJobConfig) {
-
   const result = await conn.post({
     path: `/resources`,
     data: {
@@ -331,13 +329,13 @@ async function queueSyncJob(conn: OADAClient, config: SyncJobConfig) {
       type: 'sync-doc',
       config: {
         doc: { _id: config.item._id },
-        ...(config.tpKey ? { tpKey: config.tpKey } : undefined)
-      }
+        ...(config.tpKey ? { tpKey: config.tpKey } : undefined),
+      },
     } as unknown as JsonObject,
     contentType: 'application/json',
   });
 
-  const _id = result.headers['content-location']!.substring(1);
+  const _id = result.headers['content-location']!.slice(1);
   const key = result?.headers['content-location']!.replace(/\/resources\//, '');
 
   await conn.put({
@@ -346,12 +344,12 @@ async function queueSyncJob(conn: OADAClient, config: SyncJobConfig) {
       _id,
     },
     contentType: 'application/json',
-  })
+  });
 }
 
 function watchPartnerDocs(
   conn: OADAClient,
-  callback: (item: Resource, tpKey: string ) => void | PromiseLike<void>,
+  callback: (item: Resource, tpKey: string) => void | PromiseLike<void>,
 ) {
   info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
@@ -525,17 +523,17 @@ export async function reportItem(conn: OADAClient, item: ReportEntry) {
 }
 
 interface ReportEntry {
-  'Entity': string; //syncMetadata.fields.Entity,
-  'Document Type': string; //syncMetadata.fields['Document Type'],
-  'Document Date': string; //syncMetadata.fields['Document Date'],
-  'Share Mode': string; //syncMetadata.fields['Share Mode'],
-  'LF Entry ID': number; //syncMetadata.LaserficheEntryID,
-  'LF Creation Date': string; // date the LF Entry was created; tells us whether it was an update/create operation
-  'Time Reported': string; //ISOString date when the item was processed,
-  'Trellis Trading Partner ID': string; //`/bookmarks/trellisfw/trading-partners/${tpKey}`,
-  'Trellis Document ID': string; //`/bookmarks/trellisfw/trading-partners/${tpKey}`,
+  'Entity': string; // SyncMetadata.fields.Entity,
+  'Document Type': string; // SyncMetadata.fields['Document Type'],
+  'Document Date': string; // SyncMetadata.fields['Document Date'],
+  'Share Mode': string; // SyncMetadata.fields['Share Mode'],
+  'LF Entry ID': number; // SyncMetadata.LaserficheEntryID,
+  'LF Creation Date': string; // Date the LF Entry was created; tells us whether it was an update/create operation
+  'Time Reported': string; // ISOString date when the item was processed,
+  'Trellis Trading Partner ID': string; // `/bookmarks/trellisfw/trading-partners/${tpKey}`,
+  'Trellis Document ID': string; // `/bookmarks/trellisfw/trading-partners/${tpKey}`,
   'Trellis Document Type': string;
-  'Trellis File ID': string; // the actual binary doc synced,
+  'Trellis File ID': string; // The actual binary doc synced,
 }
 
 if (esMain(import.meta)) {

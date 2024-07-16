@@ -15,18 +15,16 @@
  * limitations under the License.
  */
 
-/* eslint-disable no-console */
+/* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
 
 import { config } from '../dist/config.js';
 
 import { join } from 'node:path';
-
-import { connect } from '@oada/client';
-
-import { writeFileSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
 
 import csvjson from 'csvjson';
 
+import { connect } from '@oada/client';
 
 const { token: tokens, domain } = config.get('oada');
 
@@ -34,42 +32,52 @@ setInterval(() => console.log('TICK'), 1000);
 
 const oada = await connect({ token: tokens[0] || '', domain });
 
-let startDate = '2024-06-17';
-let endDate = '2024-06-23';
+const startDate = '2024-06-17';
+const endDate = '2024-06-23';
 const outfilename = `./LF-Sync-Report ${startDate} - ${endDate}.csv`;
-
 
 const reportsPath = `/bookmarks/services/lf-sync/jobs/reports/docs-synced/day-index`;
 let { data: dates } = await oada.get({ path: reportsPath });
 
-dates = Object.keys(dates).filter(d => d >= startDate && d <= endDate )
+dates = Object.keys(dates).filter((d) => d >= startDate && d <= endDate);
 
-let allRecords = [];
+const allRecords = [];
 
-for (const date of dates) {
-  let { data: records } = await oada.get({ path: join(reportsPath, date) });
+for await (const date of dates) {
+  const { data: records } = await oada.get({ path: join(reportsPath, date) });
   dropTrellis(records);
-  allRecords.push(...Object.values(records).map(r => ({
-    // Handle some back compatibility with old object keys
-    'Entity': r.name || r.Entity,
-    'Document Type': r.type || r['Document Type'],
-    'Document Date': r['Document Date'],
-    'Share Mode': r['Share Mode'],
-    'LF Entry ID': r.lfEntryId || r['LF Entry ID'],
-    'LF Creation Date': r.creationDate || r['LF Creation Date'],
-    'Time Reported': r.timeReported || r['Time Reported'],
-    'Trellis Document ID': r.trellisDocument || r['Trellis Document ID'],
-    'Trellis Document Type': r['Trellis Document Type'],
-    'Trellis File ID': r.vdocKey || r['Trellis File ID'],
-    'Trellis Trading Partner ID': r.tp || r['Trellis Trading Partner ID'],
-  })).map(r => Object.fromEntries(Object.entries(r).map(([key, val])=> ([key, `"${val}"`])))))
+  allRecords.push(
+    ...Object.values(records)
+      .map((r) => ({
+        // Handle some back compatibility with old object keys
+        'Entity': r.name || r.Entity,
+        'Document Type': r.type || r['Document Type'],
+        'Document Date': r['Document Date'],
+        'Share Mode': r['Share Mode'],
+        'LF Entry ID': r.lfEntryId || r['LF Entry ID'],
+        'LF Creation Date': r.creationDate || r['LF Creation Date'],
+        'Time Reported': r.timeReported || r['Time Reported'],
+        'Trellis Document ID': r.trellisDocument || r['Trellis Document ID'],
+        'Trellis Document Type': r['Trellis Document Type'],
+        'Trellis File ID': r.vdocKey || r['Trellis File ID'],
+        'Trellis Trading Partner ID': r.tp || r['Trellis Trading Partner ID'],
+      }))
+      .map((r) =>
+        Object.fromEntries(
+          Object.entries(r).map(([key, value]) => [key, `"${value}"`]),
+        ),
+      ),
+  );
 }
 
-writeFileSync(outfilename, csvjson.toCSV(allRecords, {
-  headers: 'key',
-  delimiter: ',',
-  quote: '"'
-}));
+await writeFile(
+  outfilename,
+  csvjson.toCSV(allRecords, {
+    headers: 'key',
+    delimiter: ',',
+    quote: '"',
+  }),
+);
 function dropTrellis(document) {
   delete document._id;
   delete document._rev;

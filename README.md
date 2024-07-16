@@ -36,12 +36,12 @@ The service will run the following jobs:
 
 ```javascript
 const job = {
-  "service": "lf-sync",
-  "type": "get-lf-entry",
-  "config": {
-    "doc": "resources/abc123" //a trellis document (the json parent doc with vdocs)
-  }
-}
+  service: 'lf-sync',
+  type: 'get-lf-entry',
+  config: {
+    doc: 'resources/abc123', //a trellis document (the json parent doc with vdocs)
+  },
+};
 
 let { result } = await doJob(job);
 /*
@@ -70,15 +70,15 @@ The configuration appears as follows:
 
 ```javascript
 const job = {
-  "service": "lf-sync",
-  "type": "sync-doc",
-  "config": {
-    "doc": {
-      "id": "resources/abc123", //a trellis document (the json parent doc with vdocs)
+  service: 'lf-sync',
+  type: 'sync-doc',
+  config: {
+    doc: {
+      id: 'resources/abc123', //a trellis document (the json parent doc with vdocs)
     },
-    "tpKey": "/tradingpartnerabc123" //a trellis trading partner key from the /bookmarks/trellisfw/trading-partners/ resource
-  }
-}
+    tpKey: '/tradingpartnerabc123', //a trellis trading partner key from the /bookmarks/trellisfw/trading-partners/ resource
+  },
+};
 
 let { result } = await doJob(job);
 /*
@@ -94,4 +94,4 @@ let { result } = await doJob(job);
     }
   }
 */
-
+```

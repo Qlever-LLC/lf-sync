@@ -16,7 +16,9 @@
     ".yarn": true,
     ".pnp.*": true,
     ".vim": true,
-    "tags.*": true
+    "tags.*": true,
+    "**/.yarn": true,
+    "**/.pnp.*": true
   },
   "prettier.prettierPath": ".yarn/sdks/prettier/index.cjs",
   "typescript.tsdk": ".yarn/sdks/typescript/lib",
@@ -47,6 +49,7 @@
   "cSpell.words": [
     "Buildx",
     "codeql",
+    "cois",
     "copack",
     "copacker",
     "ecoli",
@@ -58,6 +61,8 @@
     "lcov",
     "lfdynamic",
     "masterid",
+    "msas",
+    "nvarchar",
     "paaco",
     "pdfs",
     "pfgia",
@@ -66,6 +71,7 @@
     "rowguid",
     "Snyk",
     "sonarjs",
+    "sycned",
     "trellisfw",
     "vdoc",
     "vdocs"

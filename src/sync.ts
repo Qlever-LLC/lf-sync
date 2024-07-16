@@ -16,16 +16,18 @@
  */
 
 import { config } from './config.js';
-import equal from 'deep-equal';
-import { extname } from 'node:path';
-import { join } from 'node:path';
-import makeDebug from 'debug';
+
 import '@oada/pino-debug';
+
+import { extname, join } from 'node:path';
+
+import equal from 'deep-equal';
+import makeDebug from 'debug';
 
 // TODO: Add custom prometheus metrics
 import { Counter, Gauge /* Histogram, Summary*/ } from '@oada/lib-prom';
-import { type OADAClient } from '@oada/client';
 import { type Job, type Json, type WorkerFunction } from '@oada/jobs';
+import { type OADAClient } from '@oada/client';
 
 import {
   createDocument,
@@ -47,12 +49,14 @@ import { transform } from './transformers/index.js';
 
 const trace = makeDebug('lf-sync:trace');
 const info = makeDebug('lf-sync:info');
-//const warn = makeDebug('lf-sync:warn');
+// Const warn = makeDebug('lf-sync:warn');
 const error = makeDebug('lf-sync:error');
 
 // Stuff from config
-const incomingFolder = join('/', config.get('laserfiche.incomingFolder')) as unknown as `/${string}`;
-
+const incomingFolder = join(
+  '/',
+  config.get('laserfiche.incomingFolder'),
+) as unknown as `/${string}`;
 
 // Prometheus Metrics
 const incoming = new Counter({
@@ -75,20 +79,22 @@ const errored = new Counter({
 /**
  * Sync a trellis doc to LF
  */
-//export async function sync(job: Job, { conn, jobId}): Promise<LfSyncMetaData> {
-export const sync : WorkerFunction = async function (
+// export async function sync(job: Job, { conn, jobId}): Promise<LfSyncMetaData> {
+export const sync: WorkerFunction = async function (
   job: Job,
   {
-    oada: conn
+    oada: conn,
   }: {
-    oada: OADAClient
-  }
+    oada: OADAClient;
+  },
 ): Promise<Json> {
-  let { doc, tpKey } = job.config as unknown as any;
+  const { doc, tpKey } = job.config as unknown as any;
   try {
     incoming.inc();
     inTransit.inc();
-    const { data: document } = await conn.get({ path: `/${doc._id}`}) as unknown as any;
+    const { data: document } = (await conn.get({
+      path: `/${doc._id}`,
+    })) as unknown as any;
     const fieldList = await transform(document);
 
     trace('Fetching vdocs for %s', document._id);
@@ -99,10 +105,7 @@ export const sync : WorkerFunction = async function (
     // proper master data lookup, we can't resolve trading partner aliases. So for now,
     // we just use the name as known in Trellis.
     if (tpKey) {
-      const { name, externalIds } = await tradingPartnerByTpKey(
-        conn,
-        tpKey,
-      );
+      const { name, externalIds } = await tradingPartnerByTpKey(conn, tpKey);
       fieldList.Entity = name.toString() ?? '';
       const xIds = externalIds
         .filter((xid: string) => xid.startsWith('sap:'))
@@ -127,7 +130,7 @@ export const sync : WorkerFunction = async function (
       }
     }
 
-    let docsSyncMetadata : Record<string, LfSyncMetaData> = {};
+    const docsSyncMetadata: Record<string, LfSyncMetaData> = {};
 
     // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
     for await (const [key, value] of Object.entries(vdocs)) {
@@ -171,7 +174,7 @@ export const sync : WorkerFunction = async function (
         continue;
       }
 
-      //let creationDate;
+      // Let creationDate;
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
@@ -187,7 +190,7 @@ export const sync : WorkerFunction = async function (
         trace(`Moving the LF document back to _Incoming for filing`);
         await moveEntry(syncMetadata.LaserficheEntryID, incomingFolder);
 
-        //creationDate = syncMetadata.fields.CreationTime!;
+        // CreationDate = syncMetadata.fields.CreationTime!;
 
         // New to LF
       } else {
@@ -208,9 +211,9 @@ export const sync : WorkerFunction = async function (
           `Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`,
         );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
-        //creationDate = new Date().toISOString();
+        // CreationDate = new Date().toISOString();
       }
-      /*await reportItem(conn, {
+      /* Await reportItem(conn, {
         Entity: syncMetadata.fields.Entity!,
         'Document Type': syncMetadata.fields['Document Type']!,
         'Document Date': syncMetadata.fields['Document Date']!,
@@ -233,7 +236,6 @@ export const sync : WorkerFunction = async function (
       }
 
       docsSyncMetadata[key] = syncMetadata;
-
     }
 
     done.inc();
@@ -245,4 +247,4 @@ export const sync : WorkerFunction = async function (
     inTransit.dec();
     throw error_;
   }
-}
+};

@@ -34,7 +34,11 @@ export function coiMetadata(document: Resource): Metadata {
     'Document Date': getFormattedDate(
       new Date(
         Number(
-          new Date((document.document_date || document.effective_date || document.expire_date) as unknown as string)
+          new Date(
+            (document.document_date ||
+              document.effective_date ||
+              document.expire_date) as string,
+          ),
         ),
       ),
     ),
@@ -81,7 +85,8 @@ export function coiMetadata(document: Resource): Metadata {
       'Workers Comp and Employers Liability': (
         policies["Employers' Liability"]?.el_each_accident ?? ''
       ).toString(),
-      'Document Date': getFormattedDate(effectiveDate) || metadata['Document Date'] || '',
+      'Document Date':
+        getFormattedDate(effectiveDate) ?? metadata['Document Date'] ?? '',
       'Expiration Date': getFormattedDate(expireDate),
     };
   }

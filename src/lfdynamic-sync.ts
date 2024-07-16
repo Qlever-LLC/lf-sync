@@ -17,10 +17,11 @@
 
 import { config } from './config.js';
 
-import { type JsonObject, type OADAClient, connect } from '@oada/client';
 import debug from 'debug';
-import { doJob } from '@oada/client/jobs';
 import sql from 'mssql';
+
+import { type JsonObject, type OADAClient, connect } from '@oada/client';
+import { doJob } from '@oada/client/jobs';
 
 const info = debug('lf-sync--lfdynamic:info');
 const error = debug('lf-sync--lfdynamic:error');
@@ -77,21 +78,22 @@ async function main() {
     const name = 'Reynolds Presto Products, Inc. dba Presto Products Company';
 
     try {
-      const result =
-        await sql.query`DECLARE @NAME NVARCHAR(100) SET @NAME=(${sanitize(name)}) INSERT INTO SFI_Entities ("Entity Name") VALUES (@NAME)`;
+      const result = await sql.query/* sql */ `
+          DECLARE @NAME NVARCHAR(100)
+          SET @NAME=(${sanitize(name)})
+          INSERT INTO SFI_Entities ("Entity Name") VALUES (@NAME)`;
       const res =
-        await sql.query`select * from SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
-      console.log(JSON.stringify({ res, result }, null, 2));
-      //      Const result = await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
-      console.log(result);
-    } catch (error_) {
-      console.log(error_);
+        await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
+      //      Const result = await sql.query/* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
+      info({ res, result });
+    } catch (error_: unknown) {
+      error(error_);
     }
-    // Let res = await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${name})`;
+    // Let res = await sql.query/* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${name})`;
 
     /*
     // Get the current table content
-    const { recordset: qresult } = await sql.query`select * from SFI_Entities`;
+    const { recordset: qresult } = await sql.query`SELECT * FROM SFI_Entities`;
     // Get the trading partners expand index
     const { oada, trellisList } = await fetchTradingPartners();
     await handleEntities(oada, trellisList);
@@ -123,11 +125,10 @@ async function removeEntity(rowguid: string) {
 export async function addEntity(name: string) {
   info(`adding ${name}`);
   try {
-    return await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
+    return await sql.query/* sql */ `INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
     // Await sql.query`INSERT INTO SFI_Entities ("Entity Name", "masterid") VALUES (${name}, ${masterid})`;
   } catch (error_: unknown) {
-    error('ERRORED ON THIS ONE', name);
-    error(error_);
+    error(error_, `ERRORED ON THIS ONE ${name}`);
     throw error_;
   }
 }
@@ -190,26 +191,26 @@ export async function handleEntities(
     if (!tp.externalIds) continue;
     if (!tp.externalIds.some((id: string) => id.startsWith('lfdynamic'))) {
       let res =
-        await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
-      let record;
-      record =
+        await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
+      let record =
         res?.recordset.length > 1
           ? await removeDupeEntities(Array.from(res.recordset))
           : res?.recordset?.[0];
       if (!record) {
-        console.log('No result for TP', tp.name);
+        error('No result for TP', tp.name);
         // Does not exist. Create it
         try {
-          await sql.query`INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
+          await sql.query/* sql */ `INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
           res =
-            await sql.query`select * from SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
+            await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
           record = res?.recordset?.[0];
-        } catch (error_: any) {
+        } catch (error_: unknown) {
           error(
+            error_,
             `Was an error updating a LFDynamic entity to match trading partner ${tp.name} [${tp.masterid}]`,
           );
-          error(error_);
           if (
+            // @ts-expect-error error nonsense
             error_.message.includes('String or binary data would be truncated')
           ) {
           }
@@ -220,7 +221,7 @@ export async function handleEntities(
 
       const { rowguid } = record;
       if (!record || !rowguid) {
-        console.log('Missing rowguid');
+        error('Missing rowguid');
         continue;
       }
 
