@@ -126,13 +126,6 @@ export const { config } = await libConfig({
       env: 'LF_POLL_RATE_MS',
       arg: 'lf-poll-rate',
     },
-    timeout: {
-      doc: 'Timeout for a pending document job to complete. In milliseconds. (default: 2 hrs)',
-      default: 7200 * 1000,
-      format: Number,
-      env: 'LF_JOB_TIMEOUT',
-      arg: 'lf-job-timeout',
-    },
     cws: {
       login: {
         username: {
