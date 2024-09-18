@@ -14,8 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { Metadata } from '../cws/metadata.js';
+
 import type Resource from '@oada/types/oada/resource.js';
+
+import type { Metadata } from '../cws/metadata.js';
 import { getFormattedDate } from '../utils.js';
 
 const SAP_FIELD = 'sap_id';

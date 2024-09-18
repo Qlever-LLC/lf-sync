@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-import type { Metadata } from '../cws/metadata.js';
 import type Resource from '@oada/types/oada/resource.js';
+
+import type { Metadata } from '../cws/metadata.js';
 import { getFormattedDate } from '../utils.js';
 
 export function generateGenericMetadata(type: string) {

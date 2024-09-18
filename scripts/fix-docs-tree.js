@@ -94,7 +94,7 @@ for await (const [index, tpKey] of Object.keys(masterIds).entries()) {
           await oada.delete({ path: docTypePath });
           continue;
         } else {
-          console.log(`Wierd 'documents' object`, docTypePath);
+          console.log(`Weird 'documents' object`, docTypePath);
           // We can come back and put code in here later
           continue;
         }

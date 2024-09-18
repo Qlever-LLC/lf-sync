@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NODE_VER=20-alpine
+ARG NODE_VER=22-alpine
 ARG DIR=/usr/src/app/
 
 FROM node:$NODE_VER AS base
@@ -25,7 +25,7 @@ RUN apk add --no-cache \
 WORKDIR ${DIR}
 
 COPY ./.yarn ${DIR}.yarn
-COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}
+COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}/
 
 RUN chown -R node:node ${DIR}
 # Do not run service as root
