@@ -24,8 +24,6 @@ import { extname, join } from 'node:path';
 import equal from 'deep-equal';
 import makeDebug from 'debug';
 
-// TODO: Add custom prometheus metrics
-import { Counter, Gauge /* Histogram, Summary*/ } from '@oada/lib-prom';
 import { type Job, type Json, type WorkerFunction } from '@oada/jobs';
 import { type OADAClient } from '@oada/client';
 
@@ -58,23 +56,6 @@ const incomingFolder = join(
   config.get('laserfiche.incomingFolder'),
 ) as unknown as `/${string}`;
 
-// Prometheus Metrics
-const incoming = new Counter({
-  name: 'lf_sync_items_received',
-  help: 'Number of items received',
-});
-const done = new Counter({
-  name: 'lf_sync_items_done',
-  help: 'Number of items completed',
-});
-const inTransit = new Gauge({
-  name: 'lf_sync_in_transit',
-  help: 'number of documents that have been received, but are not done or errored',
-});
-const errored = new Counter({
-  name: 'lf_sync_lf_errored',
-  help: 'Number of items that errored',
-});
 
 /**
  * Sync a trellis doc to LF
@@ -90,8 +71,6 @@ export const sync: WorkerFunction = async function (
 ): Promise<Json> {
   const { doc, tpKey } = job.config as unknown as any;
   try {
-    incoming.inc();
-    inTransit.inc();
     const { data: document } = (await conn.get({
       path: `/${doc._id}`,
     })) as unknown as any;
@@ -238,13 +217,9 @@ export const sync: WorkerFunction = async function (
       docsSyncMetadata[key] = syncMetadata;
     }
 
-    done.inc();
-    inTransit.dec();
     return docsSyncMetadata as unknown as Json;
   } catch (error_: unknown) {
     error(error_, `Could not sync document ${doc._id}.`);
-    errored.inc();
-    inTransit.dec();
     throw error_;
   }
 };
