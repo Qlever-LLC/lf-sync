@@ -39,7 +39,7 @@ import {
   getBuffer,
   getPdfVdocs,
   has,
-  tradingPartnerByTpKey,
+  fetchTradingPartner,
   updateSyncMetadata,
 } from './utils.js';
 import type { LfSyncMetaData } from './utils.js';
@@ -69,7 +69,8 @@ export const sync: WorkerFunction = async function (
     oada: OADAClient;
   },
 ): Promise<Json> {
-  const { doc, tpKey } = job.config as unknown as any;
+  // Keeping deprecating tpKey
+  const { doc, tpKey, tradingPartner } = job.config as unknown as any;
   try {
     const { data: document } = (await conn.get({
       path: `/${doc._id}`,
@@ -78,20 +79,16 @@ export const sync: WorkerFunction = async function (
 
     trace('Fetching vdocs for %s', document._id);
     const vdocs = await getPdfVdocs(conn, document);
+    if (!(tradingPartner || tpKey))
+      throw new Error('No trading partner key or id provided');
 
-    // TODO: Replace block with proper master data lookup
-    // We should we probably just use the data from the PDF (target), but without a
-    // proper master data lookup, we can't resolve trading partner aliases. So for now,
-    // we just use the name as known in Trellis.
-    if (tpKey) {
-      const { name, externalIds } = await tradingPartnerByTpKey(conn, tpKey);
-      fieldList.Entity = name.toString() ?? '';
-      const xIds = externalIds
-        .filter((xid: string) => xid.startsWith('sap:'))
-        .map((xid: string) => xid.replace(/^sap:/, ''))
-        .join(',');
-      fieldList['SAP Number'] = xIds;
-    }
+    const { name, externalIds } = await fetchTradingPartner(conn, tradingPartner || tpKey);
+    fieldList.Entity = name.toString() ?? '';
+    const xIds = externalIds
+      .filter((xid: string) => xid.startsWith('sap:'))
+      .map((xid: string) => xid.replace(/^sap:/, ''))
+      .join(',');
+    fieldList['SAP Number'] = xIds;
 
     if (!fieldList['Share Mode']) {
       try {

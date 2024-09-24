@@ -108,26 +108,11 @@ async function startService() {
 
   const serv = svc.start();
 
-  const sjc = startSyncJobCreator(conn);
+  //const sjc = startSyncJobCreator(conn);
 
-  await Promise.all([serv, sjc]);
+  //await Promise.all([serv, sjc]);
+  await serv;
 }
-
-/*
-Export const sync : WorkerFunction = async function (
-  job: Job,
-  {
-    oada: conn
-  }: {
-    oada: OADAClient
-  }
-): Promise<Json> {
-
-  console.log('I Would have sycned a thing', { job });
-
-  return {};
-}
-*/
 
 /**
  *
