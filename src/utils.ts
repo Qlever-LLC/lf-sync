@@ -35,6 +35,8 @@ export interface LfSyncMetaData {
   lastSync?: string;
   LaserficheEntryID?: DocumentId;
   fields?: Record<string, string>;
+  Path?: string;
+  Filename?: string;
 }
 
 const trace = debug('lf-sync:utils:trace');
@@ -306,6 +308,7 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
   Locations,
   'Expiration Date': expiration,
   'Zendesk Ticket ID': ticketId,
+  'Original Filename': originalFilename
 } = metadata;
   let location = Locations && Locations.length === 1
     ? Locations[0]
@@ -332,7 +335,9 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
     ].filter(i => i) as unknown as string)
   ) as unknown as Path;
 
-  let filename = [
+  // If we're dealing with ticket attachments, just use the
+  // original filename, else auto-generate from metadata
+  let filename = ticketId ? originalFilename! : [
     Entity,
     location,
     product,
@@ -343,7 +348,7 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
   return { path, filename }
 }
 
-interface Metadata {
+export interface Metadata {
   Entity: string;
   'Document Type': string;
   'Share Mode': string;
@@ -351,4 +356,5 @@ interface Metadata {
   'Zendesk Ticket ID'?: string;
   Products?: string[];
   Locations?: string[];
+  'Original Filename'?: string;
 }

@@ -43,7 +43,7 @@ import {
   updateSyncMetadata,
   filingWorkflow,
 } from './utils.js';
-import type { LfSyncMetaData } from './utils.js';
+import type { LfSyncMetaData, Metadata } from './utils.js';
 import { transform } from './transformers/index.js';
 
 const trace = makeDebug('lf-sync:trace');
@@ -151,8 +151,7 @@ export const sync: WorkerFunction = async function (
         continue;
       }
 
-      // @ts-expect-error fix later when we get products/locations set up right
-      let { path, filename } = filingWorkflow(syncMetadata.fields)
+      let { path, filename } = filingWorkflow(syncMetadata.fields as unknown as Metadata )
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
@@ -169,9 +168,7 @@ export const sync: WorkerFunction = async function (
         // Use our own filing workflow instead of incomingFolder
         await moveEntry(syncMetadata.LaserficheEntryID, path as `/{string}`);
 
-        // CreationDate = syncMetadata.fields.CreationTime!;
-
-        // New to LF
+      // New to LF
       } else {
         info(`Document (vdoc ${key}) is new to LF`);
 
@@ -193,6 +190,8 @@ export const sync: WorkerFunction = async function (
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
         // CreationDate = new Date().toISOString();
       }
+      syncMetadata.Filename = filename;
+      syncMetadata.Path = path;
       /* Await reportItem(conn, {
         Entity: syncMetadata.fields.Entity!,
         'Document Type': syncMetadata.fields['Document Type']!,
