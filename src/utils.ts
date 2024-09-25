@@ -28,6 +28,7 @@ import type Resource from '@oada/types/oada/resource.js';
 import { BY_LF_PATH, tree } from './tree.js';
 import type { DocumentEntry, DocumentId } from './cws/index.js';
 import { getEntryId, retrieveDocumentContent } from './cws/index.js';
+import { Path } from './cws/paths.js';
 
 export type VDocList = Record<string, Link>;
 export interface LfSyncMetaData {
@@ -294,4 +295,60 @@ export function getFormattedDate(date: Date): string {
   const day = date.getDate().toString();
 
   return `${month}/${day}/${year} 12:00:00 AM`;
+}
+
+export function filingWorkflow(metadata: Metadata): {filename: string, path: Path} {
+  let {
+  Entity,
+  'Document Type': documentType,
+  'Share Mode': shareMode,
+  Products,
+  Locations,
+  'Expiration Date': expiration,
+  'Zendesk Ticket ID': ticketId,
+} = metadata;
+  let location = Locations && Locations.length === 1
+    ? Locations[0]
+    : Locations && Locations.length > 1
+      ? 'Multi-Location'
+      : '';
+
+  let product = Products && Products.length === 1
+    ? Products[0]
+    : Products && Products.length > 1
+      ? 'Multi-Product'
+      : '';
+
+  let expire = expiration ? 'EXP_'+new Date(expiration).toISOString().split('T')[0] : undefined;
+  let ticket = ticketId ? `Ticket${ticketId}` : undefined;
+
+  let path : Path = join(
+    ...([
+      `/FSQA/trellis/trading-partners`,
+      Entity,
+      shareMode,
+      documentType,
+      ticket
+    ].filter(i => i) as unknown as string)
+  ) as unknown as Path;
+
+  let filename = [
+    Entity,
+    location,
+    product,
+    documentType,
+    expire
+  ].filter(i => i).join('_');
+
+  return { path, filename }
+}
+
+interface Metadata {
+  Entity: string;
+  'Document Type': string;
+  'Share Mode': string;
+  'Expiration Date'?: string;
+  'Zendesk Ticket ID'?: string;
+  Products?: string[];
+  Locations?: string[];
 }

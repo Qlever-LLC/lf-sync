@@ -41,6 +41,7 @@ import {
   has,
   fetchTradingPartner,
   updateSyncMetadata,
+  filingWorkflow,
 } from './utils.js';
 import type { LfSyncMetaData } from './utils.js';
 import { transform } from './transformers/index.js';
@@ -150,7 +151,8 @@ export const sync: WorkerFunction = async function (
         continue;
       }
 
-      // Let creationDate;
+      // @ts-expect-error fix later when we get products/locations set up right
+      let { path, filename } = filingWorkflow(syncMetadata.fields)
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
@@ -164,7 +166,8 @@ export const sync: WorkerFunction = async function (
         );
 
         trace(`Moving the LF document back to _Incoming for filing`);
-        await moveEntry(syncMetadata.LaserficheEntryID, incomingFolder);
+        // Use our own filing workflow instead of incomingFolder
+        await moveEntry(syncMetadata.LaserficheEntryID, path as `/{string}`);
 
         // CreationDate = syncMetadata.fields.CreationTime!;
 
@@ -175,8 +178,9 @@ export const sync: WorkerFunction = async function (
         const { buffer, mimetype } = await getBuffer(conn, value);
         trace('Uploading document to Laserfiche');
         const lfDocument = await createDocument({
-          name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
-          path: incomingFolder,
+          //name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
+          name: filename,
+          path,
           mimetype,
           metadata: syncMetadata.fields || {},
           template: syncMetadata.fields['Document Type'],
