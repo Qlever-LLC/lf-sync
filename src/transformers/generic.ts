@@ -62,6 +62,8 @@ const metadataMappings = {
 
   auditor: 'Auditor Name',
   issue_date: 'Issue Date',
+  products: 'Products',
+  locations: 'Locations',
   // 'failures':
   // 'reaudit_date':
   // 'scheme':

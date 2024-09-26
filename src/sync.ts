@@ -188,7 +188,6 @@ export const sync: WorkerFunction = async function (
           `Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`,
         );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
-        // CreationDate = new Date().toISOString();
       }
       syncMetadata.Filename = filename;
       syncMetadata.Path = path;

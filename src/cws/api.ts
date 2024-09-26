@@ -24,13 +24,18 @@
 import { config } from '../config.js';
 
 import got from 'got';
+import type { Got } from 'got';
 
 const {
   repository,
   cws: { apiRoot, login, timeout, token },
 } = config.get('laserfiche');
 
-const client = got.extend({
+let authToken = token;
+let isRefreshing = false;
+let refreshQueue : any[] = [];
+
+const client: Got = got.extend({
   prefixUrl: apiRoot,
   https: {
     rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
@@ -38,6 +43,29 @@ const client = got.extend({
   timeout: {
     request: timeout,
   },
+  hooks: {
+    beforeRequest: [
+      (options: any) => {
+        options.headers.Authorization = token
+      }
+    ],
+    beforeError: [
+      async (error: any) => {
+        const { response } = error;
+        if (response && response.statusCode === 401) {
+          try {
+            const newToken = await refreshAuthToken();
+            // Retry the original request with the new token
+            return client(error.request.options);
+          } catch (tokenRefreshError) {
+            throw tokenRefreshError;
+          }
+        }
+
+        return error;
+      }
+    ]
+  }
 });
 
 /**
@@ -69,5 +97,26 @@ async function getToken() {
 export const cws = client.extend({
   headers: { Authorization: token ?? (await getToken()) },
 });
+
+const refreshAuthToken = async () => {
+  if (!isRefreshing) {
+    isRefreshing = true;
+    try {
+      // Replace this with your actual token refresh logic.
+      authToken = await getToken(); // Update your auth token
+      isRefreshing = false;
+
+      // Resolve all the pending requests in the queue with the new token
+      refreshQueue.forEach(callback => callback(authToken));
+      refreshQueue = [];
+    } catch (error) {
+      isRefreshing = false;
+      throw new Error('Failed to refresh auth token');
+    }
+  }
+
+  // Return a promise that resolves with the new token
+  return new Promise(resolve => refreshQueue.push(resolve));
+};
 
 export default cws;

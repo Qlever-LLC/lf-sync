@@ -303,6 +303,7 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
   let {
   Entity,
   'Document Type': documentType,
+  'Document Date': documentDate,
   'Share Mode': shareMode,
   Products,
   Locations,
@@ -324,6 +325,13 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
 
   let expire = expiration ? 'EXP_'+new Date(expiration).toISOString().split('T')[0] : undefined;
   let ticket = ticketId ? `Ticket${ticketId}` : undefined;
+  let ticketDate: string = '';
+  if (ticketId) {
+    const docDate = new Date(documentDate);
+    const year = docDate.getFullYear();
+    const month = (1 + docDate.getMonth()).toString();
+    ticketDate = `${year}-${month}`;
+  }
 
   let path : Path = join(
     ...([
@@ -331,7 +339,8 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
       Entity,
       shareMode,
       documentType,
-      ticket
+      ticket,
+      ticketDate,
     ].filter(i => i) as unknown as string)
   ) as unknown as Path;
 
@@ -351,6 +360,7 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
 export interface Metadata {
   Entity: string;
   'Document Type': string;
+  'Document Date': string;
   'Share Mode': string;
   'Expiration Date'?: string;
   'Zendesk Ticket ID'?: string;

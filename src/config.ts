@@ -156,7 +156,7 @@ export const { config } = await libConfig({
       token: {
         doc: 'CWS API token',
         nullable: true,
-        default: null,
+        default: '',
         format: String,
         env: 'CWS_TOKEN',
         arg: 'cws-token',
