@@ -40,6 +40,7 @@ test('smallUpload', async (t) => {
   const { LaserficheEntryID: id } = await createDocument({
     path: '/../../_Incoming',
     name: 'test.workflow.small.pdf',
+    mimetype: 'application/pdf',
     template: 'SFI Template 1',
     metadata: {
       'Document Date': new Date().toISOString(),
@@ -69,6 +70,7 @@ test('streamUpload', async (t) => {
   const { LaserficheEntryID: id } = await createDocument({
     path: '/../../_Incoming',
     name: 'test.workflow.stream.pdf',
+    mimetype: 'application/pdf',
     template: 'SFI Template 1',
     metadata: {
       'Document Date': new Date().toISOString(),

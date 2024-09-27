@@ -38,6 +38,7 @@ test('setMetadata', async (t) => {
   const document = await createDocument({
     path: '/',
     name: 'test.create.txt',
+    mimetype: 'text/plain',
   });
   await setMetadata(document, { Author: 'Trellis Test' }, 'General');
   const body = await getMetadata(document);
@@ -54,6 +55,7 @@ test('setTemplate', async (t) => {
   const document = await createDocument({
     path: '/',
     name: 'test.create2.txt',
+    mimetype: 'text/plain',
   });
   await setTemplate(document, 'General');
   const body = await getMetadata(document);

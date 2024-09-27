@@ -294,7 +294,7 @@ export async function updateSyncMetadata(
 export function getFormattedDate(date: Date): string {
   const year = date.getFullYear();
   const month = (1 + date.getMonth()).toString();
-  const day = date.getDate().toString();
+  const day = (1 + date.getDate()).toString();
 
   return `${month}/${day}/${year} 12:00:00 AM`;
 }
@@ -328,19 +328,17 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
   let ticketDate: string = '';
   if (ticketId) {
     const docDate = new Date(documentDate);
-    const year = docDate.getFullYear();
-    const month = (1 + docDate.getMonth()).toString();
-    ticketDate = `${year}-${month}`;
+    ticketDate = (docDate.toISOString().split('T')[0])!.slice(0,7);
   }
 
   let path : Path = join(
     ...([
-      `/FSQA/trellis/trading-partners`,
+      `/trellis/trading-partners`,
       Entity,
       shareMode,
       documentType,
-      ticket,
       ticketDate,
+      ticket,
     ].filter(i => i) as unknown as string)
   ) as unknown as Path;
 

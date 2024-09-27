@@ -31,6 +31,7 @@ test('retrieveDocumentContents Blob', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.txt',
+    mimetype: 'text/plain',
     file,
   });
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
@@ -45,6 +46,7 @@ test('retrieveDocumentContents Buffer', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.txt',
+    mimetype: 'text/plain',
     file,
   });
   const document = await retrieveDocumentContent(body.LaserficheEntryID);

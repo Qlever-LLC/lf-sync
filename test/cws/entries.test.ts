@@ -43,6 +43,7 @@ test('moveEntry', async (t) => {
   const entry = await createDocument({
     path: '/',
     name: 'test.move.txt',
+    mimetype: 'text/plain',
   });
   await moveEntry(entry, '/moved');
   t.pass();

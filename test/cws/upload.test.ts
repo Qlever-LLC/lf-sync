@@ -41,6 +41,7 @@ test('small upload', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.stream.txt',
+    mimetype: 'text/plain',
   });
   t.log(await retrieveDocument(body.LaserficheEntryID));
   await smallUpload(body.LaserficheEntryID, file);
@@ -56,6 +57,7 @@ test('stream upload', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.stream.txt',
+    mimetype: 'text/plain',
   });
   const upload = streamUpload(
     body.LaserficheEntryID,
@@ -82,6 +84,7 @@ test.failing('chunked upload', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.chunked.txt',
+    mimetype: 'text/plain',
   });
   const upload = chunkedUpload(body.LaserficheEntryID);
   await pipeline(contents, Duplex.from(upload), new PassThrough());

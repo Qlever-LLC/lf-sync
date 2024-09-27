@@ -33,6 +33,7 @@ test('createDocument', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.create.txt',
+    mimetype: 'text/plain',
   });
   t.truthy(body.LaserficheEntryID);
   try {
@@ -45,6 +46,7 @@ test('createDocument with file', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.create.file.txt',
+    mimetype: 'text/plain',
     file,
   });
   t.log(await retrieveDocument(body.LaserficheEntryID));
@@ -68,6 +70,7 @@ test('retrieveDocument', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.retrieve.txt',
+    mimetype: 'text/plain',
   });
   const document = await retrieveDocument(body.LaserficheEntryID);
   t.is(document.LaserficheEntryID, body.LaserficheEntryID);
@@ -87,6 +90,7 @@ test('deleteDocument', async (t) => {
   const body = await createDocument({
     path: '/',
     name: 'test.delete.txt',
+    mimetype: 'text/plain',
   });
   await deleteDocument(body.LaserficheEntryID);
   t.pass();
