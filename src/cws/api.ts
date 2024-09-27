@@ -35,9 +35,11 @@ const client = got.extend({
   https: {
     rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
   },
+  /*
   timeout: {
     request: timeout,
   },
+  */
 });
 
 /**

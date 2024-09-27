@@ -170,7 +170,7 @@ export const { config } = await libConfig({
       },
       timeout: {
         doc: 'CWS API timeout for individual requests',
-        default: 10_000,
+        default: 60_000,
         format: Number,
         env: 'CWS_TIMEOUT',
         arg: 'cws-timeout',
