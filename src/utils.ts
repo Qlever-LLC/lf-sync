@@ -36,7 +36,7 @@ export interface LfSyncMetaData {
   LaserficheEntryID?: DocumentId;
   fields?: Record<string, string>;
   Path?: string;
-  Filename?: string;
+  Name?: string;
 }
 
 const trace = debug('lf-sync:utils:trace');
@@ -309,7 +309,8 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
   Locations,
   'Expiration Date': expiration,
   'Zendesk Ticket ID': ticketId,
-  'Original Filename': originalFilename
+  'Original Filename': originalFilename,
+  'Ticket Comment Number': commentNumber,
 } = metadata;
   let location = Locations && Locations.length === 1
     ? Locations[0]
@@ -331,6 +332,14 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
     ticketDate = (docDate.toISOString().split('T')[0])!.slice(0,7);
   }
 
+  console.log([
+      `/trellis/trading-partners`,
+      Entity,
+      shareMode,
+      documentType,
+      ticketDate,
+      ticket,
+    ])
   let path : Path = join(
     ...([
       `/trellis/trading-partners`,
@@ -344,14 +353,29 @@ export function filingWorkflow(metadata: Metadata): {filename: string, path: Pat
 
   // If we're dealing with ticket attachments, just use the
   // original filename, else auto-generate from metadata
-  let filename = ticketId ? originalFilename! : [
-    Entity,
-    location,
-    product,
-    documentType,
-    expire
-  ].filter(i => i).join('_');
 
+  let filename = ticketId ?
+    (
+      [
+        ticket,
+        commentNumber,
+      ]
+      .filter(i => i)
+      .map(i => `[${i}]`)
+      .join('_')
+    ) + originalFilename
+    :
+    [
+      documentType,
+      Entity,
+      expire,
+      location,
+      product,
+    ].filter(i => i)
+   .map(i => `[${i}]`)
+   .join('_');
+
+   console.log(path+'/'+filename);
   return { path, filename }
 }
 
@@ -365,4 +389,5 @@ export interface Metadata {
   Products?: string[];
   Locations?: string[];
   'Original Filename'?: string;
+  'Ticket Comment Number'?: string;
 }

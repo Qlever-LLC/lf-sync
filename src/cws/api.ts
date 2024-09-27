@@ -31,7 +31,7 @@ const {
   cws: { apiRoot, login, timeout, token },
 } = config.get('laserfiche');
 
-let authToken = token;
+let authToken: string | null = token;
 let isRefreshing = false;
 let refreshQueue : any[] = [];
 
@@ -43,29 +43,6 @@ const client: Got = got.extend({
   timeout: {
     request: timeout,
   },
-  hooks: {
-    beforeRequest: [
-      (options: any) => {
-        options.headers.Authorization = token
-      }
-    ],
-    beforeError: [
-      async (error: any) => {
-        const { response } = error;
-        if (response && response.statusCode === 401) {
-          try {
-            const newToken = await refreshAuthToken();
-            // Retry the original request with the new token
-            return client(error.request.options);
-          } catch (tokenRefreshError) {
-            throw tokenRefreshError;
-          }
-        }
-
-        return error;
-      }
-    ]
-  }
 });
 
 /**
@@ -95,10 +72,37 @@ async function getToken() {
  * Authenticated connection to the configured CWS API
  */
 export const cws = client.extend({
-  headers: { Authorization: token ?? (await getToken()) },
+  headers: { Authorization: authToken ?? (await getToken()) },
+  /*
+  hooks: {
+    beforeRequest: [
+      (options: any) => {
+        options.headers.Authorization = token
+      }
+    ],
+    beforeError: [
+      async (error: any) => {
+        const { response } = error;
+        if (response && response.statusCode === 401) {
+          try {
+            authToken = await refreshAuthToken();
+            error.request.options.headers['Authorization'] = `Bearer ${authToken}`;
+            // Retry the original request with the new token
+            return client(error.request.options);
+          } catch (tokenRefreshError) {
+            throw tokenRefreshError;
+          }
+        }
+
+        return error;
+      }
+    ]
+  }
+    */
+
 });
 
-const refreshAuthToken = async () => {
+const refreshAuthToken = async (): Promise<string> => {
   if (!isRefreshing) {
     isRefreshing = true;
     try {

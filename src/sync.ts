@@ -31,6 +31,7 @@ import {
   createDocument,
   getMetadata,
   moveEntry,
+  retrieveEntry,
   setMetadata,
 } from './cws/index.js';
 import {
@@ -151,6 +152,7 @@ export const sync: WorkerFunction = async function (
         continue;
       }
 
+      console.log(syncMetadata);
       let { path, filename } = filingWorkflow(syncMetadata.fields as unknown as Metadata )
 
       // Upsert into LF
@@ -164,7 +166,7 @@ export const sync: WorkerFunction = async function (
           syncMetadata.fields['Document Type'],
         );
 
-        trace(`Moving the LF document back to _Incoming for filing`);
+        trace(`Moving the LF document to ${path}`);
         // Use our own filing workflow instead of incomingFolder
         await moveEntry(syncMetadata.LaserficheEntryID, path as `/{string}`);
 
@@ -189,7 +191,7 @@ export const sync: WorkerFunction = async function (
         );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
       }
-      syncMetadata.Filename = filename;
+      syncMetadata.Name = filename;
       syncMetadata.Path = path;
       /* Await reportItem(conn, {
         Entity: syncMetadata.fields.Entity!,
@@ -213,7 +215,8 @@ export const sync: WorkerFunction = async function (
         await updateSyncMetadata(conn, document, key, syncMetadata);
       }
 
-      docsSyncMetadata[key] = syncMetadata;
+      let entry = await retrieveEntry({LaserficheEntryID: syncMetadata.LaserficheEntryID})
+      docsSyncMetadata[key] = entry;
     }
 
     return docsSyncMetadata as unknown as Json;
