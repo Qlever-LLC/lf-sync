@@ -40,9 +40,11 @@ const client: Got = got.extend({
   https: {
     rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
   },
+  /*
   timeout: {
     request: timeout,
   },
+  */
 });
 
 /**
@@ -80,7 +82,8 @@ export const cws = client.extend({
         options.headers.Authorization = token
       }
     ],
-    beforeError: [
+    beforeError: [    "script:move-entry": "node dist/scripts/lf/move-entry.js",
+
       async (error: any) => {
         const { response } = error;
         if (response && response.statusCode === 401) {

@@ -36,6 +36,9 @@ export interface DocumentEntry extends BaseEntry {
   Type: 'Document';
   FieldDataList: FieldData[];
   TemplateName: string;
+  ElectronicDocumentSize: number;
+  LastModifiedTime: string;
+  ParentId: FolderId;
 }
 
 export interface FieldData {
