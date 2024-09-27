@@ -64,4 +64,3 @@ test('filing workflow', (t) => {
   t.is(result.filename, `Bob Foods, LLC_Location A_Honey Glaze_Certificate of Insurance`, 'Non-ticket filename invalid')
   t.is(result.path, '/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Certificate of Insurance', 'Non-ticket path invalid')
 });
-
