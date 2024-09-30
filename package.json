@@ -57,7 +57,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@oada/client": "^5.1.0",
-    "@oada/jobs": "^4.6.0",
+    "@oada/jobs": "^4.6.1",
     "@oada/lib-config": "^3.9.1",
     "@oada/lib-prom": "^3.8.0",
     "@oada/list-lib": "^6.0.2",
