@@ -28,6 +28,7 @@ import esMain from 'es-main';
 import ksuid from 'ksuid';
 import makeDebug from 'debug';
 import pTimeout from 'p-timeout';
+import { type Logger, pino } from '@oada/pino-debug'
 
 import {
   AssumeState,
@@ -57,10 +58,7 @@ import { browse, getEntryId, moveEntry, retrieveEntry } from './cws/index.js';
 import { sync } from './sync.js';
 
 const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
-
-const trace = makeDebug('lf-sync:trace');
-const info = makeDebug('lf-sync:info');
-const warn = makeDebug('lf-sync:warn');
+const log = pino({base: {service: 'lf-sync'}});
 
 // Stuff from config
 const { token, domain } = config.get('oada');
@@ -79,8 +77,8 @@ const REPORT_PATH = '/bookmarks/services/lf-sync/jobs/reports/docs-synced';
 let oada: OADAClient;
 
 async function startService() {
-  info('Service: lf-sync');
-  info(`Version: ${process.env.npm_package_version}`);
+  log.info('Service: lf-sync');
+  log.info(`Version: ${process.env.npm_package_version}`);
 
   // Connect to the OADA API
   const conn = oada
@@ -127,19 +125,19 @@ export function watchLaserfiche(
 
     for await (const [id, startTime] of workQueue.entries()) {
       if (start.getTime() > startTime + SYNC_JOB_TIMEOUT) {
-        warn(`LF ${id} work never completed. moved to _NeedsReview`);
+        log.warn(`LF ${id} work never completed. moved to _NeedsReview`);
         await moveEntry(id as EntryId, '/_NeedsReview');
         workQueue.delete(id);
       }
     }
 
-    trace(`${start.toISOString()} Polling LaserFiche.`);
+    log.trace(`${start.toISOString()} Polling LaserFiche.`);
 
     const files = await backOff(async () => browse(LF_AUTOMATION_FOLDER));
     for await (const file of files) {
       if (!workQueue.has(file.EntryId)) {
         if (file.Type !== 'Document') {
-          info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);
+          log.info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);
           await moveEntry(file, '/_NeedsReview');
 
           continue;
@@ -204,7 +202,7 @@ const getLfEntry: WorkerFunction = async function (
     return entriesFromMeta(data);
   }
 
-  info('Missing LF Entries for vdocs, waiting for remainder');
+  log.info('Missing LF Entries for vdocs, waiting for remainder');
   return waitForLfEntries(conn, doc, meta);
 };
 
@@ -227,7 +225,7 @@ async function waitForLfEntries(
   async function watchChanges() {
     for await (const change of changes) {
       if (selfChange.has(change)) {
-        info(
+        log.info(
           `Got a change containing a meta entry for one of the vdocs: ${path}`,
           selfChange.get(change),
         );
@@ -236,7 +234,7 @@ async function waitForLfEntries(
           ...(selfChange.get(change) as Record<string, LfMetaEntry>),
         };
         if (Object.keys(meta.vdoc.pdf).every((key) => data[key])) {
-          info(
+          log.info(
             `Got a meta entries for every vdoc of ${path}. Fetching entries`,
           );
           await unwatch();
@@ -336,7 +334,7 @@ function watchPartnerDocs(
   conn: OADAClient,
   callback: (item: Resource, tpKey: string) => void | PromiseLike<void>,
 ) {
-  info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
+  log.info('Monitoring %s for new/current partners', TRADING_PARTNER_LIST);
   // TODO: Update these to new ListWatch v4 API
   const watch = new ListWatch({
     conn,
@@ -349,7 +347,7 @@ function watchPartnerDocs(
     ChangeType.ItemAdded,
     async ({ pointer: tpKey }: { pointer: string }) => {
       const documentPath = join(TRADING_PARTNER_LIST, tpKey, DOCS_LIST);
-      info('Monitoring %s for new/current document types', documentPath);
+      log.info('Monitoring %s for new/current document types', documentPath);
       const docTypeWatch = new ListWatch({
         conn,
         resume: false, // No oada-list-lib entry in the _meta doc! May have previously, but is no more!
@@ -365,7 +363,7 @@ function watchPartnerDocs(
 
           // If (!type.toLowerCase().includes('tickets')) return;
           // FIXME: Remove this before production
-          info('Monitoring %s for new documents of type %s', path, type);
+          log.info('Monitoring %s for new documents of type %s', path, type);
           const docWatch = new ListWatch({
             conn,
             name: `lf-sync:to-lf:${tpKey.replace('/', '')}:${type.replace('/', '')}`,
@@ -391,11 +389,11 @@ function watchPartnerDocs(
               pointer: string;
             }) => {
               if (selfChange.has(change)) {
-                trace('Ignoring self made change to resource.');
+                log.trace('Ignoring self made change to resource.');
                 return;
               }
 
-              trace(`Got work (change): ${join(path, documentKey)}`);
+              log.trace(`Got work (change): ${join(path, documentKey)}`);
 
               // Fetch resource
               const data = await oada.get({
@@ -429,7 +427,7 @@ function watchSelfDocs(
     path: DOCS_LIST,
     tree: selfDocsTree,
   });
-  trace(`Monitoring ${DOCS_LIST} for new/current document types`);
+  log.trace(`Monitoring ${DOCS_LIST} for new/current document types`);
   docTypeWatch.on(
     ChangeType.ItemAdded,
     async ({ pointer: type }: { pointer: string }) => {
@@ -444,7 +442,7 @@ function watchSelfDocs(
         assertItem: assertResource,
         tree,
       });
-      trace(`Monitoring ${path} for new documents`);
+      log.trace(`Monitoring ${path} for new documents`);
       docWatch.on(
         ChangeType.ItemAdded,
         async ({
@@ -454,7 +452,7 @@ function watchSelfDocs(
           item: Promise<Resource>;
           pointer: string;
         }) => {
-          trace(`Got work (new): ${join(path, documentKey)}`);
+          log.trace(`Got work (new): ${join(path, documentKey)}`);
           await callback(await item);
         },
       );
@@ -468,11 +466,11 @@ function watchSelfDocs(
           pointer: string;
         }) => {
           if (selfChange.has(change)) {
-            trace('Ignoring self made change to resource.');
+            log.trace('Ignoring self made change to resource.');
             return;
           }
 
-          trace(`Got work (change): ${join(path, documentKey)}`);
+          log.trace(`Got work (change): ${join(path, documentKey)}`);
 
           // Fetch resource
           const data = await oada.get({
@@ -504,7 +502,7 @@ export async function reportItem(conn: OADAClient, item: ReportEntry) {
     },
     tree,
   });
-  info(`Reported item to ${path}/${key}`);
+  log.info(`Reported item to ${path}/${key}`);
 }
 
 interface ReportEntry {

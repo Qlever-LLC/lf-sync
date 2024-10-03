@@ -75,15 +75,13 @@ async function getToken() {
  */
 export const cws = client.extend({
   headers: { Authorization: authToken ?? (await getToken()) },
-  /*
   hooks: {
     beforeRequest: [
       (options: any) => {
         options.headers.Authorization = token
       }
     ],
-    beforeError: [    "script:move-entry": "node dist/scripts/lf/move-entry.js",
-
+    beforeError: [
       async (error: any) => {
         const { response } = error;
         if (response && response.statusCode === 401) {
@@ -101,7 +99,6 @@ export const cws = client.extend({
       }
     ]
   }
-    */
 
 });
 

@@ -19,7 +19,7 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 import bs58 from 'bs58';
-import debug from 'debug';
+import { type Logger } from '@oada/pino-debug';
 
 import type { Link } from '@oada/types/oada/link/v1.js';
 import type { OADAClient } from '@oada/client';
@@ -39,9 +39,6 @@ export interface LfSyncMetaData {
   Name?: string;
 }
 
-const trace = debug('lf-sync:utils:trace');
-const error = debug('lf-sync:utils:error');
-
 export function has<T, K extends string>(
   value: T,
   key: K,
@@ -49,7 +46,7 @@ export function has<T, K extends string>(
   return value && typeof value === 'object' && key in value;
 }
 
-export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
+export async function pushToTrellis(oada: OADAClient, file: DocumentEntry, log: Logger) {
   const documentBuffer = await retrieveDocumentContent(file);
 
   // Upload PDF from LF to Trellis
@@ -60,7 +57,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
       contentType: file.MimeType,
     })
     .then((r) => r.headers['content-location']!.replace(/^\/resources\//, ''));
-  trace(`Created Trellis file resource: /resources/${documentKey}`);
+  log.trace(`Created Trellis file resource: /resources/${documentKey}`);
 
   // Make Trellis document for the PDF
   const trellisDocumentKey = await oada
@@ -70,7 +67,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
       contentType: 'application/vnd.trellisfw.unidentified.1+json',
     })
     .then((r) => r.headers['content-location']!.replace(/^\/resources\//, ''));
-  trace(
+  log.trace(
     `Created unidentified Trellis document: /resources/${trellisDocumentKey}`,
   );
 
@@ -86,7 +83,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
       },
     },
   });
-  trace(`Linked PDF resource into /resources/${trellisDocumentKey}'s vdocs`);
+  log.trace(`Linked PDF resource into /resources/${trellisDocumentKey}'s vdocs`);
 
   // Put the existing metadata into Trellis
   const lfData = Object.fromEntries(
@@ -105,7 +102,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
   });
 
   // Link complete Trellis document into the lf-sync's mirror list
-  trace(`Updating lf-sync by-lf-id index`);
+  log.trace(`Updating lf-sync by-lf-id index`);
   await oada.put({
     path: `/bookmarks/services/lf-sync/by-lf-id`,
     tree,
@@ -116,7 +113,7 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
     },
   });
 
-  trace('Linking into Trellis documents tree.');
+  log.trace('Linking into Trellis documents tree.');
   // FIXME: Can't just do a tree put below because of the tree put bug
   await oada.ensure({
     path: '/bookmarks/trellisfw/documents/unidentified',
@@ -138,8 +135,9 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry) {
 export async function getBuffer(
   oada: OADAClient,
   document: Resource | Link,
+  log: Logger
 ): Promise<{ buffer: Uint8Array; mimetype: string }> {
-  trace('Fetching document from %s', document._id);
+  log.trace('Fetching document from %s', document._id);
   let { data: buffer, headers } = await oada.get({ path: document._id });
   if (!Buffer.isBuffer(buffer)) {
     if (buffer instanceof Uint8Array) {
@@ -178,6 +176,7 @@ export async function fetchSyncMetadata(
   oada: OADAClient,
   id: string,
   key: string,
+  log: Logger
 ): Promise<LfSyncMetaData> {
   try {
     const r = await oada.get({
@@ -190,7 +189,7 @@ export async function fetchSyncMetadata(
   } catch (cError: unknown) {
     // @ts-expect-error error nonsense
     if (cError?.status !== 404 && cError?.code !== '404') {
-      trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
+      log.trace(cError, `Error fetching ${id}'s sync metadata for vdoc ${key}!`);
       throw cError as Error;
     }
 
@@ -220,6 +219,7 @@ export async function fetchSyncMetadata(
 export async function lookupByLf(
   oada: OADAClient,
   file: DocumentEntry,
+  log: Logger,
 ): Promise<Resource | undefined> {
   // Check if document is already in Trellis. If so, trigger a re-process. Otherwise, upload it to Trellis.
   try {
@@ -232,7 +232,7 @@ export async function lookupByLf(
   } catch (cError: unknown) {
     // @ts-expect-error error nonsense
     if (cError?.status !== 404 && cError?.code !== 404) {
-      error(cError, 'Unexpected error with Trellis!');
+      log.error(cError, 'Unexpected error with Trellis!');
       throw cError as Error;
     }
   }

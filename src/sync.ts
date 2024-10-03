@@ -18,11 +18,11 @@
 import { config } from './config.js';
 
 import '@oada/pino-debug';
+import type { Logger } from '@oada/pino-debug';
 
 import { extname, join } from 'node:path';
 
 import equal from 'deep-equal';
-import makeDebug from 'debug';
 
 import { type Job, type Json, type WorkerFunction } from '@oada/jobs';
 import { type OADAClient } from '@oada/client';
@@ -47,11 +47,6 @@ import {
 import type { LfSyncMetaData, Metadata } from './utils.js';
 import { transform } from './transformers/index.js';
 
-const trace = makeDebug('lf-sync:trace');
-const info = makeDebug('lf-sync:info');
-// Const warn = makeDebug('lf-sync:warn');
-const error = makeDebug('lf-sync:error');
-
 // Stuff from config
 const incomingFolder = join(
   '/',
@@ -67,8 +62,10 @@ export const sync: WorkerFunction = async function (
   job: Job,
   {
     oada: conn,
+    log,
   }: {
     oada: OADAClient;
+    log: Logger;
   },
 ): Promise<Json> {
   // Keeping deprecating tpKey
@@ -79,7 +76,7 @@ export const sync: WorkerFunction = async function (
     })) as unknown as any;
     const fieldList = await transform(document);
 
-    trace('Fetching vdocs for %s', document._id);
+    log.trace('Fetching vdocs for %s', document._id);
     const vdocs = await getPdfVdocs(conn, document);
     if (!(tradingPartner || tpKey))
       throw new Error('No trading partner key or id provided');
@@ -117,7 +114,7 @@ export const sync: WorkerFunction = async function (
 
       fieldList['Original Filename'] = await fetchVdocFilename(conn, value._id);
 
-      const syncMetadata = await fetchSyncMetadata(conn, document._id, key);
+      const syncMetadata = await fetchSyncMetadata(conn, document._id, key, log);
       const syncMetaCopy = { ...syncMetadata };
       let currentFields: LfSyncMetaData['fields'] = {};
 
@@ -148,7 +145,7 @@ export const sync: WorkerFunction = async function (
 
       // Aka, an empty object
       if (Object.keys(syncMetadata.fields).length === 0) {
-        trace(`Document vdoc ${key} has no data yet. Skipping.`);
+        log.trace(`Document vdoc ${key} has no data yet. Skipping.`);
         continue;
       }
 
@@ -157,7 +154,7 @@ export const sync: WorkerFunction = async function (
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
-        info(
+        log.info(
           `LF Entry ${syncMetadata.LaserficheEntryID} (vdoc ${key}) already exists. Updating.`,
         );
         await setMetadata(
@@ -166,16 +163,16 @@ export const sync: WorkerFunction = async function (
           syncMetadata.fields['Document Type'],
         );
 
-        trace(`Moving the LF document to ${path}`);
+        log.trace(`Moving the LF document to ${path}`);
         // Use our own filing workflow instead of incomingFolder
         await moveEntry(syncMetadata.LaserficheEntryID, path as `/{string}`);
 
       // New to LF
       } else {
-        info(`Document (vdoc ${key}) is new to LF`);
+        log.info(`Document (vdoc ${key}) is new to LF`);
 
-        const { buffer, mimetype } = await getBuffer(conn, value);
-        trace('Uploading document to Laserfiche');
+        const { buffer, mimetype } = await getBuffer(conn, value, log);
+        log.trace('Uploading document to Laserfiche');
         const lfDocument = await createDocument({
           //name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
           name: filename,
@@ -186,7 +183,7 @@ export const sync: WorkerFunction = async function (
           buffer,
         });
 
-        info(
+        log.info(
           `Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`,
         );
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
@@ -208,7 +205,7 @@ export const sync: WorkerFunction = async function (
       });
       */
 
-      trace('Recording lf-sync metadata to Trellis document');
+      log.trace('Recording lf-sync metadata to Trellis document');
 
       // Update the sync metadata in Trellis only if it has actually changed
       if (!equal(syncMetaCopy, syncMetadata)) {
@@ -221,7 +218,7 @@ export const sync: WorkerFunction = async function (
 
     return docsSyncMetadata as unknown as Json;
   } catch (error_: unknown) {
-    error(error_, `Could not sync document ${doc._id}.`);
+    log.error(error_, `Could not sync document ${doc._id}.`);
     throw error_;
   }
 };
