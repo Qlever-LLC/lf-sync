@@ -60,7 +60,7 @@
     "@oada/jobs": "^4.7.0",
     "@oada/lib-config": "^3.9.1",
     "@oada/lib-prom": "^3.8.0",
-    "@oada/list-lib": "^6.0.2",
+    "@oada/list-lib": "^6.1.0",
     "@oada/pino-debug": "^4.0.1",
     "@oada/types": "^3.5.3",
     "bs58": "^6.0.0",
@@ -130,8 +130,7 @@
     "update-browserslist-db": "^1.1.0"
   },
   "resolutions": {
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz",
-    "@oada/list-lib": "portal:/home/sanoel/list-lib"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
   "packageManager": "yarn@4.5.0",
   "volta": {
