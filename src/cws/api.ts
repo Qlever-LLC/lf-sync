@@ -67,6 +67,7 @@ async function getToken() {
       api_version: string;
     }>();
 
+  authToken = `${type} ${accessToken}`;
   return `${type} ${accessToken}`;
 }
 
@@ -78,7 +79,7 @@ export const cws = client.extend({
   hooks: {
     beforeRequest: [
       (options: any) => {
-        options.headers.Authorization = token
+        options.headers.Authorization = authToken
       }
     ],
     beforeError: [
