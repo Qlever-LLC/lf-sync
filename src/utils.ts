@@ -133,9 +133,9 @@ export async function pushToTrellis(oada: OADAClient, file: DocumentEntry, log: 
 }
 
 export async function getBuffer(
+  log: Logger,
   oada: OADAClient,
   document: Resource | Link,
-  log: Logger
 ): Promise<{ buffer: Uint8Array; mimetype: string }> {
   log.trace('Fetching document from %s', document._id);
   let { data: buffer, headers } = await oada.get({ path: document._id });

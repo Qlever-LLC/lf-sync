@@ -34,6 +34,11 @@ export function generateGenericMetadata(type: string) {
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
+      if (['locations', 'products'].indexOf(trellisKey) > -1) {
+        const value = document[trellisKey] as Record<string, any>[];
+        metadata[lfField] = value.map(i => i.name) as unknown as any;
+        return metadata;
+      }
       const value = document[trellisKey] as string;
       if (value) {
         metadata[lfField] = lfField.includes('Date')

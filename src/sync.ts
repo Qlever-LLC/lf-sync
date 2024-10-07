@@ -171,7 +171,7 @@ export const sync: WorkerFunction = async function (
       } else {
         log.info(`Document (vdoc ${key}) is new to LF`);
 
-        const { buffer, mimetype } = await getBuffer(conn, value, log);
+        const { buffer, mimetype } = await getBuffer(log, conn, value);
         log.trace('Uploading document to Laserfiche');
         const lfDocument = await createDocument({
           //name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
