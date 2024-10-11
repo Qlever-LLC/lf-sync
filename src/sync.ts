@@ -20,7 +20,7 @@ import { config } from './config.js';
 import '@oada/pino-debug';
 import type { Logger } from '@oada/pino-debug';
 
-import { extname, join } from 'node:path';
+import { join } from 'node:path';
 
 import equal from 'deep-equal';
 
