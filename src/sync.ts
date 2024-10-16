@@ -149,7 +149,6 @@ export const sync: WorkerFunction = async function (
         continue;
       }
 
-      console.log(syncMetadata);
       let { path, filename } = filingWorkflow(syncMetadata.fields as unknown as Metadata )
 
       // Upsert into LF
