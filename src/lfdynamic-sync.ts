@@ -181,6 +181,7 @@ function sanitize(value: string) {
     .slice(0, Math.max(0, ENTITY_NAME_LENGTH));
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export async function handleEntities(
   oada: OADAClient,
   trellis: TrellisEntry[],
@@ -194,8 +195,8 @@ export async function handleEntities(
         await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
       let record =
         res?.recordset.length > 1
-          ? await removeDupeEntities(Array.from(res.recordset))
-          : res?.recordset?.[0];
+          ? await removeDupeEntities(Array.from(res.recordset as SqlEntry[]))
+          : (res?.recordset?.[0] as SqlEntry);
       if (!record) {
         error('No result for TP', tp.name);
         // Does not exist. Create it
@@ -203,17 +204,12 @@ export async function handleEntities(
           await sql.query/* sql */ `INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
           res =
             await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
-          record = res?.recordset?.[0];
+          record = res?.recordset?.[0] as SqlEntry;
         } catch (error_: unknown) {
           error(
             error_,
             `Was an error updating a LFDynamic entity to match trading partner ${tp.name} [${tp.masterid}]`,
           );
-          if (
-            // @ts-expect-error error nonsense
-            error_.message.includes('String or binary data would be truncated')
-          ) {
-          }
 
           continue;
         }

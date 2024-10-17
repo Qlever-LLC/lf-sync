@@ -55,7 +55,8 @@ export interface FolderEntry extends BaseEntry {
 export type Entry = FolderEntry | DocumentEntry;
 export type EntryIdLike<T extends BaseEntry = BaseEntry> =
   | Pick<Partial<T>, 'LaserficheEntryID' | 'EntryId'>
-  | EntryId<T>;
+  | EntryId<T>
+  | number;
 
 export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
   return typeof entry === 'number'

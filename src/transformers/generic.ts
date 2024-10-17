@@ -23,6 +23,7 @@ import { getFormattedDate } from '../utils.js';
 export function generateGenericMetadata(type: string) {
   return function (document: Resource): Metadata {
     // FIXME: Should this assert the base type with @oada/formats?
+    //
 
     const documentDate = document.document_date
       ? new Date(document.document_date as string)
@@ -34,11 +35,15 @@ export function generateGenericMetadata(type: string) {
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
-      if (['locations', 'products'].indexOf(trellisKey) > -1) {
-        const value = document[trellisKey] as Record<string, any>[];
-        metadata[lfField] = value.map(i => i.name) as unknown as any;
+      if (['locations', 'products'].includes(trellisKey)) {
+        const value = document[trellisKey] as Array<Record<string, unknown>>;
+
+        metadata[lfField] = value.map(
+          (index) => index.name,
+        ) as unknown as string;
         return metadata;
       }
+
       const value = document[trellisKey] as string;
       if (value) {
         metadata[lfField] = lfField.includes('Date')
@@ -49,6 +54,16 @@ export function generateGenericMetadata(type: string) {
 
     return metadata;
   };
+}
+
+export function genericVdocMetadata(meta: Record<string, unknown>): Metadata {
+  const metadata: Metadata = {};
+
+  if ('filename' in meta && typeof meta.filename === 'string') {
+    metadata['Original Filename'] = meta.filename;
+  }
+
+  return metadata;
 }
 
 const metadataMappings = {
