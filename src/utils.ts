@@ -305,7 +305,7 @@ export async function updateSyncMetadata(
 export function getFormattedDate(date: Date): string {
   const year = date.getFullYear();
   const month = (1 + date.getMonth()).toString();
-  const day = (1 + date.getDate()).toString();
+  const day = date.getDate().toString();
 
   return `${month}/${day}/${year} 12:00:00 AM`;
 }
