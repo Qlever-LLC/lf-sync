@@ -95,6 +95,13 @@ export const { config } = await libConfig({
       env: 'TOKEN',
       arg: 'token',
     },
+    concurrency: {
+      doc: `The number of simultaneous requests allowed by the client connection.`,
+      format: 'int',
+      default: 5,
+      env: 'CLIENT_CONCURRENCY',
+      arg: 'client-concurrency',
+    },
   },
   laserfiche: {
     repository: {

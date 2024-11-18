@@ -26,9 +26,8 @@ import { JsonPointer } from 'json-ptr';
 import { backOff } from 'exponential-backoff';
 import esMain from 'es-main';
 import ksuid from 'ksuid';
-import makeDebug from 'debug';
 import pTimeout from 'p-timeout';
-import { type Logger, pino } from '@oada/pino-debug'
+import { pino } from '@oada/pino-debug'
 
 import {
   AssumeState,
