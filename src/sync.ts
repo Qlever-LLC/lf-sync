@@ -39,6 +39,7 @@ import {
   has,
   updateSyncMetadata,
 } from './utils.js';
+import { HTTPError } from 'got';
 import type Link from '@oada/types/oada/link/v1.js';
 import type Resource from '@oada/types/oada/resource.js';
 import { getTransformers } from './transformers/index.js';
@@ -131,14 +132,26 @@ export async function sync(
       // Document is not new to LF
       if (syncMetadata.LaserficheEntryID) {
         // Fetch the current LF fields to compare for changes
-        const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
-        // Only keep fields that have a value
-        // eslint-disable-next-line unicorn/no-array-reduce
-        currentFields = metadata.LaserficheFieldList.reduce(
-          (o, f) =>
-            has(f, 'Value') && f.Value !== '' ? { ...o, [f.Name]: f.Value } : o,
-          {},
-        );
+        try {
+          const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
+          // Only keep fields that have a value
+          // eslint-disable-next-line unicorn/no-array-reduce
+          currentFields = metadata.LaserficheFieldList.reduce(
+            (o, f) =>
+              has(f, 'Value') && f.Value !== ''
+                ? { ...o, [f.Name]: f.Value }
+                : o,
+            {},
+          );
+        } catch (error) {
+          if (
+            error instanceof HTTPError &&
+            error.response.rawBody.includes('Entry not found')
+          ) {
+            // Document was removed from Laserfiche, process it like it is new.
+            syncMetadata.LaserficheEntryID = undefined;
+          }
+        }
       }
 
       syncMetadata.fields ||= {};
