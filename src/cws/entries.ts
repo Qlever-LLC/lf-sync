@@ -55,7 +55,8 @@ export interface FolderEntry extends BaseEntry {
 export type Entry = FolderEntry | DocumentEntry;
 export type EntryIdLike<T extends BaseEntry = BaseEntry> =
   | Pick<Partial<T>, 'LaserficheEntryID' | 'EntryId'>
-  | EntryId<T>;
+  | EntryId<T>
+  | number;
 
 export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
   return typeof entry === 'number'
@@ -131,6 +132,17 @@ export async function moveEntry(entry: EntryIdLike, path: Path) {
     json: {
       LaserficheEntryID: entryId,
       DestinationParentPath: normalizePath(path),
+    },
+  });
+}
+
+export async function renameEntry(entry: EntryIdLike, path: Path, Name: string) {
+  const entryId = getEntryId(entry);
+  return cws.put<void>('api/Entry/Move', {
+    json: {
+      LaserficheEntryID: entryId,
+      DestinationParentPath: normalizePath(path),
+      Name
     },
   });
 }

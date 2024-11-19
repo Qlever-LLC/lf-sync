@@ -17,7 +17,7 @@
 
 import { config } from './config.js';
 
-import '@oada/pino-debug';
+import { type Logger, pino } from '@oada/pino-debug';
 
 import { join } from 'node:path';
 
@@ -25,39 +25,17 @@ import { CronJob } from 'cron';
 import { JsonPointer } from 'json-ptr';
 import { backOff } from 'exponential-backoff';
 import esMain from 'es-main';
-import ksuid from 'ksuid';
 import pTimeout from 'p-timeout';
-import { pino } from '@oada/pino-debug'
 
-import {
-  AssumeState,
-  type Change,
-  ChangeType,
-  ListWatch,
-} from '@oada/list-lib';
-import { type Job, type Json, Service, type WorkerFunction } from '@oada/jobs';
-import { type JsonObject, type OADAClient, connect } from '@oada/client';
-import {
-  type default as Resource,
-  assert as assertResource,
-} from '@oada/types/oada/resource.js';
+import { type Job, type Json, Service, type WorkerContext } from '@oada/jobs';
+import { type OADAClient, connect } from '@oada/client';
 
-import {
-  DOCS_LIST,
-  LF_AUTOMATION_FOLDER,
-  TRADING_PARTNER_LIST,
-  selfDocsTree,
-  tpDocTypesTree,
-  tpDocsTree,
-  tpTree,
-  tree,
-} from './tree.js';
 import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
 import { browse, getEntryId, moveEntry, retrieveEntry } from './cws/index.js';
+import { LF_AUTOMATION_FOLDER } from './tree.js';
 import { sync } from './sync.js';
 
 const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
-const log = pino({base: {service: 'lf-sync'}});
 
 // Stuff from config
 const { token, domain } = config.get('oada');
@@ -65,7 +43,7 @@ const CONCURRENCY = config.get('concurrency');
 const LF_POLL_RATE = config.get('laserfiche.pollRate');
 const SYNC_JOB_TIMEOUT = config.get('timeouts.sync');
 const ENTRY_JOB_TIMEOUT = config.get('timeouts.getEntry');
-const REPORT_PATH = '/bookmarks/services/lf-sync/jobs/reports/docs-synced';
+// Const REPORT_PATH = '/bookmarks/services/lf-sync/jobs/reports/docs-synced';
 
 // OADA is rate limited by @oada/client
 // LF is *NOT* rate limited, but only has sparse calls per *pending document* at this time
@@ -76,6 +54,8 @@ const REPORT_PATH = '/bookmarks/services/lf-sync/jobs/reports/docs-synced';
 let oada: OADAClient;
 
 async function startService() {
+  const log = pino({ base: { service: 'lf-sync' } });
+
   log.info('Service: lf-sync');
   log.info(`Version: ${process.env.npm_package_version}`);
 
@@ -88,6 +68,7 @@ async function startService() {
     name: 'lf-sync',
     oada: conn,
     concurrency: CONCURRENCY,
+    log,
   });
 
   // Poll LF for customer docs that SF drops into the _TrellisAutomation folder
@@ -105,9 +86,9 @@ async function startService() {
 
   const serv = svc.start();
 
-  //const sjc = startSyncJobCreator(conn);
+  // Const sjc = startSyncJobCreator(conn);
 
-  //await Promise.all([serv, sjc]);
+  // await Promise.all([serv, sjc]);
   await serv;
 }
 
@@ -115,6 +96,7 @@ async function startService() {
  *
  */
 export function watchLaserfiche(
+  log: Logger,
   task: (file: DocumentEntry) => void,
 ): (id: EntryIdLike) => void {
   const workQueue = new Map<number, number>();
@@ -179,18 +161,17 @@ interface MetaEntry {
   };
 }
 
+export interface GetLfEntryConfig {
+  doc: string;
+}
 /**
  * Retrieve the LF Entry ID for a given trellis document or wait for it to be created
  */
-const getLfEntry: WorkerFunction = async function (
+async function getLfEntry(
   job: Job,
-  {
-    oada: conn,
-  }: {
-    oada: OADAClient;
-  },
+  { oada: conn, log }: WorkerContext,
 ): Promise<Json> {
-  const { doc } = job.config as unknown as any;
+  const { doc } = job.config as unknown as GetLfEntryConfig;
   let data: Record<string, LfMetaEntry> = {};
   const { data: meta } = (await conn.get({
     path: join('/', doc, '/_meta'),
@@ -202,10 +183,11 @@ const getLfEntry: WorkerFunction = async function (
   }
 
   log.info('Missing LF Entries for vdocs, waiting for remainder');
-  return waitForLfEntries(conn, doc, meta);
-};
+  return waitForLfEntries(log, conn, doc, meta);
+}
 
 async function waitForLfEntries(
+  log: Logger,
   conn: OADAClient,
   path: string,
   meta: MetaEntry,
@@ -221,7 +203,7 @@ async function waitForLfEntries(
     await changes.return?.();
   };
 
-  async function watchChanges() {
+  async function watchChanges(): Promise<Json> {
     for await (const change of changes) {
       if (selfChange.has(change)) {
         log.info(
@@ -232,6 +214,8 @@ async function waitForLfEntries(
           ...data,
           ...(selfChange.get(change) as Record<string, LfMetaEntry>),
         };
+
+        // eslint-disable-next-line @typescript-eslint/no-loop-func
         if (Object.keys(meta.vdoc.pdf).every((key) => data[key])) {
           log.info(
             `Got a meta entries for every vdoc of ${path}. Fetching entries`,
@@ -241,6 +225,7 @@ async function waitForLfEntries(
         }
       }
     }
+    return {};
   }
 
   return pTimeout(watchChanges(), { milliseconds: ENTRY_JOB_TIMEOUT });
@@ -252,11 +237,13 @@ async function waitForLfEntries(
  * @returns
  */
 // TODO: If the Entry doesn't contain a Path, wait for for a bit
-async function entriesFromMeta(metadoc: Record<string, LfMetaEntry>) {
+async function entriesFromMeta(
+  metadoc: Record<string, LfMetaEntry>,
+): Promise<Json> {
   const entries = [];
   for await (const [key, value] of Object.entries(metadoc)) {
     const result = await backOff(async () => {
-      const entry = await retrieveEntry(value.LaserficheEntryID as any);
+      const entry = await retrieveEntry(value.LaserficheEntryID);
       if (entry.Path.startsWith(String.raw`\FSQA\_Incoming`)) {
         throw new Error('Entry is still in _Incoming');
       } else {
@@ -272,12 +259,18 @@ async function entriesFromMeta(metadoc: Record<string, LfMetaEntry>) {
     ]);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   return Object.fromEntries(entries);
+}
+
+if (esMain(import.meta)) {
+  await startService();
 }
 
 /**
  * Start-up for a given user (token)
  */
+/*
 async function startSyncJobCreator(conn: OADAClient) {
   // Watch for new trading partner documents to process
   if (config.get('watch.partners')) {
@@ -303,6 +296,7 @@ interface SyncJobConfig {
  * @param conn oada client connection
  * @param doc the
  */
+/*
 async function queueSyncJob(conn: OADAClient, config: SyncJobConfig) {
   const result = await conn.post({
     path: `/resources`,
@@ -328,7 +322,9 @@ async function queueSyncJob(conn: OADAClient, config: SyncJobConfig) {
     contentType: 'application/json',
   });
 }
+*/
 
+/*
 function watchPartnerDocs(
   conn: OADAClient,
   callback: (item: Resource, tpKey: string) => void | PromiseLike<void>,
@@ -412,7 +408,9 @@ function watchPartnerDocs(
   );
   process.on('beforeExit', async () => watch.stop());
 }
+*/
 
+/*
 function watchSelfDocs(
   conn: OADAClient,
   callback: (item: Resource) => Promise<void>,
@@ -485,10 +483,12 @@ function watchSelfDocs(
   );
   process.on('beforeExit', async () => docTypeWatch.stop());
 }
+*/
 
 /**
  *  Report on each item synced
  */
+/*
 export async function reportItem(conn: OADAClient, item: ReportEntry) {
   const key = ksuid.randomSync().string;
   const date = new Date().toISOString().split('T')[0];
@@ -517,7 +517,4 @@ interface ReportEntry {
   'Trellis Document Type': string;
   'Trellis File ID': string; // The actual binary doc synced,
 }
-
-if (esMain(import.meta)) {
-  await startService();
-}
+*/

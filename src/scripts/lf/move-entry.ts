@@ -16,8 +16,8 @@
  */
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
-import { type EntryId, moveEntry } from '../../cws/entries.js';
 import { argv } from 'node:process';
+import { moveEntry } from '../../cws/entries.js';
 
 /* A quick script to move an EntryId to a new location */
 
@@ -26,10 +26,7 @@ if (argv.length !== 4) {
   process.exit(1);
 }
 
-console.log(argv);
-
 const entryId = Number(argv[2]); // As unknown as EntryId;
 const path = argv[3] as unknown as `/${string}`;
 
-// @ts-expect-error Wrong types
 await moveEntry(entryId, path);

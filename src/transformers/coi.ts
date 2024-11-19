@@ -28,6 +28,7 @@ export interface Policy {
   el_each_accident: string;
 }
 
+// eslint-disable-next-line complexity
 export function coiMetadata(document: Resource): Metadata {
   let metadata: Metadata = {
     'Document Type': 'Certificate of Insurance',
@@ -53,6 +54,7 @@ export function coiMetadata(document: Resource): Metadata {
     // TODO: Is this the summary they want?
     const policies = Object.values(
       document.policies as Record<string, Policy>,
+      // eslint-disable-next-line unicorn/no-array-reduce
     ).reduce<Record<string, Policy>>((v, p) => {
       v[p.type] = p;
       return v;

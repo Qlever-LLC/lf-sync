@@ -19,12 +19,31 @@ import { config } from '../dist/config.js';
 import { connect } from '@oada/client';
 import { doJob } from '@oada/client/jobs';
 import test from 'ava';
+import { renameEntry, retrieveEntry } from '../dist/cws/entries.js';
 // @ts-ignore
 const { domain, token } = config.get('oada');
 
 let oada = await connect({ domain, token })
 
-test('filing workflow', async (t) => {
+test('rename file within an upsert', async (t) => {
+  // Get the current "correct" filename for a thing in LF (dev)
+  const entryId = 162961;
+  let entry = await retrieveEntry(entryId);
+  const name = entry.Name;
+
+  // rename it to something else
+  await renameEntry(
+    entryId,
+    '/FSQA/trellis/trading-partners/Smithfield Foods/Shared From Smithfield/Zendesk Ticket/2024-06/Ticket8727',
+    'test'
+  )
+
+  // Confirm the rename worked
+  entry = await retrieveEntry(entryId);
+  t.is(entry.Name, 'test');
+
+  // Run the job to reprocess the doc, allow upsert to occur,
+  // and rename it back to the correct filing workflow name
   let result = await doJob(oada, {
     service: 'lf-sync',
     type: 'sync-doc',
@@ -38,6 +57,7 @@ test('filing workflow', async (t) => {
     }
   })
 
-  console.log(result);
+  entry = await retrieveEntry(entryId)
+  t.is(entry.Name, name);
 });
 

@@ -143,7 +143,7 @@ async function trashDuplicates(root: FolderEntry) {
       // This is the same file as another file in the same folder, but with a different intended name. Keep.
       if (cleanNameMatch.length === 1) {
         console.log(
-          `[DIFFERENT_NAME] (${newestDoc.EntryId}) ${cleanName} is the same as nother file, but with a different name. Keeping.`,
+          `[DIFFERENT_NAME] (${newestDoc.EntryId}) ${cleanName} is the same as another file, but with a different name. Keeping.`,
         );
       } else {
         console.log(

@@ -18,6 +18,7 @@
 import type Resource from '@oada/types/oada/resource.js';
 
 import type { Metadata } from '../cws/metadata.js';
+import { genericVdocMetadata } from './generic.js';
 import { getFormattedDate } from '../utils.js';
 
 const SAP_FIELD = 'sap_id';
@@ -31,6 +32,21 @@ export async function ticketMetadata(document: Resource): Promise<Metadata> {
     'Document Date': getFormattedDate(new Date(doc.ticket.created_at)),
     'Zendesk Ticket ID': doc.ticket.id.toString(),
     // 'Share Mode': 'Shared From Smithfield',
+  };
+}
+
+export async function ticketVdocMetadata(
+  meta: Record<string, unknown>,
+): Promise<Metadata> {
+  const metadata: Metadata = {};
+
+  if ('commentNumber' in meta) {
+    metadata['Ticket Comment Number'] = meta.commentNumber as string;
+  }
+
+  return {
+    ...genericVdocMetadata(meta),
+    ...metadata,
   };
 }
 

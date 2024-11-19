@@ -30,7 +30,6 @@ if (argv.length !== 3) {
 
 const entryId = Number(argv[2]); // As unknown as EntryId;
 
-// @ts-expect-error Wrong types
 const entry = await retrieveEntry(entryId);
 
 // @awlayton: your auto format rules makes this __really__ ugly
