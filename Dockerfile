@@ -24,30 +24,29 @@ RUN apk add --no-cache \
 
 WORKDIR ${DIR}
 
-COPY ./.yarn ${DIR}.yarn
 COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}/
 
 RUN chown -R node:node ${DIR}
 # Do not run service as root
 USER node
 
-RUN yarn workspaces focus --all --production
+RUN corepack yarn workspaces focus --all --production
 
 # Launch entrypoint with dumb-init
 # Remap SIGTERM to SIGINT https://github.com/Yelp/dumb-init#signal-rewriting
-ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "run"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "corepack", "yarn", "run"]
 CMD ["start"]
 
 FROM base AS build
 ARG DIR
 
 # Install dev deps too
-RUN yarn install --immutable
+RUN corepack yarn install --immutable
 
 COPY . ${DIR}
 
 # Build code
-RUN yarn build --verbose
+RUN corepack yarn build --verbose
 
 FROM base AS production
 ARG DIR
