@@ -463,26 +463,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-<<<<<<< HEAD
-"@oada/client@portal:/home/sanoel/client::locator=%40qlever-llc%2Flf-sync%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@oada/client@portal:/home/sanoel/client::locator=%40qlever-llc%2Flf-sync%40workspace%3A."
-=======
 "@oada/client@npm:^5.2.6":
   version: 5.2.6
   resolution: "@oada/client@npm:5.2.6"
->>>>>>> 40c19feaddcf80a68770a1ccf10a5ff469ad5389
   dependencies:
     "@oada/types": "npm:^3.5.3"
-    debug: "npm:^4.3.4"
-    deep-clone: "npm:^4.0.0"
+    debug: "npm:^4.3.7"
     event-iterator: "npm:^2.0.0"
     eventemitter3: "npm:^5.0.1"
-    file-type: "npm:^19.0.0"
+    file-type: "npm:^19.6.0"
     isomorphic-timers-promises: "npm:^1.0.1"
     isomorphic-ws: "npm:^5.0.0"
     json-ptr: "npm:^3.1.1"
-    jsonpath-plus: "npm:^8.1.0"
+    jsonpath-plus: "npm:^10.0.0"
     media-type: "npm:^0.3.1"
     object-assign-deep: "npm:^0.4.0"
     p-queue: "npm:^8.0.1"
@@ -490,25 +483,22 @@ __metadata:
     reconnecting-websocket: "npm:^4.4.0"
     resolve-alpn: "npm:^1.2.1"
     serialize-error: "npm:^11.0.3"
-    tslib: "npm:^2.6.2"
-    undici: "npm:^6.14.1"
-    ws: "npm:^8.16.0"
+    tslib: "npm:^2.7.0"
+    undici: "npm:^6.20.1"
+    ws: "npm:^8.18.0"
     xksuid: "https://github.com/aultac/xksuid.git#commit=22a21eb01331191feb62ea0a4e67d96d2e80f396"
   peerDependencies:
     "@oada/jobs": ">= 4.4.4"
   peerDependenciesMeta:
     "@oada/jobs":
       optional: true
-<<<<<<< HEAD
-=======
   checksum: 10/b83b9b41f17aea3a9f3b180e9f6685efb4a22b568bd37283b596ad79dfb7d05efb970f41ce782a08afe1a6f18112b151eb4a0517ae4936095d0c3c2b10dffa2f
->>>>>>> 40c19feaddcf80a68770a1ccf10a5ff469ad5389
   languageName: node
-  linkType: soft
+  linkType: hard
 
-"@oada/jobs@portal:/home/sanoel/jobs::locator=%40qlever-llc%2Flf-sync%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@oada/jobs@portal:/home/sanoel/jobs::locator=%40qlever-llc%2Flf-sync%40workspace%3A."
+"@oada/jobs@npm:^4.7.3":
+  version: 4.7.3
+  resolution: "@oada/jobs@npm:4.7.3"
   dependencies:
     "@ava/typescript": "npm:^5.0.0"
     "@oada/lib-prom": "npm:^3.8.0"
@@ -544,8 +534,9 @@ __metadata:
       optional: true
   bin:
     oada-jobs: ./dist/cli.mjs
+  checksum: 10/3d14380a028f5d0f173f9b3076a13362279b7b7074d69b308d2bd5ad2cea32d1f6dfc648c3a45565feca597ee45ffc183db577073504359144b9e1160e9f1ce6
   languageName: node
-  linkType: soft
+  linkType: hard
 
 "@oada/lib-config@npm:^4.0.0":
   version: 4.0.0
@@ -697,13 +688,8 @@ __metadata:
   resolution: "@qlever-llc/lf-sync@workspace:."
   dependencies:
     "@ava/typescript": "npm:^5.0.0"
-<<<<<<< HEAD
-    "@oada/client": "npm:^5.2.3"
-    "@oada/jobs": "npm:^4.7.3"
-=======
     "@oada/client": "npm:^5.2.6"
-    "@oada/jobs": "npm:^4.7.1"
->>>>>>> 40c19feaddcf80a68770a1ccf10a5ff469ad5389
+    "@oada/jobs": "npm:^4.7.3"
     "@oada/lib-config": "npm:^4.0.0"
     "@oada/lib-prom": "npm:^4.0.1"
     "@oada/list-lib": "npm:^6.1.0"
@@ -2612,13 +2598,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"deep-clone@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "deep-clone@npm:4.0.0"
-  checksum: 10/9c5e063553d04ebd1fab3581bf627fd7f0239aef25a7aa2ae40c39c5a1726ce65dd562b225f8d6e468a957e61b0f63ed627fa70a15fca15ddc71bf54e6d3f2d5
-  languageName: node
-  linkType: hard
-
 "deep-equal@npm:^2.0.5, deep-equal@npm:^2.2.3":
   version: 2.2.3
   resolution: "deep-equal@npm:2.2.3"
@@ -3759,7 +3738,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"file-type@npm:^19.0.0":
+"file-type@npm:^19.6.0":
   version: 19.6.0
   resolution: "file-type@npm:19.6.0"
   dependencies:
@@ -7625,7 +7604,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:^6.14.1":
+"undici@npm:^6.20.1":
   version: 6.21.0
   resolution: "undici@npm:6.21.0"
   checksum: 10/c8ff80dcadfcf613e7fe697c37519fca070fcf1cfccc69ffb6a7080a22e225eb79d232e9f70e32b099b3e67ac4216e8fd615e188cfb792e09df9233471ec17e0
@@ -7859,7 +7838,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:^8.16.0":
+"ws@npm:^8.18.0":
   version: 8.18.0
   resolution: "ws@npm:8.18.0"
   peerDependencies:
