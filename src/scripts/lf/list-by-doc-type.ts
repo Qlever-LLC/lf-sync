@@ -24,13 +24,12 @@
 
 import { browse, getFolderContents } from '../../cws/folders.js';
 import { argv } from 'node:process';
-import { moveEntry } from '../../cws/entries.js';
 
 if (argv.length < 3) {
   console.error(
-    'USAGE: node trash-by-doc-types.js docType1 <docType2> ... <docTypeN>',
+    'USAGE: node list-by-doc-types.js docType1 <docType2> ... <docTypeN>',
   );
-  console.log('For example: node trash-by-doc-types.js "W-9" "ACH Form"');
+  console.log('For example: node list-by-doc-types.js "W-9" "ACH Form"');
   process.exit(1);
 }
 
@@ -61,11 +60,26 @@ for await (const partner of partners) {
         }
 
         if (docTypes.has(type.Name)) {
-          const trash = trashPath(type.Path);
-          console.log(
-            `Found ${type.Name} (${type.EntryId}) ${type.Path} -> ${trash}`,
-          );
-          await moveEntry(type, trash);
+          const dates = await getFolderContents(type);
+
+          for await (const date of dates) {
+            if (date.Type !== 'Folder') {
+              console.error(`Non-folder? Parent: ${date.EntryId}`);
+              process.exit();
+            }
+
+            const tickets = await getFolderContents(date);
+            for await (const ticket of tickets) {
+              if (ticket.Type !== 'Folder') {
+                console.error(`Non-folder? Parent: ${ticket.EntryId}`);
+                process.exit();
+              }
+
+              console.log(
+                `Found ${ticket.Name} (${ticket.EntryId}) ${ticket.Path}`,
+              );
+            }
+          }
         }
       }
     }
@@ -81,10 +95,5 @@ for await (const partner of partners) {
   }
 }
 
+console.log('DONE');
 process.exit();
-
-function trashPath(path: string): `/${string}` {
-  const parts = path.split('\\').slice(2, -1);
-  parts[0] = 'trellis-trash';
-  return `/${parts.join('/')}`;
-}

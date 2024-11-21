@@ -33,7 +33,7 @@ const {
 
 let authToken: string | null = token;
 let isRefreshing = false;
-let refreshQueue : any[] = [];
+let refreshQueue: any[] = [];
 
 const client: Got = got.extend({
   prefixUrl: apiRoot,
@@ -79,8 +79,8 @@ export const cws = client.extend({
   hooks: {
     beforeRequest: [
       (options: any) => {
-        options.headers.Authorization = authToken
-      }
+        options.headers.Authorization = authToken;
+      },
     ],
     beforeError: [
       async (error: any) => {
@@ -88,7 +88,8 @@ export const cws = client.extend({
         if (response && response.statusCode === 401) {
           try {
             authToken = await refreshAuthToken();
-            error.request.options.headers['Authorization'] = `Bearer ${authToken}`;
+            error.request.options.headers['Authorization'] =
+              `Bearer ${authToken}`;
             // Retry the original request with the new token
             return client(error.request.options);
           } catch (tokenRefreshError) {
@@ -97,10 +98,9 @@ export const cws = client.extend({
         }
 
         return error;
-      }
-    ]
-  }
-
+      },
+    ],
+  },
 });
 
 const refreshAuthToken = async (): Promise<string> => {
@@ -112,7 +112,7 @@ const refreshAuthToken = async (): Promise<string> => {
       isRefreshing = false;
 
       // Resolve all the pending requests in the queue with the new token
-      refreshQueue.forEach(callback => callback(authToken));
+      refreshQueue.forEach((callback) => callback(authToken));
       refreshQueue = [];
     } catch (error) {
       isRefreshing = false;
@@ -121,7 +121,7 @@ const refreshAuthToken = async (): Promise<string> => {
   }
 
   // Return a promise that resolves with the new token
-  return new Promise(resolve => refreshQueue.push(resolve));
+  return new Promise((resolve) => refreshQueue.push(resolve));
 };
 
 export default cws;

@@ -17,6 +17,8 @@
 
 import { config } from './config.js';
 
+import '@oada/lib-prom';
+
 import { type Logger, pino } from '@oada/pino-debug';
 
 import { join } from 'node:path';
@@ -225,6 +227,7 @@ async function waitForLfEntries(
         }
       }
     }
+
     return {};
   }
 
