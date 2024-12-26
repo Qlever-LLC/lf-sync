@@ -69,7 +69,7 @@
     "csvjson": "^5.1.0",
     "debug": "^4.3.7",
     "deep-equal": "^2.2.3",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.4.7",
     "es-main": "^1.3.0",
     "exponential-backoff": "^3.1.1",
     "formdata-node": "^6.0.3",
