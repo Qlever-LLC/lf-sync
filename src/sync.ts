@@ -194,7 +194,7 @@ export async function sync(
         // Use our own filing workflow instead of incomingFolder
         await moveEntry(syncMetadata.LaserficheEntryID, path as `/{string}`);
         // Rename is different from Metadata, but should be part of upsert
-        renameEntry(syncMetadata.LaserficheEntryID, path as `/{string}`, filename);
+        await renameEntry(syncMetadata.LaserficheEntryID, path as `/{string}`, filename);
 
         // New to LF
       } else {

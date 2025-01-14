@@ -35,13 +35,15 @@ export function generateGenericMetadata(type: string) {
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
+      // Handle products and locations
       if (['locations', 'products'].includes(trellisKey)) {
-        const value = document[trellisKey] as Array<Record<string, unknown>>;
+        const value = (document[trellisKey] || []) as Array<Record<string, unknown>>;
 
         metadata[lfField] = value.map(
           (index) => index.name,
         ) as unknown as string;
-        return metadata;
+        //return metadata;
+        continue;
       }
 
       const value = document[trellisKey] as string;
