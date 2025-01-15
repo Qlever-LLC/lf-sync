@@ -45,7 +45,7 @@ const base = '/bookmarks/trellisfw/trading-partners';
 const { data: tradingPartners } = await oada.get({ path: base });
 
 // Define the CSV file path
-const csvFilePath = './LF-Renaming-fixed.csv';
+const csvFilePath = 'LF-Renaming-fixed.csv';
 
 /* Script tasks:
 
@@ -198,7 +198,6 @@ async function fixCSV() {
 
 // Define a function to be executed for each entry
 async function processEntry(tradingPartner, _id) {
-  console.log(`Processing - Trading Partner: ${tradingPartner}, Document ID: ${_id}`);
   await doJob(oada, {
     service: 'lf-sync',
     type: 'sync-doc',
@@ -212,7 +211,7 @@ async function processEntry(tradingPartner, _id) {
 // Read and parse the CSV file
 async function ingestCsv(filePath) {
   const trellisDocs = new Set();
-  const rows = [];
+  const outputRows = [];
   const data = fs.readFileSync(filePath, {encoding: 'utf8'});
   const rowData = csvjson.toObject(data);
 
@@ -227,28 +226,23 @@ async function ingestCsv(filePath) {
       'Trellis Trading Partner Name': tradingPartnerName,
     } = row;
 
-    console.log({
-      tradingPartnerName,
-      tradingPartner,
-      _id,
-      lfName,
-      lfId,
-    })
-
     // Skip rows that look to have the correct file pattern
     if ((!lfName || lfName.startsWith('['))) {
-      rows.push({
+      console.log('skipping doc', _id, {lfName})
+      outputRows.push({
         'Trellis Document': _id,
         'Trellis Document Type': type,
         'Trellis vdoc': vdoc,
         'Trellis Trading Partner Name': tradingPartnerName,
         'LF Entry ID': lfId,
         'LF Filename': lfName,
-      })
+      });
     } else if (!trellisDocs.has(_id)) {
-      // Skip rows for which we've already handled the document
+      // Once a document is handled, all of its vdocs are handled. Skip any future rows that
+      // use that doc _id (the csv has one row per VDOC; doc _ids are not unique)
       trellisDocs.add(_id);
       try {
+        console.log(`Processing - Trading Partner: ${tradingPartner}, Document ID: ${_id}`);
         const jobData = await doJob(oada, {
           service: 'lf-sync',
           type: 'sync-doc',
@@ -257,16 +251,14 @@ async function ingestCsv(filePath) {
             doc: { _id }
           }
         });
-        rows.push(...jobDataToRows(jobData, type));
+        outputRows.push(...jobDataToRows(jobData, type));
       } catch(err) {
         console.log(err);
       }
     }
   }
 
-  console.log('done iterating');
-
-  await writeFile(processedFilename, csvjson.toCSV(rows, {
+  await writeFile(processedFilename, csvjson.toCSV(outputRows, {
     delimiter: ",",
     wrap: false,
     quote: '"'
@@ -280,11 +272,11 @@ function fixTpName(name) {
 
 function jobDataToRows(jobData, type) {
   const { config: jobConfig, result } = jobData;
-  return Object.entries(result)
-    .map(([key, value]) => ({
+  return Object.values(result)
+    .map((value) => ({
       'Trellis Document': jobConfig.doc._id,
       'Trellis Document Type': type,
-      'Trellis vdoc': key,
+      'Trellis vdoc': value._id,
       'Trellis Trading Partner Name': jobConfig.tradingPartner,
       'LF Entry ID': value.LaserficheEntryID,
       'LF Filename': value.Name,
