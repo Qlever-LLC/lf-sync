@@ -221,6 +221,37 @@ export const { config } = await libConfig({
       arg: 'lfdynamic-server',
     },
   },
+  'local-mysql': {
+    database: {
+      doc: 'db for accessing local mysql',
+      format: String,
+      default: '',
+      env: 'LOCALDB_NAME',
+      arg: 'localdb-name',
+    },
+    host: {
+      doc: 'host for accessing local mysql',
+      format: String,
+      default: 'localhost',
+      env: 'LOCALDB_HOST',
+      arg: 'localdb-host',
+    },
+    password: {
+      doc: 'password for accessing local mysql',
+      format: String,
+      default: '',
+      env: 'LOCALDB_PASS',
+      arg: 'localdb-pass',
+    },
+    user: {
+      doc: 'user for accessing local mysql',
+      format: String,
+      default: 'root',
+      env: 'LOCALDB_USER',
+      arg: 'localdb-user',
+    },
+
+  }
 });
 
 // Normalize the folder path

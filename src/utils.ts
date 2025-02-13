@@ -342,7 +342,9 @@ export function filingWorkflow(metadata: Metadata): {
 
   const expire = expiration
     ? `EXP_${new Date(expiration).toISOString().split('T')[0]}`
-    : undefined;
+    : documentDate
+      ? `EFF_${new Date(documentDate).toISOString().split('T')[0]}`
+      : undefined;
   const ticket = ticketId ? `Ticket${ticketId}` : undefined;
   let ticketDate = '';
   if (documentType === 'Zendesk Ticket') {
