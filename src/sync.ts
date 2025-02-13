@@ -218,8 +218,12 @@ export async function sync(
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
       }
 
-      syncMetadata.Name = filename;
-      syncMetadata.Path = path;
+      const entry = await retrieveEntry({
+        LaserficheEntryID: syncMetadata.LaserficheEntryID,
+      });
+
+      syncMetadata.Name = entry.Name;
+      syncMetadata.Path = entry.Path;
 
       log.trace('Recording lf-sync metadata to Trellis document');
 
@@ -228,9 +232,6 @@ export async function sync(
         await updateSyncMetadata(oada, document, key, syncMetadata);
       }
 
-      const entry = await retrieveEntry({
-        LaserficheEntryID: syncMetadata.LaserficheEntryID,
-      });
       docsSyncMetadata[key] = entry;
     }
 
