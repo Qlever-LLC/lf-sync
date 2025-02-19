@@ -1,149 +1,149 @@
 {
-  "name": "@qlever-llc/lf-sync",
-  "version": "3.1.18",
-  "description": "Trellis LaserFiche sync service",
-  "main": "dist/index.js",
-  "type": "module",
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "dev": "tsc -b --watch",
-    "start": "node ${INSPECT:-} --enable-source-maps dist/index.js",
-    "script:clean-dups": "node dist/scripts/lf/clean-dups.js",
-    "script:trash-by-doc-type": "node dist/scripts/lf/trash-by-doc-type.js",
-    "script:move-entry": "node dist/scripts/lf/move-entry.js",
-    "script:delete-entry": "node dist/scripts/lf/delete-entry.js",
-    "script:find-zero-sized": "node dist/scripts/lf/find-zero-sized.js",
-    "test": "yarn build test && c8 ava",
-    "test:debug": "ava -T 60m -svc 1 --no-worker-threads",
-    "test:live": "cross-env NOCK_MODE=live yarn test",
-    "test:record": "cross-env NOCK_MODE=record yarn test",
-    "lint": "eslint ."
-  },
-  "ava": {
-    "failFast": false,
-    "concurrency": 1,
-    "files": [
-      "**/*.test.ts"
-    ],
-    "typescript": {
-      "extensions": [
-        "ts"
-      ],
-      "rewritePaths": {
-        "src/": "dist/",
-        "test/": ".test/"
-      },
-      "compile": false
-    },
-    "watchMode.ignoredChanges": [
-      "test/**/snapshots"
-    ]
-  },
-  "c8": {
-    "reporter": [
-      "text",
-      "lcov"
-    ],
-    "all": true,
-    "src": "src",
-    "exclude": [
-      ".pnp.*",
-      ".test"
-    ]
-  },
-  "license": "Apache-2.0",
-  "dependencies": {
-    "@oada/client": "^5.2.6",
-    "@oada/jobs": "^4.7.4",
-    "@oada/lib-config": "^4.0.0",
-    "@oada/lib-prom": "^4.0.1",
-    "@oada/list-lib": "^6.1.0",
-    "@oada/pino-debug": "^4.0.1",
-    "@oada/types": "^3.5.3",
-    "bs58": "^6.0.0",
-    "convict": "^6.2.4",
-    "cron": "^3.5.0",
-    "csv-parse": "^5.6.0",
-    "csv-parser": "^3.2.0",
-    "csv-stringify": "^6.5.2",
-    "csv-writer": "^1.6.0",
-    "csvjson": "^5.1.0",
-    "debug": "^4.4.0",
-    "deep-equal": "^2.2.3",
-    "dotenv": "^16.4.7",
-    "es-main": "^1.3.0",
-    "exponential-backoff": "^3.1.2",
-    "formdata-node": "^6.0.3",
-    "got": "^14.4.6",
-    "json-ptr": "^3.1.1",
-    "jsonpath": "^1.1.1",
-    "ksuid": "^3.0.0",
-    "mssql": "^11.0.1",
-    "mysql2": "^3.12.0",
-    "p-queue": "^8.1.0",
-    "p-timeout": "^6.1.4",
-    "readline": "^1.3.0"
-  },
-  "devDependencies": {
-    "@ava/typescript": "^5.0.0",
-    "@tsconfig/node22": "^22.0.0",
-    "@types/convict": "^6.1.6",
-    "@types/cron": "^2.4.3",
-    "@types/debug": "^4.1.12",
-    "@types/deep-equal": "^1.0.4",
-    "@types/mssql": "^9.1.7",
-    "@types/node": "^22.13.4",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "@yarnpkg/sdks": "^3.2.0",
-    "ava": "6.2.0",
-    "ava-nock": "^2.1.0",
-    "browserslist": "^4.24.4",
-    "c8": "^10.1.3",
-    "cross-env": "^7.0.3",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-config-xo": "^0.45.0",
-    "eslint-config-xo-typescript": "^4.0.0",
-    "eslint-formatter-pretty": "^6.0.1",
-    "eslint-import-resolver-node": "^0.3.9",
-    "eslint-plugin-array-func": "^5.0.2",
-    "eslint-plugin-ava": "^15.0.1",
-    "eslint-plugin-escompat": "^3.11.4",
-    "eslint-plugin-eslint-comments": "^3.2.0",
-    "eslint-plugin-filenames": "^1.3.2",
-    "eslint-plugin-github": "^5.1.8",
-    "eslint-plugin-i18n-text": "^1.0.1",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-no-constructor-bind": "^2.0.4",
-    "eslint-plugin-no-only-tests": "^3.3.0",
-    "eslint-plugin-no-secrets": "^1.1.2",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-notice": "^1.0.0",
-    "eslint-plugin-optimize-regex": "^1.2.1",
-    "eslint-plugin-prettier": "^5.2.3",
-    "eslint-plugin-promise": "^6.6.0",
-    "eslint-plugin-regexp": "^2.7.0",
-    "eslint-plugin-security": "^3.0.1",
-    "eslint-plugin-sonarjs": "^1.0.4",
-    "eslint-plugin-unicorn": "^54.0.0",
-    "prettier": "^3.5.1",
-    "tslib": "^2.8.1",
-    "type-fest": "^4.35.0",
-    "typescript": "5.7.3",
-    "update-browserslist-db": "^1.1.2"
-  },
-  "resolutions": {
-    "@oada/lib-prom": "^4.0.1",
-    "cross-spawn": "^7.0.5",
-    "jsonpath-plus": "^10.0.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
-  },
-  "packageManager": "yarn@4.6.0",
-  "volta": {
-    "node": "22.9.0"
-  }
+	"name": "@qlever-llc/lf-sync",
+	"version": "3.1.18",
+	"description": "Trellis LaserFiche sync service",
+	"main": "dist/index.js",
+	"type": "module",
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"dev": "tsc -b --watch",
+		"start": "node ${INSPECT:-} --enable-source-maps dist/index.js",
+		"script:clean-dups": "node dist/scripts/lf/clean-dups.js",
+		"script:trash-by-doc-type": "node dist/scripts/lf/trash-by-doc-type.js",
+		"script:move-entry": "node dist/scripts/lf/move-entry.js",
+		"script:delete-entry": "node dist/scripts/lf/delete-entry.js",
+		"script:find-zero-sized": "node dist/scripts/lf/find-zero-sized.js",
+		"test": "yarn build test && c8 ava",
+		"test:debug": "ava -T 60m -svc 1 --no-worker-threads",
+		"test:live": "cross-env NOCK_MODE=live yarn test",
+		"test:record": "cross-env NOCK_MODE=record yarn test",
+		"lint": "eslint ."
+	},
+	"ava": {
+		"failFast": false,
+		"concurrency": 1,
+		"files": [
+			"**/*.test.ts"
+		],
+		"typescript": {
+			"extensions": [
+				"ts"
+			],
+			"rewritePaths": {
+				"src/": "dist/",
+				"test/": ".test/"
+			},
+			"compile": false
+		},
+		"watchMode.ignoredChanges": [
+			"test/**/snapshots"
+		]
+	},
+	"c8": {
+		"reporter": [
+			"text",
+			"lcov"
+		],
+		"all": true,
+		"src": "src",
+		"exclude": [
+			".pnp.*",
+			".test"
+		]
+	},
+	"license": "Apache-2.0",
+	"dependencies": {
+		"@oada/client": "^5.2.6",
+		"@oada/jobs": "^4.7.4",
+		"@oada/lib-config": "^4.0.0",
+		"@oada/lib-prom": "^4.0.1",
+		"@oada/list-lib": "^6.1.0",
+		"@oada/pino-debug": "^4.0.1",
+		"@oada/types": "^3.5.3",
+		"bs58": "^6.0.0",
+		"convict": "^6.2.4",
+		"cron": "^3.5.0",
+		"csv-parse": "^5.6.0",
+		"csv-parser": "^3.2.0",
+		"csv-stringify": "^6.5.2",
+		"csv-writer": "^1.6.0",
+		"csvjson": "^5.1.0",
+		"debug": "^4.4.0",
+		"deep-equal": "^2.2.3",
+		"dotenv": "^16.4.7",
+		"es-main": "^1.3.0",
+		"exponential-backoff": "^3.1.2",
+		"formdata-node": "^6.0.3",
+		"got": "^14.4.6",
+		"json-ptr": "^3.1.1",
+		"jsonpath": "^1.1.1",
+		"ksuid": "^3.0.0",
+		"mssql": "^11.0.1",
+		"mysql2": "^3.12.0",
+		"p-queue": "^8.1.0",
+		"p-timeout": "^6.1.4",
+		"readline": "^1.3.0"
+	},
+	"devDependencies": {
+		"@ava/typescript": "^5.0.0",
+		"@tsconfig/node22": "^22.0.0",
+		"@types/convict": "^6.1.6",
+		"@types/cron": "^2.4.3",
+		"@types/debug": "^4.1.12",
+		"@types/deep-equal": "^1.0.4",
+		"@types/mssql": "^9.1.7",
+		"@types/node": "^22.13.4",
+		"@typescript-eslint/eslint-plugin": "^7.18.0",
+		"@typescript-eslint/parser": "^7.18.0",
+		"@yarnpkg/sdks": "^3.2.0",
+		"ava": "6.2.0",
+		"ava-nock": "^2.1.0",
+		"browserslist": "^4.24.4",
+		"c8": "^10.1.3",
+		"cross-env": "^7.0.3",
+		"eslint": "^8.57.1",
+		"eslint-config-prettier": "^9.1.0",
+		"eslint-config-xo": "^0.45.0",
+		"eslint-config-xo-typescript": "^4.0.0",
+		"eslint-formatter-pretty": "^6.0.1",
+		"eslint-import-resolver-node": "^0.3.9",
+		"eslint-plugin-array-func": "^5.0.2",
+		"eslint-plugin-ava": "^15.0.1",
+		"eslint-plugin-escompat": "^3.11.4",
+		"eslint-plugin-eslint-comments": "^3.2.0",
+		"eslint-plugin-filenames": "^1.3.2",
+		"eslint-plugin-github": "^5.1.8",
+		"eslint-plugin-i18n-text": "^1.0.1",
+		"eslint-plugin-import": "^2.31.0",
+		"eslint-plugin-no-constructor-bind": "^2.0.4",
+		"eslint-plugin-no-only-tests": "^3.3.0",
+		"eslint-plugin-no-secrets": "^1.1.2",
+		"eslint-plugin-node": "^11.1.0",
+		"eslint-plugin-notice": "^1.0.0",
+		"eslint-plugin-optimize-regex": "^1.2.1",
+		"eslint-plugin-prettier": "^5.2.3",
+		"eslint-plugin-promise": "^6.6.0",
+		"eslint-plugin-regexp": "^2.7.0",
+		"eslint-plugin-security": "^3.0.1",
+		"eslint-plugin-sonarjs": "^1.0.4",
+		"eslint-plugin-unicorn": "^54.0.0",
+		"prettier": "^3.5.1",
+		"tslib": "^2.8.1",
+		"type-fest": "^4.35.0",
+		"typescript": "5.7.3",
+		"update-browserslist-db": "^1.1.2"
+	},
+	"resolutions": {
+		"@oada/lib-prom": "^4.0.1",
+		"cross-spawn": "^7.0.5",
+		"jsonpath-plus": "^10.0.0",
+		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+	},
+	"packageManager": "yarn@4.6.0",
+	"volta": {
+		"node": "22.9.0"
+	}
 }
