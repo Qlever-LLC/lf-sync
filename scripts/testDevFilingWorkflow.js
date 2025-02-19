@@ -22,13 +22,13 @@ import { connect } from '@oada/client';
 import { pino } from '@oada/pino-debug';
 // @ts-ignore
 const { domain, token } = config.get('oada');
-const logger = pino({base: {service: 'lf-sync'}});
+const logger = pino({ base: { service: 'lf-sync' } });
 
-let oada = await connect({ domain, token })
+let oada = await connect({ domain, token });
 
 async function test() {
   try {
-    let value = { "_id": "resources/2jZ34koXDqOlNjqvrZriXkT1TYR" };
+    let value = { _id: 'resources/2jZ34koXDqOlNjqvrZriXkT1TYR' };
     const { buffer, mimetype } = await getBuffer(logger, oada, value);
     let resp = await createDocument({
       name: '12/31/2021_Amity Packing Company_Certificate of Insurance',

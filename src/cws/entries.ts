@@ -136,13 +136,17 @@ export async function moveEntry(entry: EntryIdLike, path: Path) {
   });
 }
 
-export async function renameEntry(entry: EntryIdLike, path: Path, Name: string) {
+export async function renameEntry(
+  entry: EntryIdLike,
+  path: Path,
+  Name: string,
+) {
   const entryId = getEntryId(entry);
   return cws.put<void>('api/Entry/Move', {
     json: {
       LaserficheEntryID: entryId,
       DestinationParentPath: normalizePath(path),
-      Name
+      Name,
     },
   });
 }

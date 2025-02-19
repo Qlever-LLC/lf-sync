@@ -31,7 +31,8 @@ setInterval(() => console.log('TICK'), 1000);
 
 const oada = await connect({ token, domain });
 const base = '/bookmarks/trellisfw/trading-partners';
-const expand = '/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index';
+const expand =
+  '/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index';
 
 const { data: tradingPartners } = await oada.get({ path: base });
 
@@ -65,9 +66,9 @@ const tps = {
   ],
   'Meat Commodities Inc': [
   */
- 'Meat Commodities, Inc.': [],
- 'Morton Salt, Inc.': [],
- /*
+  'Meat Commodities, Inc.': [],
+  'Morton Salt, Inc.': [],
+  /*
   'Michael Foods': [
     'Michael Foods, Inc.'
   ],
@@ -103,8 +104,7 @@ const tps = {
     'Tyson Foods'
   ],
   */
-}
-
+};
 
 async function gatherLfEntityInfo() {
   const out = {};
@@ -136,10 +136,10 @@ async function gatherLfEntityInfo() {
     ],
     'Meat Commodities Inc': [
     */
-   'Meat Commodities, Inc.': [],
-   'Morton Salt, Inc.': [],
-   'Schreiber Foods\t Inc. (General Dashboard)': [],
-   /*
+    'Meat Commodities, Inc.': [],
+    'Morton Salt, Inc.': [],
+    'Schreiber Foods\t Inc. (General Dashboard)': [],
+    /*
     'Michael Foods': [
       'Michael Foods, Inc.'
     ],
@@ -175,12 +175,9 @@ async function gatherLfEntityInfo() {
       'Tyson Foods'
     ],
     */
-  }
+  };
 
-  const allEntities = [
-    ...Object.keys(obj),
-    ...Object.values(obj).flat(1)
-  ]
+  const allEntities = [...Object.keys(obj), ...Object.values(obj).flat(1)];
 
   for await (const name of allEntities) {
     /*const job = await doJob(oada, {
@@ -198,8 +195,8 @@ async function gatherLfEntityInfo() {
 
     out[name] = {
       //job,
-      ...count
-    }
+      ...count,
+    };
   }
 
   // For each listed trading partner:
@@ -208,16 +205,20 @@ async function gatherLfEntityInfo() {
   // 3. Need to understand WHY they were created in the first place and how to alleviate
   //
 
-  await writeFile(outfilename, JSON.stringify(out))
+  await writeFile(outfilename, JSON.stringify(out));
 }
 
 async function getDocCount(entity) {
   const count = {};
   const modes = await browse(`/trellis/trading-partners/${entity}`);
   for await (const { Name: mode } of modes) {
-    const docTypes = await browse(`/trellis/trading-partners/${entity}/${mode}`);
-    for await (const { Name : type } of docTypes) {
-      const docs = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}`);
+    const docTypes = await browse(
+      `/trellis/trading-partners/${entity}/${mode}`,
+    );
+    for await (const { Name: type } of docTypes) {
+      const docs = await browse(
+        `/trellis/trading-partners/${entity}/${mode}/${type}`,
+      );
       count[mode] ||= 0;
       count[mode] += docs.length;
     }
@@ -233,23 +234,22 @@ export async function fillOutSupplierCsv() {
   const outRows = [];
 
   for await (const row of rowData) {
-    const results = sqlConn.query`SELECT * FROM tradingPartners WHERE name = ${row['Trading Partner']}`
+    const results = sqlConn.query`SELECT * FROM tradingPartners WHERE name = ${row['Trading Partner']}`;
 
     console.log(results);
 
     outRows.push({
       ...row,
       'Count In Trellis': results.length,
-    })
+    });
   }
 
-  await writeFile(supplierAlignmentFilenameNew, csvjson.toCSV(outRows))
-
-
+  await writeFile(supplierAlignmentFilenameNew, csvjson.toCSV(outRows));
 }
 
 export async function moveLfDocs(sqlConn, supplierFrom) {
-  const fromDocs = await sqlConn.query`SELECT * FROM docs WHERE tradingPartnerId = ${supplierFrom}`;
+  const fromDocs =
+    await sqlConn.query`SELECT * FROM docs WHERE tradingPartnerId = ${supplierFrom}`;
 
   for await (const _id of fromDocs) {
     const job = await doJob(oada, {
@@ -257,18 +257,18 @@ export async function moveLfDocs(sqlConn, supplierFrom) {
       type: 'sync-doc',
       config: {
         tradingPartner: supplierFrom,
-        doc: { _id }
-      }
-    })
+        doc: { _id },
+      },
+    });
   }
 }
 
 async function moveSupplierDocs(sqlConn) {
-
   for await (const [to, fromArray] of Object.entries(tps)) {
     console.log(`Moving from ${fromArray} to ${to}`);
     for await (const from of fromArray) {
-      const fromTp = await sqlConn.query`SELECT * FROM tradingPartners WHERE name = ${from}`;
+      const fromTp =
+        await sqlConn.query`SELECT * FROM tradingPartners WHERE name = ${from}`;
 
       if (!fromTp) {
         console.log('No trading partner found');
@@ -296,19 +296,23 @@ async function moveSupplierDocs(sqlConn) {
 
 async function getTrellisDocCount(tpName) {
   let count = 0;
-  const tp = Object.values(expand).find(t => t.name === tpName);
+  const tp = Object.values(expand).find((t) => t.name === tpName);
   if (!tp) return count;
 
   const docTypesPath = `/${tp.bookmarks}/trellisfw/documents/`;
   const { data: docTypes } = await oada.get({
-    path: `${docTypesPath}`
-  })
+    path: `${docTypesPath}`,
+  });
 
-  for await(const docType of Object.keys(docTypes).filter(key => !key.startsWith('_'))) {
+  for await (const docType of Object.keys(docTypes).filter(
+    (key) => !key.startsWith('_'),
+  )) {
     const { data: docs } = await oada.get({
-      path: `${docTypesPath}/${docType}`
-    })
-    count += (Object.keys(docs || {}).filter(key => !key.startsWith('_'))).length
+      path: `${docTypesPath}/${docType}`,
+    });
+    count += Object.keys(docs || {}).filter(
+      (key) => !key.startsWith('_'),
+    ).length;
   }
 
   return count;
