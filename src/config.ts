@@ -27,7 +27,7 @@ import libConfig from '@oada/lib-config';
 import { join } from 'node:path';
 
 export const { config } = await libConfig({
-  timeouts: {
+  'timeouts': {
     sync: {
       doc: 'OADA client timeout used on requests',
       format: Number,
@@ -43,7 +43,7 @@ export const { config } = await libConfig({
       arg: 'entry-job-timeout',
     },
   },
-  watch: {
+  'watch': {
     partners: {
       doc: `Watch the ${TRADING_PARTNER_LIST} for documents`,
       format: Boolean,
@@ -66,14 +66,14 @@ export const { config } = await libConfig({
       arg: 'watch-lf',
     },
   },
-  concurrency: {
+  'concurrency': {
     doc: `The maximum number of documents to process at one time.`,
     format: 'int',
     default: 5,
     env: 'LF_SYNC_CONCURRENCY',
     arg: 'concurrency',
   },
-  oada: {
+  'oada': {
     domain: {
       doc: 'OADA API domain',
       format: String,
@@ -103,7 +103,7 @@ export const { config } = await libConfig({
       arg: 'client-concurrency',
     },
   },
-  laserfiche: {
+  'laserfiche': {
     repository: {
       doc: 'Laserfiche repository',
       default: null as unknown as string,
@@ -184,7 +184,7 @@ export const { config } = await libConfig({
       },
     },
   },
-  lfdynamic: {
+  'lfdynamic': {
     password: {
       doc: 'password for accessing LFDynamic MSSQL Table',
       format: String,
@@ -250,8 +250,7 @@ export const { config } = await libConfig({
       env: 'LOCALDB_USER',
       arg: 'localdb-user',
     },
-
-  }
+  },
 });
 
 // Normalize the folder path

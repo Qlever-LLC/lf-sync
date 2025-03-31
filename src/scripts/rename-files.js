@@ -71,18 +71,19 @@ const csvFilePath = 'LF-Renaming-fixed.csv';
 // Loop over documents
 // Detect if LF has it
 // Detect what the supplier name is
-  // Detect if the supplier name matches what we _would_ have named it
+// Detect if the supplier name matches what we _would_ have named it
 // Re-transform the data to get products/locations
 // Re-sync the data to LF
 
 // Loop over all master ids
 export async function fetch() {
   const rows = [];
-  const tpKeys = Object.keys(tradingPartners)
-    .filter(key => !key.startsWith('_'))
+  const tpKeys = Object.keys(tradingPartners).filter(
+    (key) => !key.startsWith('_'),
+  );
   for await (const [index, tpKey] of tpKeys.entries()) {
     const mId = tradingPartners[tpKey]._id;
-    const { data: tp } = await oada.get({ path: `/${mId}`});
+    const { data: tp } = await oada.get({ path: `/${mId}` });
     console.log(`Master id ${index} / ${Object.keys(tpKeys).length}`);
     const documentTypeBase = join('/', mId, '/bookmarks/trellisfw/documents');
     let documentTypes = {};
@@ -120,7 +121,10 @@ export async function fetch() {
         const vdocs = jp.query(meta, '$.vdoc.pdf')[0];
 
         for await (const vdocKey of Object.keys(vdocs || {})) {
-           const lfid = jp.query(meta, `$.services['lf-sync']['${vdocKey}'].LaserficheEntryID`)[0];
+          const lfid = jp.query(
+            meta,
+            `$.services['lf-sync']['${vdocKey}'].LaserficheEntryID`,
+          )[0];
 
           if (!lfid) {
             console.log(`LF ID Missing for doc ${_id}`);
@@ -147,19 +151,24 @@ export async function fetch() {
             'Trellis Trading Partner Name': tp.name,
             'LF ID': lfid,
             'LF Name': entry?.Name,
-          })
+          });
         }
       }
     }
 
-    await writeFile(filename, csvjson.toCSV(rows, {delimiter: ",", wrap: false}));
+    await writeFile(
+      filename,
+      csvjson.toCSV(rows, { delimiter: ',', wrap: false }),
+    );
   }
 
-  await writeFile(filename, csvjson.toCSV(rows, {delimiter: ",", wrap: false}))
+  await writeFile(
+    filename,
+    csvjson.toCSV(rows, { delimiter: ',', wrap: false }),
+  );
 }
 
 export async function connectToSql() {
-
   return mysql.createConnection({
     host,
     user,
@@ -170,11 +179,12 @@ export async function connectToSql() {
 
 export async function populateLocalDb() {
   const conn = await connectToSql();
-  const tpKeys = Object.keys(tradingPartners)
-    .filter(key => !key.startsWith('_'))
+  const tpKeys = Object.keys(tradingPartners).filter(
+    (key) => !key.startsWith('_'),
+  );
   for await (const [index, tpKey] of tpKeys.entries()) {
     const mId = tradingPartners[tpKey]._id;
-    const { data: tp } = await oada.get({ path: `/${mId}`});
+    const { data: tp } = await oada.get({ path: `/${mId}` });
     console.log(`Master id ${index} / ${Object.keys(tpKeys).length}`);
 
     const insertTp = `
@@ -232,7 +242,10 @@ export async function populateLocalDb() {
         const vdocs = jp.query(meta, '$.vdoc.pdf')[0];
 
         for await (const vdocKey of Object.keys(vdocs || {})) {
-           const lfid = jp.query(meta, `$.services['lf-sync']['${vdocKey}'].LaserficheEntryID`)[0];
+          const lfid = jp.query(
+            meta,
+            `$.services['lf-sync']['${vdocKey}'].LaserficheEntryID`,
+          )[0];
 
           if (!lfid) {
             console.log(`LF ID Missing for doc ${_id}`);
@@ -263,7 +276,7 @@ export async function populateLocalDb() {
             lfid, // lfEntryId
             document, // trellisDocKey, //
             vdocKey, // trellisPdfKey
-            _id // trellisDocResource
+            _id, // trellisDocResource
           ];
 
           try {
@@ -284,16 +297,21 @@ export async function populateLocalDb() {
 
 export async function addLfNameToLocalDb() {
   const conn = await connectToSql();
-  const rows = await conn.query(`SELECT * FROM docs WHERE trellisPdfKey IS NOT NULL AND trellisDocId IS NOT NULL`);
+  const rows = await conn.query(
+    `SELECT * FROM docs WHERE trellisPdfKey IS NOT NULL AND trellisDocId IS NOT NULL`,
+  );
 
   for await (const row of rows[0]) {
     try {
       const { data: lfName } = await oada.get({
-        path: `/${row.trellisDocId}/_meta/services/lf-sync/${row.trellisPdfKey}/Name`
-      })
-      await conn.query(`UPDATE docs SET lfFilename = ? WHERE id = ?`, [lfName, row.id]);
-    } catch(err) {
-      console.log('Couldnt find lf name for entry')
+        path: `/${row.trellisDocId}/_meta/services/lf-sync/${row.trellisPdfKey}/Name`,
+      });
+      await conn.query(`UPDATE docs SET lfFilename = ? WHERE id = ?`, [
+        lfName,
+        row.id,
+      ]);
+    } catch (err) {
+      console.log('Couldnt find lf name for entry');
       continue;
     }
   }
@@ -321,31 +339,31 @@ function dropTrellis(document) {
  * Processes a CSV file, escaping commas in values and regenerating the file.
  */
 async function fixCSV() {
-
   // Define the input and output file paths
   const inputFilePath = path.resolve('LF-Renaming.csv');
   const outputFilePath = path.resolve('LF-Renaming-fixed.csv');
-  const parser = fs.createReadStream(inputFile).pipe(parse({ relaxQuotes: true, trim: true }));
+  const parser = fs
+    .createReadStream(inputFile)
+    .pipe(parse({ relaxQuotes: true, trim: true }));
   const outputStream = fs.createWriteStream(outputFile);
   const stringifier = stringify();
 
   // Pipe data through the stringifier to handle proper escaping
   parser.on('data', (row) => {
-      stringifier.write(row);
+    stringifier.write(row);
   });
 
   parser.on('end', () => {
-      stringifier.end();
-      console.log(`Processed CSV has been saved to ${outputFile}`);
+    stringifier.end();
+    console.log(`Processed CSV has been saved to ${outputFile}`);
   });
 
   parser.on('error', (error) => {
-      console.error('Error processing CSV:', error);
+    console.error('Error processing CSV:', error);
   });
 
   stringifier.pipe(outputStream);
 }
-
 
 // Define a function to be executed for each entry
 async function processEntry(tradingPartner, _id) {
@@ -354,8 +372,8 @@ async function processEntry(tradingPartner, _id) {
     type: 'sync-doc',
     config: {
       tradingPartner,
-      doc: { _id }
-    }
+      doc: { _id },
+    },
   });
 }
 
@@ -363,7 +381,7 @@ async function processEntry(tradingPartner, _id) {
 async function ingestCsv(filePath) {
   const trellisDocs = new Set();
   const outputRows = [];
-  const data = fs.readFileSync(filePath, {encoding: 'utf8'});
+  const data = fs.readFileSync(filePath, { encoding: 'utf8' });
   const rowData = csvjson.toObject(data);
 
   for await (const row of rowData) {
@@ -378,8 +396,8 @@ async function ingestCsv(filePath) {
     } = row;
 
     // Skip rows that look to have the correct file pattern
-    if ((!lfName || lfName.startsWith('['))) {
-      console.log('skipping doc', _id, {lfName})
+    if (!lfName || lfName.startsWith('[')) {
+      console.log('skipping doc', _id, { lfName });
       outputRows.push({
         'Trellis Document': _id,
         'Trellis Document Type': type,
@@ -394,27 +412,32 @@ async function ingestCsv(filePath) {
       // use that doc _id (the csv has one row per VDOC; doc _ids are not unique)
       trellisDocs.add(_id);
       try {
-        console.log(`Processing - Trading Partner: ${tradingPartner}, Document ID: ${_id}`);
+        console.log(
+          `Processing - Trading Partner: ${tradingPartner}, Document ID: ${_id}`,
+        );
         const jobData = await doJob(oada, {
           service: 'lf-sync',
           type: 'sync-doc',
           config: {
             tradingPartner,
-            doc: { _id }
-          }
+            doc: { _id },
+          },
         });
         outputRows.push(...jobDataToRows(jobData, type));
-      } catch(err) {
+      } catch (err) {
         console.log(err);
       }
     }
   }
 
-  await writeFile(processedFilename, csvjson.toCSV(outputRows, {
-    delimiter: ",",
-    wrap: false,
-    quote: '"'
-  }));
+  await writeFile(
+    processedFilename,
+    csvjson.toCSV(outputRows, {
+      delimiter: ',',
+      wrap: false,
+      quote: '"',
+    }),
+  );
 }
 
 function fixTpName(name) {
@@ -423,49 +446,54 @@ function fixTpName(name) {
 
 function jobDataToRows(jobData, type, tradingPartnerName) {
   const { config: jobConfig, result } = jobData;
-  return Object.values(result)
-    .map((value) => ({
-      'Trellis Document': jobConfig.doc._id,
-      'Trellis Document Type': type,
-      'Trellis vdoc': value._id,
-      'Trellis Trading Partner Name': tradingPartnerName,
-      'LF Entry ID': value.LaserficheEntryID,
-      'LF Filename': value.Name,
-    }))
+  return Object.values(result).map((value) => ({
+    'Trellis Document': jobConfig.doc._id,
+    'Trellis Document Type': type,
+    'Trellis vdoc': value._id,
+    'Trellis Trading Partner Name': tradingPartnerName,
+    'LF Entry ID': value.LaserficheEntryID,
+    'LF Filename': value.Name,
+  }));
 }
 
 async function fixupCsv(inputFilename, outputFilename) {
   const outputRows = [];
-  const data = fs.readFileSync(inputFilename, {encoding: 'utf8'});
+  const data = fs.readFileSync(inputFilename, { encoding: 'utf8' });
   const rowData = csvjson.toObject(data);
 
   let i = 0;
   let j = 0;
   for await (const row of rowData) {
-    console.log(`${i++}/${rowData.length} j=${j}`)
+    console.log(`${i++}/${rowData.length} j=${j}`);
     if (j++ === 1000) {
-      await writeFile(outputFilename.replace('csv', 'json'), JSON.stringify(outputRows));
+      await writeFile(
+        outputFilename.replace('csv', 'json'),
+        JSON.stringify(outputRows),
+      );
       j = 0;
     }
 
-    row['Trellis Trading Partner Name'] = row['Trellis Trading Partner Name'].replace('\t', ' ')
+    row['Trellis Trading Partner Name'] = row[
+      'Trellis Trading Partner Name'
+    ].replace('\t', ' ');
 
     const vdocId = row['Trellis vdoc'];
 
     const { data: meta } = await oada.get({
-      path: `/${row['Trellis Document']}/_meta`
-    })
+      path: `/${row['Trellis Document']}/_meta`,
+    });
 
     const vdocs = jp.query(meta, '$.vdoc.pdf')[0];
     const vdoc = Object.entries(vdocs).find(([, v]) => v._id === vdocId);
 
     if (vdoc) {
-
       let Name;
       try {
-        const entry = row['LF ID'] ? await retrieveEntry(Number.parseInt(row['LF ID'], 10)) : {};
+        const entry = row['LF ID']
+          ? await retrieveEntry(Number.parseInt(row['LF ID'], 10))
+          : {};
         Name = (entry || {}).Name;
-      } catch(err) {
+      } catch (err) {
         console.log(err);
       }
 
@@ -473,45 +501,58 @@ async function fixupCsv(inputFilename, outputFilename) {
 
       outputRows.push({
         ...row,
-        'Renamed LF Filename': Name
-      })
+        'Renamed LF Filename': Name,
+      });
     } else {
-      console.log("WHAT?")
+      console.log('WHAT?');
     }
   }
 
-  await writeFile(outputFilename, csvjson.toCSV(outputRows, {
-    delimiter: ",",
-    wrap: false,
-    quote: '"'
-  }));
+  await writeFile(
+    outputFilename,
+    csvjson.toCSV(outputRows, {
+      delimiter: ',',
+      wrap: false,
+      quote: '"',
+    }),
+  );
 }
 
 async function generateRenamesCsv(inputFilename, outputFilename) {
   const sqlConn = await connectToSql();
   const outputRows = [];
-  const data = fs.readFileSync(inputFilename, {encoding: 'utf8'});
-  const rowData = csvjson.toObject(data)
-    .filter(row => row['[].LF Name'])
-    .filter(row => row['[].LF ID'])
+  const data = fs.readFileSync(inputFilename, { encoding: 'utf8' });
+  const rowData = csvjson
+    .toObject(data)
+    .filter((row) => row['[].LF Name'])
+    .filter((row) => row['[].LF ID']);
 
   let i = 0;
   let j = 0;
   for await (const row of rowData) {
-    console.log(`${i++}/${rowData.length} j=${j}`)
+    console.log(`${i++}/${rowData.length} j=${j}`);
     if (j++ === 1000) {
-      await writeFile(outputFilename.replace('csv', 'json'), JSON.stringify(outputRows));
+      await writeFile(
+        outputFilename.replace('csv', 'json'),
+        JSON.stringify(outputRows),
+      );
       j = 0;
     }
 
-    const result = await sqlConn.query(`SELECT * FROM docs WHERE lfEntryId = ?`, [row['[].LF ID']]);
+    const result = await sqlConn.query(
+      `SELECT * FROM docs WHERE lfEntryId = ?`,
+      [row['[].LF ID']],
+    );
     if (result.length === 0) continue;
     if (!result[0][0].tradingPartnerId) {
       console.log('Result missing tradingPartnerId');
       continue;
     }
 
-    const tpRes = await sqlConn.query(`SELECT * FROM tradingPartners WHERE id = ?`, [result[0][0].tradingPartnerId])
+    const tpRes = await sqlConn.query(
+      `SELECT * FROM tradingPartners WHERE id = ?`,
+      [result[0][0].tradingPartnerId],
+    );
     if (tpRes.length === 0) continue;
     if (!tpRes[0][0].name) {
       console.log('Result missing name');
@@ -525,7 +566,7 @@ async function generateRenamesCsv(inputFilename, outputFilename) {
       'Document Type': result[0][0].docType,
       'Original LF Filename': row['[].LF Name'],
       'Renamed LF Filename': result[0][0].lfFilename,
-    })
+    });
   }
 
   await writeFile(outputFilename, csvjson.toCSV(outputRows, {
@@ -602,7 +643,6 @@ export async function fixBadFilenamesMove() {
     await renameEntry(entry.EntryId, res.path, res.filename);
   }
 }
-
 
 // fix the LF-Renaming csv
 //await fixupCsv(csvFilePath, outputCsvPath);

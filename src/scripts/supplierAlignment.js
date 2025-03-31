@@ -38,7 +38,8 @@ setInterval(() => console.log('TICK'), 1000);
 
 const oada = await connect({ token, domain });
 const base = '/bookmarks/trellisfw/trading-partners';
-const expand = '/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index';
+const expand =
+  '/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index';
 
 const { data: tradingPartners } = await oada.get({ path: base });
 
@@ -462,19 +463,23 @@ async function moveSupplierDocs() {
 
 async function getTrellisDocCount(tpName) {
   let count = 0;
-  const tp = Object.values(expand).find(t => t.name === tpName);
+  const tp = Object.values(expand).find((t) => t.name === tpName);
   if (!tp) return count;
 
   const docTypesPath = `/${tp.bookmarks}/trellisfw/documents/`;
   const { data: docTypes } = await oada.get({
-    path: `${docTypesPath}`
-  })
+    path: `${docTypesPath}`,
+  });
 
-  for await(const docType of Object.keys(docTypes).filter(key => !key.startsWith('_'))) {
+  for await (const docType of Object.keys(docTypes).filter(
+    (key) => !key.startsWith('_'),
+  )) {
     const { data: docs } = await oada.get({
-      path: `${docTypesPath}/${docType}`
-    })
-    count += (Object.keys(docs || {}).filter(key => !key.startsWith('_'))).length
+      path: `${docTypesPath}/${docType}`,
+    });
+    count += Object.keys(docs || {}).filter(
+      (key) => !key.startsWith('_'),
+    ).length;
   }
 
   return count;

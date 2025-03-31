@@ -23,7 +23,7 @@ import { renameEntry, retrieveEntry } from '../dist/cws/entries.js';
 // @ts-ignore
 const { domain, token } = config.get('oada');
 
-let oada = await connect({ domain, token })
+let oada = await connect({ domain, token });
 
 test('rename file within an upsert', async (t) => {
   // Get the current "correct" filename for a thing in LF (dev)
@@ -35,8 +35,8 @@ test('rename file within an upsert', async (t) => {
   await renameEntry(
     entryId,
     '/FSQA/trellis/trading-partners/Smithfield Foods/Shared From Smithfield/Zendesk Ticket/2024-06/Ticket8727',
-    'test'
-  )
+    'test',
+  );
 
   // Confirm the rename worked
   entry = await retrieveEntry(entryId);
@@ -52,12 +52,11 @@ test('rename file within an upsert', async (t) => {
       //tradingPartner: 'resources/2TA8ikqFp44u7nfz2UYK7FQweF1',
 
       // dev
-      doc: { _id: 'resources/2nYGl57bHxlklRcRqFRHhChicrn'},
+      doc: { _id: 'resources/2nYGl57bHxlklRcRqFRHhChicrn' },
       tradingPartner: 'resources/2fZ3qnoDID1fcNtBrsiKNKBezK4',
-    }
-  })
+    },
+  });
 
-  entry = await retrieveEntry(entryId)
+  entry = await retrieveEntry(entryId);
   t.is(entry.Name, name);
 });
-

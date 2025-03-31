@@ -22,7 +22,7 @@ import test from 'ava';
 // @ts-ignore
 const { domain, token } = config.get('oada');
 
-let oada = await connect({ domain, token })
+let oada = await connect({ domain, token });
 
 test('filing workflow', async (t) => {
   let result = await doJob(oada, {
@@ -33,11 +33,10 @@ test('filing workflow', async (t) => {
       //tradingPartner: 'resources/2TA8ikqFp44u7nfz2UYK7FQweF1',
 
       // dev
-      doc: { _id: 'resources/2nYGl57bHxlklRcRqFRHhChicrn'},
+      doc: { _id: 'resources/2nYGl57bHxlklRcRqFRHhChicrn' },
       tradingPartner: 'resources/2fZ3qnoDID1fcNtBrsiKNKBezK4',
-    }
-  })
+    },
+  });
 
   console.log(result);
 });
-

@@ -1,4 +1,6 @@
-# Copyright 2022 Qlever LLC
+# syntax=docker/dockerfile:1
+
+# Copyright 2024 Qlever LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +17,7 @@
 ARG NODE_VER=22-alpine
 ARG DIR=/usr/src/app/
 
-FROM node:$NODE_VER AS base
+FROM node:${NODE_VER} AS base
 ARG DIR
 
 # Install needed packages
@@ -24,11 +26,8 @@ RUN apk add --no-cache \
 
 WORKDIR ${DIR}
 
-COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}/
-
-RUN chown -R node:node ${DIR}
-# Do not run service as root
-USER node
+# Copy in code
+COPY . ${DIR}/
 
 RUN corepack yarn workspaces focus --all --production
 
@@ -40,10 +39,12 @@ CMD ["start"]
 FROM base AS build
 ARG DIR
 
+# Install build-only packages
+RUN apk add --no-cache \
+  git
+
 # Install dev deps too
 RUN corepack yarn install --immutable
-
-COPY . ${DIR}
 
 # Build code
 RUN corepack yarn build --verbose
@@ -51,5 +52,15 @@ RUN corepack yarn build --verbose
 FROM base AS production
 ARG DIR
 
-# Copy in build code
+ENV COREPACK_HOME=/home/node/.cache/node/corepack
+RUN corepack enable
+
+# Copy in built code
 COPY --from=build ${DIR}/dist ${DIR}/dist
+
+RUN chown -R node:node ${DIR}
+# Do not run service as root
+USER node
+
+# Have corepack download yarn
+RUN corepack install
