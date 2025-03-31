@@ -319,6 +319,64 @@ export function filingWorkflow(metadata: Metadata): {
     'Document Type': documentType,
     'Document Date': documentDate,
     'Share Mode': shareMode,
+    'Zendesk Ticket ID': ticketId,
+  } = metadata;
+
+  const ticket = ticketId ? `Ticket${ticketId}` : undefined;
+  let ticketDate = '';
+  if (documentType === 'Zendesk Ticket') {
+    const docDate = new Date(documentDate);
+    ticketDate = docDate.toISOString().split('T')[0]!.slice(0, 7);
+  }
+
+  const path: Path = join(
+    ...([
+      `/trellis/trading-partners`,
+      Entity,
+      shareMode,
+      documentType,
+      ticketDate,
+      ticket,
+    ].filter(Boolean) as unknown as string),
+  ) as unknown as Path;
+
+  const filename = getFilename(metadata);
+
+  return { path, filename };
+}
+
+export function filingWorkflowFromEntry(entry: DocumentEntry, entityName: string) {
+  const fieldNames = {
+    'Entity': false,
+    'Document Type': false,
+    'Document Date': false,
+    'Share Mode': false,
+    'Products': true,
+    'Locations': true,
+    'Expiration Date': false,
+    'Zendesk Ticket ID': false,
+    'Original Filename': false,
+    'Ticket Comment Number': false
+  };
+
+  const metadata = Object.fromEntries(
+    Object.entries(fieldNames).map(([fieldName, isArray]) => ([
+      fieldName,
+      fieldValueFromEntry(entry, fieldName, isArray)
+    ]))
+  );
+  // Entity names get truncated if they are too long in the metadata Fields. This allows it
+  // to be overwritten in the path and filename that gets generated here
+  metadata.Entity = entityName || metadata.Entity;
+
+  return filingWorkflow(metadata as Metadata);
+}
+
+export function getFilename(metadata: Metadata): string {
+  const {
+    Entity,
+    'Document Type': documentType,
+    'Document Date': documentDate,
     Products,
     Locations,
     'Expiration Date': expiration,
@@ -326,6 +384,7 @@ export function filingWorkflow(metadata: Metadata): {
     'Original Filename': originalFilename,
     'Ticket Comment Number': commentNumber,
   } = metadata;
+
   const location =
     Locations && Locations.length === 1
       ? Locations[0]
@@ -346,22 +405,6 @@ export function filingWorkflow(metadata: Metadata): {
       ? `EFF_${new Date(documentDate).toISOString().split('T')[0]}`
       : undefined;
   const ticket = ticketId ? `Ticket${ticketId}` : undefined;
-  let ticketDate = '';
-  if (documentType === 'Zendesk Ticket') {
-    const docDate = new Date(documentDate);
-    ticketDate = docDate.toISOString().split('T')[0]!.slice(0, 7);
-  }
-
-  const path: Path = join(
-    ...([
-      `/trellis/trading-partners`,
-      Entity,
-      shareMode,
-      documentType,
-      ticketDate,
-      ticket,
-    ].filter(Boolean) as unknown as string),
-  ) as unknown as Path;
 
   let filename = '';
   switch (documentType) {
@@ -379,7 +422,17 @@ export function filingWorkflow(metadata: Metadata): {
     }
   }
 
-  return { path, filename };
+  return filename;
+}
+
+export function fieldValueFromEntry(entry: DocumentEntry, fieldName: string, isArray?: boolean) {
+  const field = ((entry.FieldDataList ?? []).find((field) => field.Name === fieldName))
+  return field
+    ? isArray
+    // @ts-ignore
+      ? field.Values
+      : field.Value
+    : undefined;
 }
 
 export interface Metadata {

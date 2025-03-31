@@ -27,3 +27,11 @@ CREATE TABLE tradingPartners (
 
 -- Find content inside of externalIds like
 SELECT * FROM tradingPartners WHERE JSON_CONTAINS(externalIds, '"some id"');
+
+CREATE TABLE lfDocs(
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  lfEntryId VARCHAR(255) NULL,
+  path VARCHAR(255),
+  tradingPartnerId VARCHAR(255),
+  lfTradingPartnerName VARCHAR(255)
+);

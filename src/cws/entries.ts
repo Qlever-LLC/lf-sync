@@ -42,6 +42,7 @@ export interface DocumentEntry extends BaseEntry {
 }
 
 export interface FieldData {
+  [x: string]: any;
   Name: string;
   Value: string;
 }
@@ -69,6 +70,7 @@ export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
 type EntryEntry<E extends Entry> = Omit<E, 'LaserficheEntryID'> & {
   EntryId: EntryId<E>;
 };
+
 export async function retrieveEntry<E extends Entry>(
   entry: EntryIdLike<E> | Path,
 ): Promise<EntryEntry<E>> {

@@ -21,18 +21,24 @@ import { config } from '../../dist/config.js';
 import { connect } from '@oada/client';
 import { doJob } from '@oada/client/jobs';
 import csvjson from 'csvjson';
-import csvParser from 'csv-parser';
+//import csvParser from 'csv-parser';
 import * as fs from 'node:fs';
 import { join } from 'node:path';
 import jp from 'jsonpath';
 import mysql from 'mysql2/promise';
-import { retrieveEntry } from '../../dist/cws/entries.js';
+import {
+  renameEntry,
+  retrieveEntry
+} from '../../dist/cws/entries.js';
 import { writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { parse } from 'csv-parse';
-import readline from 'readline';
+//import readline from 'readline';
 import { stringify } from 'csv-stringify';
-import { createObjectCsvWriter } from 'csv-writer';
+//import { createObjectCsvWriter } from 'csv-writer';
+import {
+  filingWorkflowFromEntry
+} from '../../dist/utils.js';
 
 const { token, domain } = config.get('oada');
 const { database, host, user, password } = config.get('local-mysql');
@@ -41,7 +47,7 @@ setInterval(() => console.log('TICK'), 1000);
 
 const filename = 'LF-Renaming.csv';
 const processedFilename = 'LF-Renaming-2025-01-13.csv';
-const outputCsvPath = 'LF-Renaming-2025-02-13.csv';
+const outputCsvPath = 'LF-Renaming-2025-02-15.csv';
 
 const oada = await connect({ token, domain });
 const base = '/bookmarks/trellisfw/trading-partners';
@@ -527,7 +533,74 @@ async function generateRenamesCsv(inputFilename, outputFilename) {
     wrap: false,
     quote: '"'
   }));
+}
 
+export async function fixBadFilenames() {
+  const sqlConn = await connectToSql();
+  const query = `SELECT d.*
+    FROM docs d
+    JOIN (
+        SELECT lfFilename, tradingPartnerId, docType
+        FROM docs
+        WHERE lfFilename IS NOT NULL
+        AND tradingPartnerId IS NOT NULL
+        AND docType <> 'tickets'
+        GROUP BY lfFilename, tradingPartnerId, docType
+        HAVING COUNT(*) > 1
+    ) dup ON d.lfFilename = dup.lfFilename AND d.tradingPartnerId = dup.tradingPartnerId AND d.docType = dup.docType;`
+  const results = await sqlConn.query(query);
+
+  for await (const row of results[0]) {
+
+    // 1. Fetch the entryId over in CWS
+    const entry = await retrieveEntry(row.lfEntryId);
+
+    let lfFilename = entry.Name;
+    if (!entry.Name.includes('EFF') && !entry.Name.includes('EXP')) {
+      const res = filingWorkflowFromEntry(entry);
+      await renameEntry(entry.EntryId, res.path, res.filename);
+      const renamedEntry = await retrieveEntry(row.lfEntryId);
+      lfFilename = renamedEntry.Name;
+    }
+
+    try {
+      await oada.put({
+        path: `/${row.trellisDocId}/_meta/services/lf-sync/${row.trellisPdfKey}/Name`,
+        data: lfFilename,
+      })
+    } catch (err) {
+      console.log(err);
+      console.log('failed for some reason?');
+    }
+
+    await sqlConn.query(`UPDATE docs SET lfFilename = ? WHERE id = ?`, [lfFilename, row.id])
+
+  }
+
+  /*
+  const thing = await doJob(oada, {
+    service: 'lf-sync',
+    type: 'sync-doc',
+    config: {
+      doc: { _id: 'resources/2iD76Gv5p0ovZsIspxSg9ZeaIwP' },
+      tradingPartner: 'resources/1x3HKWVFX8JKcjw3aZGO3h8lq2Q',
+    }
+  })
+    */
+}
+
+
+export async function fixBadFilenamesMove() {
+  const sqlConn = await connectToSql();
+  const results = await sqlConn.query(`SELECT * FROM docs WHERE DATE(updated_at) = '2025-02-14'`);
+
+  for await (const row of results[0]) {
+
+    // 1. Fetch the entryId over in CWS
+    const entry = await retrieveEntry(row.lfEntryId);
+    const res = filingWorkflowFromEntry(entry);
+    await renameEntry(entry.EntryId, res.path, res.filename);
+  }
 }
 
 
@@ -547,6 +620,11 @@ async function generateRenamesCsv(inputFilename, outputFilename) {
 // Somehow didn't add lfFilename the first go round...
 //await addLfNameToLocalDb();
 
-await generateRenamesCsv(filename, outputCsvPath);
+//await fixBadFilenames();
+// fixBadFilenames didn't break anything itself, but a change to filingWorkflow caused
+// filepaths to omit 'Share Mode', so this reprocessed the affected ones
+//await fixBadFilenamesMove();
+
+//await generateRenamesCsv(filename, outputCsvPath);
 console.log('DONE');
 process.exit();

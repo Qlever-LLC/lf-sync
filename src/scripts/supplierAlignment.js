@@ -18,14 +18,21 @@
 /* eslint-disable no-console */
 
 import { browse } from '../../dist/cws/folders.js';
+import { setMetadata } from '../../dist/cws/metadata.js';
+import {
+  retrieveEntry,
+  renameEntry
+} from '../../dist/cws/entries.js';
 import { config } from '../../dist/config.js';
+import { filingWorkflowFromEntry } from '../../dist/utils.js';
 import { connect } from '@oada/client';
 import csvjson from 'csvjson';
-import { doJob } from '@oada/client/jobs';
+//import { doJob } from '@oada/client/jobs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { connectToSql } from './rename-files.js';
+import mysql from 'mysql2/promise';
 
 const { token, domain } = config.get('oada');
+const { database, host, user, password } = config.get('local-mysql');
 
 setInterval(() => console.log('TICK'), 1000);
 
@@ -37,15 +44,14 @@ const { data: tradingPartners } = await oada.get({ path: base });
 
 const { data: tradingPartnersExpand } = await oada.get({ path: expand });
 const supplierAlignmentFilename = 'SFSupplierAlignment.csv';
-const supplierAlignmentFilenameNew = 'SFSupplierAlignment2025-02-11.csv';
+const supplierAlignmentFilenameNew = 'SFSupplierAlignment2025-02-14.csv';
 const tps = {
-  /*
-  'American Foods': [
-    'American Foods Group',
+  'American Foods Group': [
+    //'American Foods', // Are we sure about this one?
     'AmericanFoodsGroup',
   ],
-  'Caldic': [
-    'Caldic USA, Inc.'
+  'Caldic USA, Inc.': [
+    'Caldic'
   ],
   'CARGILL - SWEETENERS, STARCHES & TEXTURIZING SOLUTIONS': [
     'CARGILL - SWEETENERS, STARCHES & TEXTURI'
@@ -53,245 +59,405 @@ const tps = {
   'Chemicals, Inc.': [
     'Chemicals Inc.'
   ],
-  'JM Swank': [
-    'JM Swank, LLC'
+  'JM Swank, LLC': [
+    'JM Swank'
   ],
   'LifeWise Ingredients, Inc.': [
     'Lifewise Ingredients LLC'
   ],
-  'Maple Leaf': [
-    'Maple Leaf Farms, Inc.',
-
+  'Maple Leaf Farms, Inc.': [
+    //'Maple Leaf' // ask about this one
   ],
-  'Meat Commodities Inc': [
-  */
- 'Meat Commodities, Inc.': [],
- 'Morton Salt, Inc.': [],
- /*
-  'Michael Foods': [
-    'Michael Foods, Inc.'
+  'Meat Commodities, Inc.': [
+    'Meat Commodities, Inc',
+    'Meat Commodities Inc',
   ],
-  'Mizkan': [
-    'Mizkan America',
+  'Michael Foods, Inc.': [
+    'Michael Foods',
   ],
-  'Morton Salt': [
-    'Morton Salt, Inc.',
+  'Mizkan America': [
+    'Mizkan',
   ],
-  'Promotora Comercial Alpro  (Broker - Nor': [
-    'Promotora Comercial ALPRO S. de R.L. de'
+  'Morton Salt, Inc.': [
+    'Morton Salt'
+  ],
+  'Promotora Comercial Alpro (Broker - Norson)': [
+    'Promotora Comercial Alpro  (Broker - Nor',
+    // Confirm these with Chris. Is it helpful to have foreign ones separate?
+    //'Promotora Comercial ALPRO S. de R.L. de'
   ],
   'Saratoga Food Specialties - Eastvale, CA': [
     'Saratoga Food Specialties - Eastval, CA'
   ],
-  'Smithfield Foods': [
-    'Smithfield Foods CONNECT'
+  'Schreiber Foods, Inc.': [
+    'Schreiber Foods, Inc. (General Dashboard)',
+    'Schreiber Foods, Inc. (General Dashboard',
   ],
-  'Seaboard Foods LLC  & Dailys  Premium Me': [
+  //'Smithfield Foods': [
+  //  'Smithfield Foods CONNECT'
+  //],
+  'Seaboard Foods LLC & Dailys Premium Meats': [
+    'Seaboard Foods LLC  & Dailys  Premium Me',
     'Seaboard Foods LLC  & Dailys  Premium Meats (A Division of Seaboard Foods Llc)'
   ],
   'Sofina Foods Inc.': [
     'SOFINA FOODS INC-BURLINGTON'
   ],
-  'Treehouse Foods': [
-    'Treehouse Foods, Inc.'
+  'Treehouse Foods, Inc.': [
+    'Treehouse Foods',
   ],
-  'Trim-Rite Food Corp Carpentersville Il': [
-    'Trim-Rite Foods Corp.'
+    'Trim-Rite Foods Corp.': [
+    'Trim-Rite Food Corp Carpentersville Il',
   ],
-  'Tyson': [
-    'Tyson Food, Inc.',
-    'Tyson Foods'
+  'Tyson Foods, Inc.': [
+    //'Tyson Food, Inc.',
+    //'Tyson',
+    'Tyson Foods',
   ],
-  */
 }
 
+export async function connectToSql() {
+
+  return mysql.createConnection({
+    host,
+    user,
+    password,
+    database,
+  });
+}
 
 async function gatherLfEntityInfo() {
-  const out = {};
-  const outfilename = 'entity-alignment.json';
-  const obj = {
-    /*
-    'American Foods': [
-      'American Foods Group',
-      'AmericanFoodsGroup',
-    ],
-    'Caldic': [
-      'Caldic USA, Inc.'
-    ],
-    'CARGILL - SWEETENERS, STARCHES & TEXTURIZING SOLUTIONS': [
-      'CARGILL - SWEETENERS, STARCHES & TEXTURI'
-    ],
-    'Chemicals, Inc.': [
-      'Chemicals Inc.'
-    ],
-    'JM Swank': [
-      'JM Swank, LLC'
-    ],
-    'LifeWise Ingredients, Inc.': [
-      'Lifewise Ingredients LLC'
-    ],
-    'Maple Leaf': [
-      'Maple Leaf Farms, Inc.',
-
-    ],
-    'Meat Commodities Inc': [
-    */
-   'Meat Commodities, Inc.': [],
-   'Morton Salt, Inc.': [],
-   'Schreiber Foods\t Inc. (General Dashboard)': [],
-   /*
-    'Michael Foods': [
-      'Michael Foods, Inc.'
-    ],
-    'Mizkan': [
-      'Mizkan America',
-    ],
-    'Morton Salt': [
-      'Morton Salt, Inc.',
-    ],
-    'Promotora Comercial Alpro  (Broker - Nor': [
-      'Promotora Comercial ALPRO S. de R.L. de'
-    ],
-    'Saratoga Food Specialties - Eastvale, CA': [
-      'Saratoga Food Specialties - Eastval, CA'
-    ],
-    'Smithfield Foods': [
-      'Smithfield Foods CONNECT'
-    ],
-    'Seaboard Foods LLC  & Dailys  Premium Me': [
-      'Seaboard Foods LLC  & Dailys  Premium Meats (A Division of Seaboard Foods Llc)'
-    ],
-    'Sofina Foods Inc.': [
-      'SOFINA FOODS INC-BURLINGTON'
-    ],
-    'Treehouse Foods': [
-      'Treehouse Foods, Inc.'
-    ],
-    'Trim-Rite Food Corp Carpentersville Il': [
-      'Trim-Rite Foods Corp.'
-    ],
-    'Tyson': [
-      'Tyson Food, Inc.',
-      'Tyson Foods'
-    ],
-    */
-  }
+  const sqlConn = await connectToSql();
+  /*
+  const out = [];
+  const outfilename = 'entity-alignment.csv';
+  */
 
   const allEntities = [
-    ...Object.keys(obj),
-    ...Object.values(obj).flat(1)
+    ...new Set([
+      ...Object.keys(tps),
+      ...Object.values(tps).flat(1)
+    ])
   ]
 
   for await (const name of allEntities) {
-    /*const job = await doJob(oada, {
-      service: 'trellis-data-manager',
-      type: 'trading-partners-query',
-      config: {
-        element: {
-          name,
-        }
-      }
-    });
-    */
-
-    const count = await getDocCount(name);
-
-    out[name] = {
-      //job,
+    await getDocCount(name, sqlConn);
+    /*
+    out.push({
       ...count
-    }
+    })
+      */
   }
 
-  // For each listed trading partner:
-  // 1. Run a query to see if there are any hits from our trellis-data-manager
-  // 2. Figure out how many docs are in LF for each of thsoe TPs
-  // 3. Need to understand WHY they were created in the first place and how to alleviate
-  //
-
-  await writeFile(outfilename, JSON.stringify(out))
+//  await writeFile(outfilename, csvjson.toCSV(out))
 }
 
-async function getDocCount(entity) {
-  const count = {};
-  const modes = await browse(`/trellis/trading-partners/${entity}`);
+async function getDocCount(entity, sqlConn) {
+  console.log('Retrieving entity', entity);
+  const tpData = {};
+  let modes = [];
+  try {
+    modes = await browse(`/trellis/trading-partners/${entity}`);
+  } catch (error) {
+    console.log(error);
+    console.log('No TP')
+  }
+
   for await (const { Name: mode } of modes) {
     const docTypes = await browse(`/trellis/trading-partners/${entity}/${mode}`);
     for await (const { Name : type } of docTypes) {
       const docs = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}`);
-      count[mode] ||= 0;
-      count[mode] += docs.length;
+      if (type === 'Zendesk Ticket') {
+        for await (const { Name: month, Path: p } of docs) {
+          // Before handling zendesk tickets we created a bunch of bad table entries.
+          // This query cleaned them up before adding the correct table entries. If we
+          // rerun this for some reason, we won't need to delete anything.
+          //sqlConn.query(`DELETE FROM lfDocs WHERE path = ?`, [p])
+          const tickets = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}`);
+          for await (const { Name: ticketId } of tickets) {
+            const ticketDocs = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}/${ticketId}`);
+            for await (const { EntryId, Path } of ticketDocs) {
+              const insertQuery = `INSERT INTO lfDocs
+                (lfEntryId, path, tradingPartnerId, lfTradingPartnerName)
+                VALUES (?, ?, ?, ?)
+              `;
+              const values = [
+                EntryId,
+                Path,
+                undefined,
+                entity,
+              ]
+              try {
+                await sqlConn.query(insertQuery, values)
+              } catch(error) {
+                console.log(error);
+              }
+            }
+          }
+        }
+      } else {
+        tpData[mode] ||= 0;
+        tpData[mode] += docs.length;
+        for await (const { EntryId, Path } of docs) {
+          const insertQuery = `INSERT INTO lfDocs
+            (lfEntryId, path, tradingPartnerId, lfTradingPartnerName)
+            VALUES (?, ?, ?, ?)
+          `;
+          const values = [
+            EntryId,
+            Path,
+            undefined,
+            entity,
+          ]
+          try {
+            await sqlConn.query(insertQuery, values)
+          } catch(error) {
+            console.log(error);
+          }
+        }
+      }
     }
   }
 
-  return count;
+  return tpData;
+}
+
+export async function findEmptyFolders() {
+  const paths = [];
+  //const sqlConn = await connectToSql();
+  const allEntities = [
+    ...new Set([
+      ...Object.values(tps).flat(1)
+    ])
+  ]
+
+  for await (const entity of allEntities) {
+    let entityFolder = [];
+    try {
+      entityFolder = await browse(`/trellis/trading-partners/${entity}`);
+      if (entityFolder.length === 0) paths.push(`/trellis/trading-partners/${entity}`);
+    } catch(error) {
+      console.log(error);
+      console.log(`No entity ${entity} in Laserfiche`);
+      continue;
+    }
+
+    for await (const { Name: mode } of entityFolder) {
+      const modeFolder = await browse(`/trellis/trading-partners/${entity}/${mode}`);
+      if (modeFolder.length === 0) paths.push(`/trellis/trading-partners/${entity}/${mode}`);
+      for await (const { Name : type } of modeFolder) {
+        const typeFolder = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}`);
+        if (typeFolder .length === 0) paths.push(`/trellis/trading-partners/${entity}/${mode}/${type}`)
+        if (type === 'Zendesk Ticket') {
+          for await (const { Name: month } of typeFolder) {
+            const monthFolder = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}`);
+            if (monthFolder.length === 0) paths.push(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}`)
+            for await (const { Name: ticketId } of monthFolder) {
+              const ticketFolder = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}/${ticketId}`);
+              if (ticketFolder.length === 0) paths.push(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}/${ticketId}`)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  await writeFile('emptyFolders.csv', csvjson.toCSV(paths.map(p => ({path: p})), {
+    delimiter: ',',
+    wrap: '"'
+  }));
+}
+
+export async function findNonEmptyFolders() {
+  const paths = [];
+  //const sqlConn = await connectToSql();
+  const allEntities = [
+    ...new Set([
+      ...Object.values(tps).flat(1)
+    ])
+  ]
+
+  for await (const entity of allEntities) {
+    let entityFolder = [];
+    try {
+      entityFolder = await browse(`/trellis/trading-partners/${entity}`);
+      if (entityFolder.length === 0) paths.push(`/trellis/trading-partners/${entity}`);
+    } catch(error) {
+      console.log(error);
+      console.log(`No entity ${entity} in Laserfiche`);
+      continue;
+    }
+
+    for await (const { Name: mode } of entityFolder) {
+      const modeFolder = await browse(`/trellis/trading-partners/${entity}/${mode}`);
+      if (hasFiles(modeFolder)) paths.push(`/trellis/trading-partners/${entity}/${mode}`)
+      for await (const { Name : type } of modeFolder) {
+        const typeFolder = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}`);
+        if (type === 'Zendesk Ticket') {
+          for await (const { Name: month } of typeFolder) {
+            const monthFolder = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}`);
+            if (hasFiles(monthFolder)) paths.push(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}`)
+            for await (const { Name: ticketId } of monthFolder) {
+              const ticketFolder = await browse(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}/${ticketId}`);
+              if (ticketFolder.length > 0) paths.push(`/trellis/trading-partners/${entity}/${mode}/${type}/${month}/${ticketId}`)
+            }
+          }
+        } else if (typeFolder.length > 0) paths.push(`/trellis/trading-partners/${entity}/${mode}/${type}`)
+      }
+    }
+  }
+
+  await writeFile('nonEmptyFolders.csv', csvjson.toCSV(paths.map(p => ({path: p})), {
+    delimiter: ',',
+    wrap: '"'
+  }));
+}
+
+export function hasFiles(entry) {
+  return entry.some((e) => e.Type !== 'Folder')
 }
 
 export async function fillOutSupplierCsv() {
   const sqlConn = await connectToSql();
-  const data = await readFile(supplierAlignmentFilename);
-  const rowData = csvjson.toObject(data);
+  const data = await readFile(supplierAlignmentFilename, {encoding: 'utf8'});
+  const rowData = csvjson.toObject(data, {quote: `"`});
   const outRows = [];
 
   for await (const row of rowData) {
-    const results = sqlConn.query`SELECT * FROM tradingPartners WHERE name = ${row['Trading Partner']}`
+    row.externalIds = row['In Trellis? If yes, externalids'];
+    delete row['In Trellis? If yes, externalids'];
 
-    console.log(results);
+
+    const result = await sqlConn.query(`SELECT * FROM tradingPartners WHERE name = ?`, [row['Trading Partner']]);
+    if (result.length  === 0 || result[0].length === 0) {
+      outRows.push({
+        ...row,
+        'Count In Trellis': '',
+        'Trellis TP IDs': '',
+        'Trellis TP Duplicate Count': 0
+      });
+      continue;
+    }
+
+    if (result[0].length > 1) {
+      console.log('we have duplicates')
+    }
+
+    const docs = await sqlConn.query(`SELECT * FROM docs WHERE tradingPartnerId = ?`, [result[0][0].id]);
 
     outRows.push({
       ...row,
-      'Count In Trellis': results.length,
+      'Count In Trellis': docs[0].length,
+      'Trellis TP IDs': result[0].map(obj => obj.id).join(' '),
+      'Trellis TP Duplicate Count': result[0].length
     })
+    continue;
   }
 
-  await writeFile(supplierAlignmentFilenameNew, csvjson.toCSV(outRows))
-
-
+  await writeFile(supplierAlignmentFilenameNew, csvjson.toCSV(outRows));
 }
 
-export async function moveLfDocs(sqlConn, supplierFrom) {
-  const fromDocs = await sqlConn.query`SELECT * FROM docs WHERE tradingPartnerId = ${supplierFrom}`;
+export async function moveLfDocs(sqlConn, fromName, toName) {
+  const moves = [];
+  const fromDocs = await sqlConn.query(`SELECT * FROM lfDocs WHERE lfTradingPartnerName = ?`, [fromName]);
 
-  for await (const _id of fromDocs) {
-    const job = await doJob(oada, {
-      service: 'lf-sync',
-      type: 'sync-doc',
-      config: {
-        tradingPartner: supplierFrom,
-        doc: { _id }
-      }
-    })
+  if (!fromDocs || fromDocs[0].length === 0) {
+    console.log('No docs for', fromName)
   }
+
+  for await (let { lfEntryId, /*path: fromPath */} of fromDocs[0]) {
+    lfEntryId = Number.parseInt(lfEntryId, 10);
+
+    try {
+    let entry = await retrieveEntry(lfEntryId);
+    const fields = Object.fromEntries(
+      entry.FieldDataList.map((field) => ([
+        field.Name,
+        field.Name === 'Entity'
+          ? toName
+          : field.isMulti ? field.Values : field.Value
+      ])
+    ));
+    fields['Share Mode'] = fields['Share Mode'] === 'incoming'
+      ? 'Shared To Smithfield'
+      : fields['Share Mode'];
+    const fromPath = entry.Path;
+    if (lfEntryId !== 1_526_187)
+      await setMetadata(
+        lfEntryId,
+        fields,
+        fields['Document Type'],
+      );
+    entry = await retrieveEntry(lfEntryId);
+
+    const res = filingWorkflowFromEntry(entry, toName);
+    await renameEntry(entry.EntryId, res.path, res.filename);
+    entry = await retrieveEntry(lfEntryId);
+   /*
+    await sqlConn.query(
+      `UPDATE lfDocs
+      SET
+        lfTradingPartnerName = ?,
+        path = ?
+      WHERE lfEntryId = ?`, [toName, entry.Path, lfEntryId])
+      */
+
+    moves.push({
+      'LF Entry ID': lfEntryId,
+      From: fromPath,
+      To: entry.Path,
+    })
+  } catch(err) {
+    console.log(err);
+    console.log('error')
+  }
+  }
+
+  return moves;
 }
 
-async function moveSupplierDocs(sqlConn) {
+async function moveSupplierDocs() {
+  const sqlConn = await connectToSql();
+  const outRows = [];
 
   for await (const [to, fromArray] of Object.entries(tps)) {
-    console.log(`Moving from ${fromArray} to ${to}`);
     for await (const from of fromArray) {
-      const fromTp = await sqlConn.query`SELECT * FROM tradingPartners WHERE name = ${from}`;
+      console.log(`Moving from ${from} to ${to}`);
+      const fromTp = await sqlConn.query(`SELECT * FROM tradingPartners WHERE name = ?`, [from]);
 
-      if (!fromTp) {
-        console.log('No trading partner found');
-        throw new Error('No trading partner found');
+      if (!fromTp || fromTp[0].length === 0) {
+        console.log('No trading partner found for', from);
       }
 
-      // Rename Trellis TP
       /*
-      await doJob(oada, {
-        service: 'trellis-data-manager',
-        type: 'trading-partners-update',
-        config: {
-          element: {
-            masterid: fromTp.id,
-            name: to,
+      // Fix the Trellis trading partners so these don't come back
+      for await (const tp of fromTp[0]) {
+        // Ensure Trellis no longer uses the wrong them there any longer
+        const job = await doJob(oada, {
+          type: 'trading-partners-update',
+          service: 'trellis-data-manager',
+          config: {
+            element: {
+              masterid: tp.id,
+              name: to
+            }
           }
+        })
 
-        }
-      })
+        await sqlConn.query(`UPDATE tradingPartners SET name = ? WHERE id = ?`, [to, tp.id]);
+
+        console.log(job);
+      }
       */
-      await moveLfDocs(sqlConn, from);
+
+      outRows.push(...await moveLfDocs(sqlConn, from, to));
     }
   }
+
+  await writeFile('SupplierAlignmentFilesMovedTyson.csv', csvjson.toCSV(outRows, {
+    delimiter: ",",
+    wrap: '"',
+  }));
 }
 
 async function getTrellisDocCount(tpName) {
@@ -317,7 +483,13 @@ async function getTrellisDocCount(tpName) {
 // Gather the relevant trading-partner information
 //await gatherLfEntityInfo();
 
-await fillOutSupplierCsv();
+//await moveSupplierDocs();
+
+//await findEmptyFolders();
+//await findNonEmptyFolders();
+
+// Fix up the csv
+//await fillOutSupplierCsv();
 
 console.log('DONE');
 process.exit();
