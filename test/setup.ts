@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath } from "node:url";
 
-import { configure, setupTests } from 'ava-nock';
-import test from 'ava';
+import test from "ava";
+import { configure, setupTests } from "ava-nock";
 
 // Fake the time
 /*
@@ -46,7 +46,7 @@ export default function setup(
     for (const [name, value] of Object.entries(variables)) {
       const template = `{{ ${name} }}`;
 
-      output = output.replaceAll(new RegExp(String(value), 'g'), template);
+      output = output.replaceAll(new RegExp(String(value), "g"), template);
     }
 
     return output;
@@ -58,11 +58,11 @@ export default function setup(
     headerFilter: {
       // Don't record tokens
       // eslint-disable-next-line unicorn/no-null
-      'authorization': () => null,
+      authorization: () => null,
       // Don't record content lengths?
       // eslint-disable-next-line @typescript-eslint/naming-convention, unicorn/no-null
-      'content-length': () => null,
-      'content-location': filterVariables,
+      "content-length": () => null,
+      "content-location": filterVariables,
       ...headerFilter,
     },
     pathFilter: filterVariables,

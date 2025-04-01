@@ -21,16 +21,16 @@
  * @packageDocumentation
  */
 
+import cws from "./api.js";
 import {
   type Entry,
   type EntryIdLike,
   type FolderEntry,
   type FolderId,
   getEntryId,
-} from './entries.js';
-import { type FieldList, type Metadata, toFieldList } from './metadata.js';
-import { type Path, normalizePath } from './paths.js';
-import cws from './api.js';
+} from "./entries.js";
+import { type FieldList, type Metadata, toFieldList } from "./metadata.js";
+import { type Path, normalizePath } from "./paths.js";
 
 /**
  * The ID for the root folder `\\`
@@ -43,9 +43,9 @@ export const ROOT_ID = 1 as FolderId;
  * @param path the Laserfiche folder path
  * @returns a Promise of an array of child entries
  */
-export async function browse(path: Path = '/') {
+export async function browse(path: Path = "/") {
   return cws
-    .get('api/browse', {
+    .get("api/browse", {
       searchParams: {
         path: normalizePath(path),
       },
@@ -62,7 +62,7 @@ export async function browse(path: Path = '/') {
 export async function retrieveFolder(folder: EntryIdLike<FolderEntry>) {
   const id = getEntryId(folder);
   return cws
-    .get('api/RetrieveFolder', {
+    .get("api/RetrieveFolder", {
       searchParams: { LaserficheEntryId: id },
     })
     .json<FolderEntry>();
@@ -87,7 +87,7 @@ export async function createFolder({
     LaserficheFieldList: metadata && toFieldList(metadata),
   };
   return cws
-    .post('api/CreateFolder', {
+    .post("api/CreateFolder", {
       json: parameters,
     })
     .json<{ LaserficheEntryID: FolderId }>();
@@ -100,7 +100,7 @@ export async function getFolderContents(folder: EntryIdLike<FolderEntry>) {
 
 export async function deleteFolder(folder: EntryIdLike<FolderEntry>) {
   const id = getEntryId(folder);
-  return cws.delete<void>('api/DeleteFolder', {
+  return cws.delete<void>("api/DeleteFolder", {
     json: {
       LaserficheEntryId: id,
     },

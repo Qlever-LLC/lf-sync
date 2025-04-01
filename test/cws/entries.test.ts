@@ -15,44 +15,44 @@
  * limitations under the License.
  */
 
-import test from 'ava';
+import test from "ava";
 
-import setup from '../setup.js';
+import setup from "../setup.js";
 
-import { createDocument, deleteDocument } from '../../dist/cws/documents.js';
+import { createDocument, deleteDocument } from "../../dist/cws/documents.js";
 import {
   moveEntry,
   retrieveEntry,
   searchEntries,
-} from '../../dist/cws/entries.js';
-import { ROOT_ID } from '../../dist/cws/folders.js';
+} from "../../dist/cws/entries.js";
+import { ROOT_ID } from "../../dist/cws/folders.js";
 
 setup();
 
-test('retrieveEntry with ID', async (t) => {
+test("retrieveEntry with ID", async (t) => {
   const result = await retrieveEntry(ROOT_ID);
   t.like(result, { EntryId: ROOT_ID });
 });
 
-test('retrieveEntry with path', async (t) => {
-  const result = await retrieveEntry('/');
+test("retrieveEntry with path", async (t) => {
+  const result = await retrieveEntry("/");
   t.truthy(result.EntryId);
 });
 
-test('moveEntry', async (t) => {
+test("moveEntry", async (t) => {
   const entry = await createDocument({
-    path: '/',
-    name: 'test.move.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.move.txt",
+    mimetype: "text/plain",
   });
-  await moveEntry(entry, '/moved');
+  await moveEntry(entry, "/moved");
   t.pass();
   try {
     await deleteDocument(entry.LaserficheEntryID);
   } catch {}
 });
 
-test('searchEntries', async (t) => {
+test("searchEntries", async (t) => {
   const phrase =
     '{[General]:[Document]="search text", [Date]="*"} & {LF:Name="*", Type="F"}';
   const result = await searchEntries(phrase);

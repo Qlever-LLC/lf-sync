@@ -1,6 +1,0 @@
-dist
-.test
-test/snapshots
-coverage
-
-.history

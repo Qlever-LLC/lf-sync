@@ -21,15 +21,15 @@
  * @packageDocumentation
  */
 
-import { config } from '../config.js';
+import { config } from "../config.js";
 
-import got from 'got';
-import type { Got } from 'got';
+import got from "got";
+import type { Got } from "got";
 
 const {
   repository,
   cws: { apiRoot, login, timeout, token },
-} = config.get('laserfiche');
+} = config.get("laserfiche");
 
 let authToken: string | null = token;
 let isRefreshing = false;
@@ -38,7 +38,7 @@ let refreshQueue: any[] = [];
 const client: Got = got.extend({
   prefixUrl: apiRoot,
   https: {
-    rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
+    rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0",
   },
   /*
   timeout: {
@@ -54,11 +54,11 @@ async function getToken() {
   // "Password" is base64 encoded JSON string of login info
   const auth = Buffer.from(
     JSON.stringify({ repositoryName: repository, ...login }),
-  ).toString('base64');
+  ).toString("base64");
   const { access_token: accessToken, token_type: type } = await client
-    .post('api/ConnectionToLaserfiche', {
+    .post("api/ConnectionToLaserfiche", {
       headers: { Authorization: `basic ${auth}` },
-      form: { grant_type: 'password' },
+      form: { grant_type: "password" },
     })
     .json<{
       access_token: string;
@@ -88,8 +88,7 @@ export const cws = client.extend({
         if (response && response.statusCode === 401) {
           try {
             authToken = await refreshAuthToken();
-            error.request.options.headers['Authorization'] =
-              `Bearer ${authToken}`;
+            error.request.options.headers.Authorization = `Bearer ${authToken}`;
             // Retry the original request with the new token
             return client(error.request.options);
           } catch (tokenRefreshError) {
@@ -116,7 +115,7 @@ const refreshAuthToken = async (): Promise<string> => {
       refreshQueue = [];
     } catch (error) {
       isRefreshing = false;
-      throw new Error('Failed to refresh auth token');
+      throw new Error("Failed to refresh auth token");
     }
   }
 

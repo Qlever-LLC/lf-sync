@@ -16,15 +16,15 @@
  */
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
-import { argv } from 'node:process';
-import { deleteDocument } from '../../cws/documents.js';
-import { deleteFolder } from '../../cws/folders.js';
-import { retrieveEntry } from '../../cws/entries.js';
+import { argv } from "node:process";
+import { deleteDocument } from "../../cws/documents.js";
+import { retrieveEntry } from "../../cws/entries.js";
+import { deleteFolder } from "../../cws/folders.js";
 
 /* A quick script to move an EntryId to a new location */
 
 if (argv.length !== 3) {
-  console.error('USAGE: node delete-entry.js entryId');
+  console.error("USAGE: node delete-entry.js entryId");
   process.exit(1);
 }
 
@@ -33,4 +33,4 @@ const entryId = Number(argv[2]); // As unknown as EntryId;
 const entry = await retrieveEntry(entryId);
 
 // @awlayton: your auto format rules makes this __really__ ugly
-await (entry.Type === 'Folder' ? deleteFolder(entry) : deleteDocument(entry));
+await (entry.Type === "Folder" ? deleteFolder(entry) : deleteDocument(entry));

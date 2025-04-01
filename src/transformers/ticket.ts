@@ -15,22 +15,22 @@
  * limitations under the License.
  */
 
-import type Resource from '@oada/types/oada/resource.js';
+import type Resource from "@oada/types/oada/resource.js";
 
-import type { Metadata } from '../cws/metadata.js';
-import { genericVdocMetadata } from './generic.js';
-import { getFormattedDate } from '../utils.js';
+import type { Metadata } from "../cws/metadata.js";
+import { getFormattedDate } from "../utils.js";
+import { genericVdocMetadata } from "./generic.js";
 
-const SAP_FIELD = 'sap_id';
+const SAP_FIELD = "sap_id";
 
 export async function ticketMetadata(document: Resource): Promise<Metadata> {
   const doc = document as unknown as TicketArchive;
 
   return {
-    'Entity': doc.org.name,
-    'Document Type': 'Zendesk Ticket',
-    'Document Date': getFormattedDate(new Date(doc.ticket.created_at)),
-    'Zendesk Ticket ID': doc.ticket.id.toString(),
+    Entity: doc.org.name,
+    "Document Type": "Zendesk Ticket",
+    "Document Date": getFormattedDate(new Date(doc.ticket.created_at)),
+    "Zendesk Ticket ID": doc.ticket.id.toString(),
     // 'Share Mode': 'Shared From Smithfield',
   };
 }
@@ -40,8 +40,8 @@ export async function ticketVdocMetadata(
 ): Promise<Metadata> {
   const metadata: Metadata = {};
 
-  if ('commentNumber' in meta) {
-    metadata['Ticket Comment Number'] = meta.commentNumber as string;
+  if ("commentNumber" in meta) {
+    metadata["Ticket Comment Number"] = meta.commentNumber as string;
   }
 
   return {
@@ -275,7 +275,7 @@ export interface Field {
 
 export interface Comment {
   id: number;
-  type: 'Comment';
+  type: "Comment";
   author_id: number;
   body: string;
   html_body: string;

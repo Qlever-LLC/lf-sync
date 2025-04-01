@@ -15,33 +15,33 @@
  * limitations under the License.
  */
 
-import { config } from '../dist/config.js';
-import { getBuffer } from '../dist/utils.js';
-import { createDocument } from '../dist/cws/documents.js';
-import { connect } from '@oada/client';
-import { pino } from '@oada/pino-debug';
+import { connect } from "@oada/client";
+import { pino } from "@oada/pino-debug";
+import { config } from "../dist/config.js";
+import { createDocument } from "../dist/cws/documents.js";
+import { getBuffer } from "../dist/utils.js";
 // @ts-ignore
-const { domain, token } = config.get('oada');
-const logger = pino({ base: { service: 'lf-sync' } });
+const { domain, token } = config.get("oada");
+const logger = pino({ base: { service: "lf-sync" } });
 
-let oada = await connect({ domain, token });
+const oada = await connect({ domain, token });
 
 async function test() {
   try {
-    let value = { _id: 'resources/2jZ34koXDqOlNjqvrZriXkT1TYR' };
+    const value = { _id: "resources/2jZ34koXDqOlNjqvrZriXkT1TYR" };
     const { buffer, mimetype } = await getBuffer(logger, oada, value);
-    let resp = await createDocument({
-      name: '12/31/2021_Amity Packing Company_Certificate of Insurance',
-      path: '/_Incoming',
+    const resp = await createDocument({
+      name: "12/31/2021_Amity Packing Company_Certificate of Insurance",
+      path: "/_Incoming",
       mimetype,
       metadata: {
-        'Entity': 'Amity Packing Company',
-        'Share Mode': 'Shared to Smithfield',
-        'Document Type': 'Certificate of Insurance',
-        'Document Date': '12/31/2022 12:00:00 AM',
-        'Products': ['test1', 'test2'],
+        Entity: "Amity Packing Company",
+        "Share Mode": "Shared to Smithfield",
+        "Document Type": "Certificate of Insurance",
+        "Document Date": "12/31/2022 12:00:00 AM",
+        Products: ["test1", "test2"],
       },
-      template: 'Certificate of Insurance',
+      template: "Certificate of Insurance",
       buffer,
     });
 

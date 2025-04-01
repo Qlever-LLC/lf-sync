@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-import { config } from './config.js';
+import { config } from "./config.js";
 
-import debug from 'debug';
-import sql from 'mssql';
+import debug from "debug";
+import sql from "mssql";
 
-import { type JsonObject, type OADAClient, connect } from '@oada/client';
-import { doJob } from '@oada/client/jobs';
+import { type JsonObject, type OADAClient, connect } from "@oada/client";
+import { doJob } from "@oada/client/jobs";
 
-const info = debug('lf-sync--lfdynamic:info');
-const error = debug('lf-sync--lfdynamic:error');
+const info = debug("lf-sync--lfdynamic:info");
+const error = debug("lf-sync--lfdynamic:error");
 
-const { domain, token } = config.get('oada');
-const { database, password, port, server, user } = config.get('lfdynamic');
+const { domain, token } = config.get("oada");
+const { database, password, port, server, user } = config.get("lfdynamic");
 // Const VENDOR_SHEET = 'LFA1';
 // const NAME_COL = 'Name 1';
 const PRODUCTION = true;
@@ -75,15 +75,15 @@ async function main() {
     // let res = await sql.query`select * from SFI_Entities`;
     // const r = await sql.query`select COL_LENGTH('dbo.SFI_Entities', 'Entity Name') AS Result`
     // console.log(r);
-    const name = 'Reynolds Presto Products, Inc. dba Presto Products Company';
+    const name = "Reynolds Presto Products, Inc. dba Presto Products Company";
 
     try {
-      const result = await sql.query/* sql */ `
+      const result = await sql.query /* sql */`
           DECLARE @NAME NVARCHAR(100)
           SET @NAME=(${sanitize(name)})
           INSERT INTO SFI_Entities ("Entity Name") VALUES (@NAME)`;
       const res =
-        await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
+        await sql.query /* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
       //      Const result = await sql.query/* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
       info({ res, result });
     } catch (error_: unknown) {
@@ -125,7 +125,7 @@ async function removeEntity(rowguid: string) {
 export async function addEntity(name: string) {
   info(`adding ${name}`);
   try {
-    return await sql.query/* sql */ `INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
+    return await sql.query /* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
     // Await sql.query`INSERT INTO SFI_Entities ("Entity Name", "masterid") VALUES (${name}, ${masterid})`;
   } catch (error_: unknown) {
     error(error_, `ERRORED ON THIS ONE ${name}`);
@@ -140,7 +140,7 @@ export async function fetchTradingPartners() {
   });
 
   const { data: tps } = await oada.get({
-    path: `/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index`,
+    path: "/bookmarks/trellisfw/trading-partners/_meta/indexings/expand-index",
   });
   return {
     trellisList: Object.values(tps as JsonObject) as unknown as TrellisEntry[],
@@ -166,7 +166,7 @@ export async function pruneEntities(
     const lfdynamic = `lfdynamic:${ent.rowguid}`;
     const foundTp = trellis.find((tp) => tp.externalIds.includes(lfdynamic));
     info(
-      `pruneEntities found no matches for ${ent['Entity Name']} [${ent.rowguid}]`,
+      `pruneEntities found no matches for ${ent["Entity Name"]} [${ent.rowguid}]`,
     );
     if (!foundTp) {
       await removeEntity(ent.rowguid);
@@ -177,7 +177,7 @@ export async function pruneEntities(
 // Remove special characters; truncate to allowable nvarchar(100) size
 function sanitize(value: string) {
   return value
-    .replaceAll(/[%[\]^_]/g, '')
+    .replaceAll(/[%[\]^_]/g, "")
     .slice(0, Math.max(0, ENTITY_NAME_LENGTH));
 }
 
@@ -190,20 +190,20 @@ export async function handleEntities(
   // Find if an existing row exists
   for await (const tp of trellis) {
     if (!tp.externalIds) continue;
-    if (!tp.externalIds.some((id: string) => id.startsWith('lfdynamic'))) {
+    if (!tp.externalIds.some((id: string) => id.startsWith("lfdynamic"))) {
       let res =
-        await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
+        await sql.query /* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
       let record =
         res?.recordset.length > 1
           ? await removeDupeEntities(Array.from(res.recordset as SqlEntry[]))
           : (res?.recordset?.[0] as SqlEntry);
       if (!record) {
-        error('No result for TP', tp.name);
+        error("No result for TP", tp.name);
         // Does not exist. Create it
         try {
-          await sql.query/* sql */ `INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
+          await sql.query /* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
           res =
-            await sql.query/* sql */ `SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
+            await sql.query /* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
           record = res?.recordset?.[0] as SqlEntry;
         } catch (error_: unknown) {
           error(
@@ -217,14 +217,14 @@ export async function handleEntities(
 
       const { rowguid } = record;
       if (!record || !rowguid) {
-        error('Missing rowguid');
+        error("Missing rowguid");
         continue;
       }
 
       const lfdynamic = `lfdynamic:${rowguid}`;
       await doJob(oada, {
-        type: 'trading-partners-update',
-        service: 'trellis-data-manager',
+        type: "trading-partners-update",
+        service: "trellis-data-manager",
         config: {
           element: {
             masterid: tp.masterid,
@@ -279,8 +279,8 @@ function mapVendor(vendor: SAPVendor) {
 }
 */
 interface SqlEntry {
-  'rowguid': string;
-  'Entity Name': string;
+  rowguid: string;
+  "Entity Name": string;
 }
 
 interface TrellisEntry {
@@ -290,21 +290,21 @@ interface TrellisEntry {
 }
 
 export interface SAPVendor {
-  'Account group': string;
-  'Central deletion flag': string;
-  'City': string;
-  'Country': string;
-  'Name 1': string;
-  'P.O. Box Postal Code': string;
-  'PO Box': string;
-  'Postal Code': string;
-  'Region': string;
-  'Street': string;
-  'Tax Number 1': string;
-  'Tax Number 2': string;
-  'Telephone 1': string;
-  'Telephone 2': string;
-  'Vendor': string;
+  "Account group": string;
+  "Central deletion flag": string;
+  City: string;
+  Country: string;
+  "Name 1": string;
+  "P.O. Box Postal Code": string;
+  "PO Box": string;
+  "Postal Code": string;
+  Region: string;
+  Street: string;
+  "Tax Number 1": string;
+  "Tax Number 2": string;
+  "Telephone 1": string;
+  "Telephone 2": string;
+  Vendor: string;
 }
 
 await main();

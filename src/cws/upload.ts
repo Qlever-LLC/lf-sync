@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-import { Writable } from 'node:stream';
+import { Writable } from "node:stream";
 
-import { type DocumentEntry, type EntryIdLike, getEntryId } from './entries.js';
-import cws from './api.js';
+import cws from "./api.js";
+import { type DocumentEntry, type EntryIdLike, getEntryId } from "./entries.js";
 
 /**
  * Chunks cannot be larger than 10 MB
@@ -38,7 +38,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     // Initiate the upload
     async construct(callback) {
       try {
-        await cws.post<void>('api/InitUpload', {
+        await cws.post<void>("api/InitUpload", {
           json: { LaserficheEntryID: id },
         });
         callback();
@@ -50,7 +50,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     async write(chunk, _encoding, callback) {
       const body = chunk as string | Uint8Array;
       try {
-        await cws.post<void>('api/UploadChunk', {
+        await cws.post<void>("api/UploadChunk", {
           searchParams: { offset, laserficheEntryID: id },
           body: body instanceof Uint8Array ? Buffer.from(body) : body,
         });
@@ -63,7 +63,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     // Finish the upload
     async final(callback) {
       try {
-        await cws.put<void>('api/CompleteUpload', {
+        await cws.put<void>("api/CompleteUpload", {
           json: { LaserficheEntryID: id },
         });
         callback();
@@ -89,8 +89,8 @@ export function streamUpload(
   const id = getEntryId(document);
   return cws.stream.put(`api/Document/${id}/${extension}`, {
     headers: {
-      'Content-Length': `${length}`,
-      'Content-Type': mimetype,
+      "Content-Length": `${length}`,
+      "Content-Type": mimetype,
     },
   });
 }
@@ -102,8 +102,8 @@ export async function smallUpload(
   const id = getEntryId(document);
   return cws.post(`api/Document/${id}`, {
     headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Length': `${file.length}`,
+      "Content-Type": "application/pdf",
+      "Content-Length": `${file.length}`,
     },
     body: file instanceof Uint8Array ? Buffer.from(file) : file,
   });

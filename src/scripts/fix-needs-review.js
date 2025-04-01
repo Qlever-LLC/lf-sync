@@ -17,15 +17,15 @@
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
 
-import { config } from '../dist/config.js';
+import { config } from "../dist/config.js";
 
-import { connect } from '@oada/client';
+import { connect } from "@oada/client";
 
-import { browse } from '../dist/cws/folders.js';
+import { browse } from "../dist/cws/folders.js";
 
-const { token: tokens, domain } = config.get('oada');
+const { token: tokens, domain } = config.get("oada");
 
-setInterval(() => console.log('TICK'), 1000);
+setInterval(() => console.log("TICK"), 1000);
 
 /*
 This script was written to handle some documents that landed in the _NeedsReview folder due to the filing workflow
@@ -37,12 +37,12 @@ no longer missing, then run this script to 'retrigger' them to be processed by l
 getting them and re-putting the resource content.
 */
 
-const oada = await connect({ token: tokens[0] || '', domain });
+const oada = await connect({ token: tokens[0] || "", domain });
 
-const data = await browse(`/_NeedsReview`);
+const data = await browse("/_NeedsReview");
 
 for await (const entry of data) {
-  const path = `/${entry.Name.split('-')[0]}`;
+  const path = `/${entry.Name.split("-")[0]}`;
   const { data: tDoc } = await oada.get({ path });
   await oada.put({
     path,

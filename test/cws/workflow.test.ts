@@ -15,39 +15,39 @@
  * limitations under the License.
  */
 
-import { PassThrough, Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
-import { setTimeout } from 'node:timers/promises';
+import { PassThrough, Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { setTimeout } from "node:timers/promises";
 
-import test from 'ava';
+import test from "ava";
 
-import setup from '../setup.js';
+import setup from "../setup.js";
 
-import fs from 'node:fs/promises';
+import fs from "node:fs/promises";
 
 import {
   createDocument,
   deleteDocument,
   retrieveDocument,
-} from '../../dist/cws/documents.js';
-import { smallUpload, streamUpload } from '../../dist/cws/upload.js';
-import { retrieveDocumentContent } from '../../dist/cws/download.js';
+} from "../../dist/cws/documents.js";
+import { retrieveDocumentContent } from "../../dist/cws/download.js";
+import { smallUpload, streamUpload } from "../../dist/cws/upload.js";
 
 setup();
 
-test('smallUpload', async (t) => {
-  const file = await fs.readFile('./test/test.pdf');
+test("smallUpload", async (t) => {
+  const file = await fs.readFile("./test/test.pdf");
   const { LaserficheEntryID: id } = await createDocument({
-    path: '/../../_Incoming',
-    name: 'test.workflow.small.pdf',
-    mimetype: 'application/pdf',
-    template: 'SFI Template 1',
+    path: "/../../_Incoming",
+    name: "test.workflow.small.pdf",
+    mimetype: "application/pdf",
+    template: "SFI Template 1",
     metadata: {
-      'Document Date': new Date().toISOString(),
-      'Expiration Date': new Date().toISOString(),
-      'Entity': 'Trellis Test Supplier',
-      'Document Type (2)': 'Certificate of Insurance',
-      'Share Mode': 'Shared To Smithfield',
+      "Document Date": new Date().toISOString(),
+      "Expiration Date": new Date().toISOString(),
+      Entity: "Trellis Test Supplier",
+      "Document Type (2)": "Certificate of Insurance",
+      "Share Mode": "Shared To Smithfield",
     },
   } as const);
   await smallUpload(id, file);
@@ -57,7 +57,7 @@ test('smallUpload', async (t) => {
   t.regex(
     entry.Path,
     /^\\FSQA\\Trellis\\Trading Partners\\.*/,
-    'Should be moved by workflow',
+    "Should be moved by workflow",
   );
   t.log(entry);
   try {
@@ -65,22 +65,22 @@ test('smallUpload', async (t) => {
   } catch {}
 });
 
-test('streamUpload', async (t) => {
-  const file = await fs.readFile('./test/test.pdf');
+test("streamUpload", async (t) => {
+  const file = await fs.readFile("./test/test.pdf");
   const { LaserficheEntryID: id } = await createDocument({
-    path: '/../../_Incoming',
-    name: 'test.workflow.stream.pdf',
-    mimetype: 'application/pdf',
-    template: 'SFI Template 1',
+    path: "/../../_Incoming",
+    name: "test.workflow.stream.pdf",
+    mimetype: "application/pdf",
+    template: "SFI Template 1",
     metadata: {
-      'Document Date': new Date().toISOString(),
-      'Expiration Date': new Date().toISOString(),
-      'Entity': 'Trellis Test Supplier',
-      'Document Type (2)': 'Certificate of Insurance',
-      'Share Mode': 'Shared To Smithfield',
+      "Document Date": new Date().toISOString(),
+      "Expiration Date": new Date().toISOString(),
+      Entity: "Trellis Test Supplier",
+      "Document Type (2)": "Certificate of Insurance",
+      "Share Mode": "Shared To Smithfield",
     },
   } as const);
-  const upload = streamUpload(id, 'pdf', 'application/pdf', file.length);
+  const upload = streamUpload(id, "pdf", "application/pdf", file.length);
   await pipeline(Readable.from(file), upload, new PassThrough());
   await setTimeout(1000);
   const content = await retrieveDocumentContent(id);
@@ -89,7 +89,7 @@ test('streamUpload', async (t) => {
   t.regex(
     entry.Path,
     /^\\FSQA\\Trellis\\Trading Partners\\.*/,
-    'Should be moved by workflow',
+    "Should be moved by workflow",
   );
   t.log(entry);
   try {

@@ -16,13 +16,13 @@
  */
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
-import { argv } from 'node:process';
-import { moveEntry } from '../../cws/entries.js';
+import { argv } from "node:process";
+import { moveEntry } from "../../cws/entries.js";
 
 /* A quick script to move an EntryId to a new location */
 
 if (argv.length !== 4) {
-  console.error('USAGE: node move-entry.js entryId path');
+  console.error("USAGE: node move-entry.js entryId path");
   process.exit(1);
 }
 

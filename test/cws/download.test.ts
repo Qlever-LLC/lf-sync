@@ -15,42 +15,42 @@
  * limitations under the License.
  */
 
-import { Blob } from 'node:buffer';
+import { Blob } from "node:buffer";
 
-import test from 'ava';
+import test from "ava";
 
-import setup from '../setup.js';
+import setup from "../setup.js";
 
-import { createDocument, deleteDocument } from '../../dist/cws/documents.js';
-import { retrieveDocumentContent } from '../../dist/cws/download.js';
+import { createDocument, deleteDocument } from "../../dist/cws/documents.js";
+import { retrieveDocumentContent } from "../../dist/cws/download.js";
 
 setup();
 
-test('retrieveDocumentContents Blob', async (t) => {
-  const file = new Blob(['test test']);
+test("retrieveDocumentContents Blob", async (t) => {
+  const file = new Blob(["test test"]);
   const body = await createDocument({
-    path: '/',
-    name: 'test.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.txt",
+    mimetype: "text/plain",
     file,
   });
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
-  t.is(document.toString(), 'test test');
+  t.is(document.toString(), "test test");
   try {
     await deleteDocument(body.LaserficheEntryID);
   } catch {}
 });
 
-test('retrieveDocumentContents Buffer', async (t) => {
-  const file = Buffer.from('test test');
+test("retrieveDocumentContents Buffer", async (t) => {
+  const file = Buffer.from("test test");
   const body = await createDocument({
-    path: '/',
-    name: 'test.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.txt",
+    mimetype: "text/plain",
     file,
   });
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
-  t.is(document.toString(), 'test test');
+  t.is(document.toString(), "test test");
   try {
     await deleteDocument(body.LaserficheEntryID);
   } catch {}

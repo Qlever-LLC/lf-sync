@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-import { config } from '../config.js';
+import { config } from "../config.js";
 
-import { join, sep } from 'node:path';
+import { join, sep } from "node:path";
 
-const { baseFolder } = config.get('laserfiche');
+const { baseFolder } = config.get("laserfiche");
 
-const test = process.env.NODE_ENV === 'test';
+const test = process.env.NODE_ENV === "test";
 
 export type Path = `/${string}`;
 
@@ -31,7 +31,7 @@ export type Path = `/${string}`;
 export function normalizePath(path: Path) {
   // Check for config updates in tests?
   const base = test
-    ? config.get('laserfiche.baseFolder')
+    ? config.get("laserfiche.baseFolder")
     : /* c8 ignore next */ baseFolder;
-  return join(base, path).split(sep).join('\\') as `\\${string}`;
+  return join(base, path).split(sep).join("\\") as `\\${string}`;
 }

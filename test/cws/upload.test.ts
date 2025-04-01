@@ -15,81 +15,81 @@
  * limitations under the License.
  */
 
-import { Duplex, PassThrough, Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import { Duplex, PassThrough, Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 
-import test from 'ava';
+import test from "ava";
 
-import setup from '../setup.js';
+import setup from "../setup.js";
 
-import {
-  chunkedUpload,
-  smallUpload,
-  streamUpload,
-} from '../../dist/cws/upload.js';
 import {
   createDocument,
   deleteDocument,
   retrieveDocument,
-} from '../../dist/cws/documents.js';
-import { retrieveDocumentContent } from '../../dist/cws/download.js';
+} from "../../dist/cws/documents.js";
+import { retrieveDocumentContent } from "../../dist/cws/download.js";
+import {
+  chunkedUpload,
+  smallUpload,
+  streamUpload,
+} from "../../dist/cws/upload.js";
 
 setup();
 
-test('small upload', async (t) => {
-  const file = Buffer.from('test test');
+test("small upload", async (t) => {
+  const file = Buffer.from("test test");
   const body = await createDocument({
-    path: '/',
-    name: 'test.stream.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.stream.txt",
+    mimetype: "text/plain",
   });
   t.log(await retrieveDocument(body.LaserficheEntryID));
   await smallUpload(body.LaserficheEntryID, file);
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
-  t.is(document.toString(), 'test test');
+  t.is(document.toString(), "test test");
   try {
     await deleteDocument(body.LaserficheEntryID);
   } catch {}
 });
 
-test('stream upload', async (t) => {
-  const file = Buffer.from('test test');
+test("stream upload", async (t) => {
+  const file = Buffer.from("test test");
   const body = await createDocument({
-    path: '/',
-    name: 'test.stream.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.stream.txt",
+    mimetype: "text/plain",
   });
   const upload = streamUpload(
     body.LaserficheEntryID,
-    'txt',
-    'text/plain',
+    "txt",
+    "text/plain",
     file.length,
   );
   await pipeline(Readable.from(file), upload, new PassThrough());
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
-  t.is(document.toString(), 'test test');
+  t.is(document.toString(), "test test");
   try {
     await deleteDocument(body.LaserficheEntryID);
   } catch {}
 });
 
-test.failing('chunked upload', async (t) => {
+test.failing("chunked upload", async (t) => {
   // eslint-disable-next-line unicorn/consistent-function-scoping
   async function* gen() {
-    yield 'test 1';
-    yield 'test 2';
+    yield "test 1";
+    yield "test 2";
   }
 
   const contents = Readable.from(gen(), { objectMode: false });
   const body = await createDocument({
-    path: '/',
-    name: 'test.chunked.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.chunked.txt",
+    mimetype: "text/plain",
   });
   const upload = chunkedUpload(body.LaserficheEntryID);
   await pipeline(contents, Duplex.from(upload), new PassThrough());
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
-  t.is(document.toString(), 'test test');
+  t.is(document.toString(), "test test");
   try {
     await deleteDocument(body.LaserficheEntryID);
   } catch {}

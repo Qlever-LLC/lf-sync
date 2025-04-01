@@ -15,69 +15,69 @@
  * limitations under the License.
  */
 
-import test from 'ava';
+import test from "ava";
 
-import { filingWorkflow, getFormattedDate } from '../dist/utils.js';
+import { filingWorkflow, getFormattedDate } from "../dist/utils.js";
 
-test('filing workflow', (t) => {
-  let date = new Date();
-  let ticketMeta = {
-    'Entity': 'Bob Foods, LLC',
-    'Document Type': 'Zendesk Ticket',
-    'Document Date': getFormattedDate(date),
-    'Share Mode': 'Shared to Smithfield',
-    'Expiration Date': getFormattedDate(date),
-    'Zendesk Ticket ID': '1115',
-    'Products': ['Honey Glaze', 'Brown Sugar Glaze'],
-    'Locations': ['Location A', 'Location B'],
-    'Original Filename': 'RandFilename-2.xyz',
+test("filing workflow", (t) => {
+  const date = new Date();
+  const ticketMeta = {
+    Entity: "Bob Foods, LLC",
+    "Document Type": "Zendesk Ticket",
+    "Document Date": getFormattedDate(date),
+    "Share Mode": "Shared to Smithfield",
+    "Expiration Date": getFormattedDate(date),
+    "Zendesk Ticket ID": "1115",
+    Products: ["Honey Glaze", "Brown Sugar Glaze"],
+    Locations: ["Location A", "Location B"],
+    "Original Filename": "RandFilename-2.xyz",
   };
   let result = filingWorkflow(ticketMeta);
 
-  t.is(result.filename, 'RandFilename-2.xyz', 'Zendesk Ticket handling');
+  t.is(result.filename, "RandFilename-2.xyz", "Zendesk Ticket handling");
   t.is(
     result.path,
-    '/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Zendesk Ticket/2024-09/Ticket1115',
-    'Zendesk Ticket handling',
+    "/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Zendesk Ticket/2024-09/Ticket1115",
+    "Zendesk Ticket handling",
   );
 
-  let docMeta = {
-    'Entity': 'Bob Foods, LLC',
-    'Document Type': 'Certificate of Insurance',
-    'Document Date': getFormattedDate(date),
-    'Share Mode': 'Shared to Smithfield',
-    'Expiration Date': getFormattedDate(date),
-    'Products': ['Honey Glaze', 'Brown Sugar Glaze'],
-    'Locations': ['Location A', 'Location B'],
-    'Original Filename': 'RandFilename-2.xyz',
+  const docMeta = {
+    Entity: "Bob Foods, LLC",
+    "Document Type": "Certificate of Insurance",
+    "Document Date": getFormattedDate(date),
+    "Share Mode": "Shared to Smithfield",
+    "Expiration Date": getFormattedDate(date),
+    Products: ["Honey Glaze", "Brown Sugar Glaze"],
+    Locations: ["Location A", "Location B"],
+    "Original Filename": "RandFilename-2.xyz",
   };
   result = filingWorkflow(docMeta);
-  let expDate = date.toISOString().split('T')[0];
+  const expDate = date.toISOString().split("T")[0];
 
   t.is(
     result.filename,
     `[Certificate of Insurance][Bob Foods, LLC][EXP_${expDate}][Multi-Location][Multi-Product]`,
-    'Non-ticket filename invalid',
+    "Non-ticket filename invalid",
   );
   t.is(
     result.path,
-    '/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Certificate of Insurance',
-    'Non-ticket path invalid',
+    "/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Certificate of Insurance",
+    "Non-ticket path invalid",
   );
 
   docMeta.Products.pop();
   docMeta.Locations.pop();
   //@ts-expect-error no likey delete
-  delete docMeta['Expiration Date'];
+  delete docMeta["Expiration Date"];
   result = filingWorkflow(docMeta);
   t.is(
     result.filename,
     `[Certificate of Insurance][Bob Foods, LLC][Location A][Honey Glaze][Certificate of Insurance]`,
-    'Non-ticket filename invalid',
+    "Non-ticket filename invalid",
   );
   t.is(
     result.path,
-    '/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Certificate of Insurance',
-    'Non-ticket path invalid',
+    "/trellis/trading-partners/Bob Foods, LLC/Shared to Smithfield/Certificate of Insurance",
+    "Non-ticket path invalid",
   );
 });

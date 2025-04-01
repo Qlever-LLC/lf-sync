@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-export * from './entries.js';
-export * from './documents.js';
-export * from './download.js';
-export * from './upload.js';
-export * from './folders.js';
-export * from './metadata.js';
+export * from "./entries.js";
+export * from "./documents.js";
+export * from "./download.js";
+export * from "./upload.js";
+export * from "./folders.js";
+export * from "./metadata.js";

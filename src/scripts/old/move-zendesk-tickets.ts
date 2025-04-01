@@ -17,8 +17,8 @@
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
 
-import { browse, createFolder } from '../../cws/folders.js';
-import { moveEntry } from '../../cws/entries.js';
+import { moveEntry } from "../../cws/entries.js";
+import { browse, createFolder } from "../../cws/folders.js";
 
 /*
  * This script was written to "reset" LaserFiche after some early zendesk-sync operations.
@@ -26,7 +26,7 @@ import { moveEntry } from '../../cws/entries.js';
  * and into a temporary holding location. After the new sync is complete and correct, the temporary
  * resources can be removed.
  */
-const partners = await browse(`/trellis/trading-partners`);
+const partners = await browse("/trellis/trading-partners");
 
 for await (const partner of partners) {
   try {
@@ -52,7 +52,7 @@ for await (const partner of partners) {
     if (
       error &&
       (error as { code: string | undefined }).code !==
-        'ERR_NON_2XX_3XX_RESPONSE'
+        "ERR_NON_2XX_3XX_RESPONSE"
     ) {
       console.log(error);
       process.exit();

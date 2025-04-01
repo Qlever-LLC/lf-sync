@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-import type { Opaque } from 'type-fest';
+import type { Opaque } from "type-fest";
 
-import { type Path, normalizePath } from './paths.js';
-import cws from './api.js';
+import cws from "./api.js";
+import { type Path, normalizePath } from "./paths.js";
 
 export type EntryId<T extends Partial<BaseEntry> = Entry> = Opaque<number, T>;
 interface BaseEntry {
@@ -33,7 +33,7 @@ interface BaseEntry {
 export type DocumentId = EntryId<DocumentEntry>;
 export interface DocumentEntry extends BaseEntry {
   LaserficheEntryID: DocumentId;
-  Type: 'Document';
+  Type: "Document";
   FieldDataList: FieldData[];
   TemplateName: string;
   ElectronicDocumentSize: number;
@@ -50,33 +50,33 @@ export interface FieldData {
 export type FolderId = EntryId<FolderEntry>;
 export interface FolderEntry extends BaseEntry {
   LaserficheEntryID: FolderId;
-  Type: 'Folder';
+  Type: "Folder";
 }
 
 export type Entry = FolderEntry | DocumentEntry;
 export type EntryIdLike<T extends BaseEntry = BaseEntry> =
-  | Pick<Partial<T>, 'LaserficheEntryID' | 'EntryId'>
+  | Pick<Partial<T>, "LaserficheEntryID" | "EntryId">
   | EntryId<T>
   | number;
 
 export function getEntryId<T extends BaseEntry>(entry: EntryIdLike<T>) {
-  return typeof entry === 'number'
+  return typeof entry === "number"
     ? entry
     : entry.LaserficheEntryID
       ? (entry.LaserficheEntryID as EntryId<T>)
       : (entry.EntryId as EntryId<T>);
 }
 
-type EntryEntry<E extends Entry> = Omit<E, 'LaserficheEntryID'> & {
+type EntryEntry<E extends Entry> = Omit<E, "LaserficheEntryID"> & {
   EntryId: EntryId<E>;
 };
 
 export async function retrieveEntry<E extends Entry>(
   entry: EntryIdLike<E> | Path,
 ): Promise<EntryEntry<E>> {
-  if (typeof entry === 'string') {
+  if (typeof entry === "string") {
     return cws
-      .get('api/RetrieveEntry', {
+      .get("api/RetrieveEntry", {
         searchParams: { Path: normalizePath(entry) },
       })
       .json();
@@ -102,11 +102,11 @@ export async function searchEntries(
   metadata?: ReadonlyArray<string | { Name: string }>,
 ) {
   return cws
-    .post('api/SearchEntries', {
+    .post("api/SearchEntries", {
       json: {
         LaserficheSearchPhrase: phrase,
         MetaDataObjectList: metadata?.map((field) =>
-          typeof field === 'string' ? { Name: field } : field,
+          typeof field === "string" ? { Name: field } : field,
         ),
       },
     })
@@ -120,7 +120,7 @@ export async function indexEntry(entry: EntryIdLike) {
 
 export async function migrateEntry(entry: EntryIdLike, volume: string) {
   const entryId = getEntryId(entry);
-  return cws.put<void>('api/Entry/Migrate', {
+  return cws.put<void>("api/Entry/Migrate", {
     json: {
       LaserficheEntryID: entryId,
       DestinationVolumeName: volume,
@@ -130,7 +130,7 @@ export async function migrateEntry(entry: EntryIdLike, volume: string) {
 
 export async function moveEntry(entry: EntryIdLike, path: Path) {
   const entryId = getEntryId(entry);
-  return cws.put<void>('api/Entry/Move', {
+  return cws.put<void>("api/Entry/Move", {
     json: {
       LaserficheEntryID: entryId,
       DestinationParentPath: normalizePath(path),
@@ -144,7 +144,7 @@ export async function renameEntry(
   Name: string,
 ) {
   const entryId = getEntryId(entry);
-  return cws.put<void>('api/Entry/Move', {
+  return cws.put<void>("api/Entry/Move", {
     json: {
       LaserficheEntryID: entryId,
       DestinationParentPath: normalizePath(path),

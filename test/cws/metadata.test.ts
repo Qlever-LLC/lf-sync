@@ -15,51 +15,51 @@
  * limitations under the License.
  */
 
-import test from 'ava';
+import test from "ava";
 
-import setup from '../setup.js';
+import setup from "../setup.js";
 
-import { createDocument, deleteDocument } from '../../dist/cws/documents.js';
+import { createDocument, deleteDocument } from "../../dist/cws/documents.js";
+import { ROOT_ID } from "../../dist/cws/folders.js";
 import {
   getMetadata,
   setMetadata,
   setTemplate,
-} from '../../dist/cws/metadata.js';
-import { ROOT_ID } from '../../dist/cws/folders.js';
+} from "../../dist/cws/metadata.js";
 
 setup();
 
-test('getMetadata', async (t) => {
+test("getMetadata", async (t) => {
   const body = await getMetadata(ROOT_ID);
   t.truthy(body.ID);
 });
 
-test('setMetadata', async (t) => {
+test("setMetadata", async (t) => {
   const document = await createDocument({
-    path: '/',
-    name: 'test.create.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.create.txt",
+    mimetype: "text/plain",
   });
-  await setMetadata(document, { Author: 'Trellis Test' }, 'General');
+  await setMetadata(document, { Author: "Trellis Test" }, "General");
   const body = await getMetadata(document);
   t.like(
-    body.LaserficheFieldList.find(({ Name: name }) => name === 'Author'),
-    { Value: 'Trellis Test' },
+    body.LaserficheFieldList.find(({ Name: name }) => name === "Author"),
+    { Value: "Trellis Test" },
   );
   try {
     await deleteDocument(document.LaserficheEntryID);
   } catch {}
 });
 
-test('setTemplate', async (t) => {
+test("setTemplate", async (t) => {
   const document = await createDocument({
-    path: '/',
-    name: 'test.create2.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.create2.txt",
+    mimetype: "text/plain",
   });
-  await setTemplate(document, 'General');
+  await setTemplate(document, "General");
   const body = await getMetadata(document);
-  t.is(body.TemplateName, 'General');
+  t.is(body.TemplateName, "General");
   try {
     await deleteDocument(document.LaserficheEntryID);
   } catch {}

@@ -17,32 +17,32 @@
 
 /* eslint-disable no-console */
 
-import { config } from '../dist/config.js';
+import { config } from "../dist/config.js";
 
-import { join } from 'node:path';
+import { join } from "node:path";
 
-import { connect } from '@oada/client';
+import { connect } from "@oada/client";
 
-import { deleteDocument } from '../dist/cws/index.js';
+import { deleteDocument } from "../dist/cws/index.js";
 
-const { token: tokens, domain } = config.get('oada');
+const { token: tokens, domain } = config.get("oada");
 
-setInterval(() => console.log('TICK'), 1000);
+setInterval(() => console.log("TICK"), 1000);
 
-const oada = await connect({ token: tokens[0] || '', domain });
-const base = '/bookmarks/trellisfw/trading-partners/masterid-index';
+const oada = await connect({ token: tokens[0] || "", domain });
+const base = "/bookmarks/trellisfw/trading-partners/masterid-index";
 
 const { data: masterIds } = await oada.get({ path: base });
 
 dropTrellis(masterIds);
-delete masterIds[''];
+delete masterIds[""];
 delete masterIds.bookmarks;
 delete masterIds.smithfield;
 
 // Loop over all master ids
 for await (const [index, mId] of Object.keys(masterIds).entries()) {
   console.log(`Master id ${index} / ${Object.keys(masterIds).length}`);
-  const documentTypeBase = join(base, mId, '/bookmarks/trellisfw/documents');
+  const documentTypeBase = join(base, mId, "/bookmarks/trellisfw/documents");
   const { data: documentTypes } = await oada.get({ path: documentTypeBase });
   dropTrellis(documentTypes);
 
@@ -50,9 +50,9 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
   for await (const documentType of Object.keys(documentTypes)) {
     // Known mistake keys
     if (
-      documentType === 'name' ||
-      documentType === 'code' ||
-      documentType === 'documents'
+      documentType === "name" ||
+      documentType === "code" ||
+      documentType === "documents"
     ) {
       continue;
     }
@@ -68,7 +68,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
           path: join(
             documentBase,
             document,
-            '_meta/services/lf-sync/LaserficheEntryID',
+            "_meta/services/lf-sync/LaserficheEntryID",
           ),
         });
 
@@ -88,7 +88,7 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
           }
 
           await oada.delete({
-            path: join(documentBase, document, '_meta/services/lf-sync'),
+            path: join(documentBase, document, "_meta/services/lf-sync"),
           });
         }
       } catch (error) {
@@ -100,13 +100,8 @@ for await (const [index, mId] of Object.keys(masterIds).entries()) {
   }
 }
 
-function dropTrellis(document) {
-  delete document._id;
-  delete document._rev;
-  delete document._type;
-  delete document._meta;
-
+function dropTrellis({ _id, _rev, _type, _meta, ...document }) {
   return document;
 }
 
-console.log('DONE');
+console.log("DONE");

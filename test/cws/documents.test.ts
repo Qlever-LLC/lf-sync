@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-import test from 'ava';
+import test from "ava";
 
-import setup from '../setup.js';
+import setup from "../setup.js";
 
 import {
   createDocument,
@@ -25,15 +25,15 @@ import {
   deleteDocument,
   retrieveDocument,
   searchDocument,
-} from '../../dist/cws/documents.js';
+} from "../../dist/cws/documents.js";
 
 setup();
 
-test('createDocument', async (t) => {
+test("createDocument", async (t) => {
   const body = await createDocument({
-    path: '/',
-    name: 'test.create.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.create.txt",
+    mimetype: "text/plain",
   });
   t.truthy(body.LaserficheEntryID);
   try {
@@ -41,12 +41,12 @@ test('createDocument', async (t) => {
   } catch {}
 });
 
-test('createDocument with file', async (t) => {
-  const file = Buffer.from('test test');
+test("createDocument with file", async (t) => {
+  const file = Buffer.from("test test");
   const body = await createDocument({
-    path: '/',
-    name: 'test.create.file.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.create.file.txt",
+    mimetype: "text/plain",
     file,
   });
   t.log(await retrieveDocument(body.LaserficheEntryID));
@@ -56,9 +56,9 @@ test('createDocument with file', async (t) => {
   } catch {}
 });
 
-test.failing('createGenericDocument', async (t) => {
+test.failing("createGenericDocument", async (t) => {
   const body = await createGenericDocument({
-    name: 'test.generic.txt',
+    name: "test.generic.txt",
   });
   t.truthy(body.LaserficheEntryID);
   try {
@@ -66,11 +66,11 @@ test.failing('createGenericDocument', async (t) => {
   } catch {}
 });
 
-test('retrieveDocument', async (t) => {
+test("retrieveDocument", async (t) => {
   const body = await createDocument({
-    path: '/',
-    name: 'test.retrieve.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.retrieve.txt",
+    mimetype: "text/plain",
   });
   const document = await retrieveDocument(body.LaserficheEntryID);
   t.is(document.LaserficheEntryID, body.LaserficheEntryID);
@@ -79,18 +79,18 @@ test('retrieveDocument', async (t) => {
   } catch {}
 });
 
-test('searchDocument', async (t) => {
+test("searchDocument", async (t) => {
   const phrase =
     '{[General]:[Document]="search text", [Date]="*"} & {LF:Name="*", Type="F"}';
   const result = await searchDocument(phrase);
   t.assert(Array.isArray(result));
 });
 
-test('deleteDocument', async (t) => {
+test("deleteDocument", async (t) => {
   const body = await createDocument({
-    path: '/',
-    name: 'test.delete.txt',
-    mimetype: 'text/plain',
+    path: "/",
+    name: "test.delete.txt",
+    mimetype: "text/plain",
   });
   await deleteDocument(body.LaserficheEntryID);
   t.pass();

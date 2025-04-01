@@ -17,29 +17,29 @@
 
 /* eslint-disable no-console */
 
-import { config } from '../dist/config.js';
+import { config } from "../dist/config.js";
 
-import { join } from 'node:path';
+import { join } from "node:path";
 
-import { connect } from '@oada/client';
+import { connect } from "@oada/client";
 
-const { token, domain } = config.get('oada');
+const { token, domain } = config.get("oada");
 
-setInterval(() => console.log('TICK'), 1000);
+setInterval(() => console.log("TICK"), 1000);
 
 async function rerunJobs() {
   const oada = await connect({ token, domain });
   const paths = [
-    '/bookmarks/services/lf-sync/jobs/failure/unknown/day-index/2024-07-21',
-    '/bookmarks/services/lf-sync/jobs/failure/unknown/day-index/2024-07-22',
+    "/bookmarks/services/lf-sync/jobs/failure/unknown/day-index/2024-07-21",
+    "/bookmarks/services/lf-sync/jobs/failure/unknown/day-index/2024-07-22",
   ];
   for await (const path of paths) {
     const { data: jobs } = await oada.get({ path });
     for await (const jobKey of Object.keys(jobs)) {
       const { data: job } = await oada.get({ path: join(path, jobKey) });
-      if (job.result.name !== 'HTTPError') {
+      if (job.result.name !== "HTTPError") {
         console.log(
-          'This job was not an HTTPError',
+          "This job was not an HTTPError",
           JSON.stringify(job, undefined, 2),
         );
       } else {
@@ -53,16 +53,16 @@ async function repostJob(oada, job) {
   const { service, config, type } = job;
   const data = { service, config, type };
 
-  console.log('POSTING THIS DATA', data);
+  console.log("POSTING THIS DATA", data);
   const response = await oada.post({
     path: `/bookmarks/services/lf-sync/jobs/pending`,
     data,
-    contentType: 'application/json',
+    contentType: "application/json",
     headers: {
-      'x-oada-ensure-link': 'unversioned',
+      "x-oada-ensure-link": "unversioned",
     },
   });
-  console.log('POSTED!', response.headers['content-location']);
+  console.log("POSTED!", response.headers["content-location"]);
 }
 
 async function deleteJobs() {
@@ -70,7 +70,7 @@ async function deleteJobs() {
   const path = `/bookmarks/services/lf-sync/jobs/pending`;
   const { data: jobs } = await oada.get({ path });
   for await (const jobKey of Object.keys(jobs).filter(
-    (k) => !k.startsWith('_'),
+    (k) => !k.startsWith("_"),
   )) {
     await oada.delete({ path: join(path, jobKey) });
   }

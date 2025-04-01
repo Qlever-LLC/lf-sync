@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-declare module 'isomorphic-timers-promises' {
-  export * from 'node:timers/promises';
+declare module "isomorphic-timers-promises" {
+  export * from "node:timers/promises";
 }
 
-declare module 'ava-nock' {
-  import type { Scope } from 'nock';
-  import type { TestFn } from 'ava';
+declare module "ava-nock" {
+  import type { Scope } from "nock";
+  import type { TestFn } from "ava";
   interface Options {
     /** @default true */
     decodeResponse: boolean;
@@ -32,10 +32,10 @@ declare module 'ava-nock' {
       | ((header: string) => string | null)
       | Parameters<typeof String.prototype.replace>
     >;
-    pathFilter: ((path: string) => string) | Parameters<Scope['filteringPath']>;
+    pathFilter: ((path: string) => string) | Parameters<Scope["filteringPath"]>;
     requestBodyFilter:
       | ((body: string) => string)
-      | Parameters<Scope['filteringRequestBody']>;
+      | Parameters<Scope["filteringRequestBody"]>;
     responseBodyFilter:
       | ((body: string) => string)
       | Parameters<typeof String.prototype.replace>;

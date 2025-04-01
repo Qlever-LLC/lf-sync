@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 
-import { createHash } from 'node:crypto';
-import { join } from 'node:path';
+import { createHash } from "node:crypto";
+import { join } from "node:path";
 
-import type { Link } from '@oada/types/oada/link/v1.js';
-import { type Logger } from '@oada/pino-debug';
-import type { OADAClient } from '@oada/client';
-import type Resource from '@oada/types/oada/resource.js';
-import bs58 from 'bs58';
+import type { OADAClient } from "@oada/client";
+import type { Logger } from "@oada/pino-debug";
+import type { Link } from "@oada/types/oada/link/v1.js";
+import type Resource from "@oada/types/oada/resource.js";
+import bs58 from "bs58";
 
-import { BY_LF_PATH, tree } from './tree.js';
-import type { DocumentEntry, DocumentId } from './cws/index.js';
-import { getEntryId, retrieveDocumentContent } from './cws/index.js';
-import { type Path } from './cws/paths.js';
+import type { DocumentEntry, DocumentId } from "./cws/index.js";
+import { getEntryId, retrieveDocumentContent } from "./cws/index.js";
+import type { Path } from "./cws/paths.js";
+import { BY_LF_PATH, tree } from "./tree.js";
 
 export type VDocList = Record<string, Link>;
 export interface LfSyncMetaData {
@@ -42,7 +42,7 @@ export function has<T, K extends string>(
   value: T,
   key: K,
 ): value is T & { [P in K]: unknown } {
-  return value && typeof value === 'object' && key in value;
+  return value && typeof value === "object" && key in value;
 }
 
 export async function pushToTrellis(
@@ -54,25 +54,25 @@ export async function pushToTrellis(
 
   // Upload PDF from LF to Trellis
   let r = await oada.post({
-    path: '/resources',
+    path: "/resources",
     data: documentBuffer,
     contentType: file.MimeType,
   });
-  const documentKey = r.headers['content-location']!.replace(
+  const documentKey = r.headers["content-location"]!.replace(
     /^\/resources\//,
-    '',
+    "",
   );
   log.trace(`Created Trellis file resource: /resources/${documentKey}`);
 
   // Make Trellis document for the PDF
   r = await oada.post({
-    path: '/resources',
+    path: "/resources",
     data: {},
-    contentType: 'application/vnd.trellisfw.unidentified.1+json',
+    contentType: "application/vnd.trellisfw.unidentified.1+json",
   });
-  const trellisDocumentKey = r.headers['content-location']!.replace(
+  const trellisDocumentKey = r.headers["content-location"]!.replace(
     /^\/resources\//,
-    '',
+    "",
   );
   log.trace(
     `Created unidentified Trellis document: /resources/${trellisDocumentKey}`,
@@ -80,7 +80,7 @@ export async function pushToTrellis(
 
   // Link PDF into Trellis document
   const fileHash = bs58.encode(
-    createHash('sha256').update(documentBuffer).digest(),
+    createHash("sha256").update(documentBuffer).digest(),
   );
   await oada.put({
     path: `resources/${trellisDocumentKey}/_meta`,
@@ -100,7 +100,7 @@ export async function pushToTrellis(
   );
   await oada.put({
     // Path: join('resources', trellisDocumentKey, 'vdocs/pdf', fileHash, '_meta/services/lf-sync'),
-    path: join('resources', trellisDocumentKey, '_meta/services/lf-sync'),
+    path: join("resources", trellisDocumentKey, "_meta/services/lf-sync"),
     data: {
       [fileHash]: {
         LaserficheEntryID: file.EntryId,
@@ -111,9 +111,9 @@ export async function pushToTrellis(
   });
 
   // Link complete Trellis document into the lf-sync's mirror list
-  log.trace(`Updating lf-sync by-lf-id index`);
+  log.trace("Updating lf-sync by-lf-id index");
   await oada.put({
-    path: `/bookmarks/services/lf-sync/by-lf-id`,
+    path: "/bookmarks/services/lf-sync/by-lf-id",
     tree,
     data: {
       [file.EntryId]: {
@@ -122,17 +122,17 @@ export async function pushToTrellis(
     },
   });
 
-  log.trace('Linking into Trellis documents tree.');
+  log.trace("Linking into Trellis documents tree.");
   // FIXME: Can't just do a tree put below because of the tree put bug
   await oada.ensure({
-    path: '/bookmarks/trellisfw/documents/unidentified',
+    path: "/bookmarks/trellisfw/documents/unidentified",
     tree,
     data: {},
   });
 
   // Link document as unidentified into documents list
   await oada.post({
-    path: `/bookmarks/trellisfw/documents/unidentified`,
+    path: "/bookmarks/trellisfw/documents/unidentified",
     // Tree,
     data: {
       _id: `resources/${trellisDocumentKey}`,
@@ -146,7 +146,7 @@ export async function getBuffer(
   oada: OADAClient,
   document: Resource | Link,
 ): Promise<{ buffer: Uint8Array; mimetype: string }> {
-  log.trace('Fetching document from %s', document._id);
+  log.trace("Fetching document from %s", document._id);
   let { data: buffer, headers } = await oada.get({ path: document._id });
   if (!Buffer.isBuffer(buffer)) {
     if (buffer instanceof Uint8Array) {
@@ -159,7 +159,7 @@ export async function getBuffer(
   }
 
   return {
-    mimetype: headers['content-type'] ?? headers['Content-Type'] ?? '',
+    mimetype: headers["content-type"] ?? headers["Content-Type"] ?? "",
     buffer,
   };
 }
@@ -188,13 +188,13 @@ export async function fetchSyncMetadata(
     const r = await oada.get({
       // Considered moving these into each of the vdocs to fix some change propagation issues
       // path: join(id, '_meta/vdocs/pdf', key, '_meta/services/lf-sync'),
-      path: join(id, '_meta/services/lf-sync', key),
+      path: join(id, "_meta/services/lf-sync", key),
     });
     // FIXME: Make proper format and assert type
     return r.data as LfSyncMetaData;
   } catch (cError: unknown) {
     // @ts-expect-error error nonsense
-    if (cError?.status !== 404 && cError?.code !== '404') {
+    if (cError?.status !== 404 && cError?.code !== "404") {
       log.trace(
         cError,
         `Error fetching ${id}'s sync metadata for vdoc ${key}!`,
@@ -241,7 +241,7 @@ export async function lookupByLf(
   } catch (cError: unknown) {
     // @ts-expect-error error nonsense
     if (cError?.status !== 404 && cError?.code !== 404) {
-      log.error(cError, 'Unexpected error with Trellis!');
+      log.error(cError, "Unexpected error with Trellis!");
       throw cError as Error;
     }
   }
@@ -257,7 +257,7 @@ export async function getPdfVdocs(
   document: Resource | Link,
 ): Promise<VDocList> {
   // FIXME: r.data['pdf'] => r.data (and .../pdf/..) in the GET url after fixing extra put to vdoc/pdf rather than vdoc/pdf/<hash> in target-helper
-  const r = await oada.get({ path: `/${join(document._id, '_meta/vdoc')}` });
+  const r = await oada.get({ path: `/${join(document._id, "_meta/vdoc")}` });
 
   // @ts-expect-error FIXME: Make proper format and assert the type
   return r.data!.pdf as VDocList;
@@ -271,10 +271,10 @@ export async function fetchTradingPartner(
   tradingPartner: string,
 ): Promise<{ name: string; externalIds: string[] }> {
   const path =
-    tradingPartner.startsWith('resources') ||
-    tradingPartner.startsWith('/resources')
-      ? join('/', tradingPartner)
-      : join(`/bookmarks/trellisfw/trading-partners`, tradingPartner);
+    tradingPartner.startsWith("resources") ||
+    tradingPartner.startsWith("/resources")
+      ? join("/", tradingPartner)
+      : join("/bookmarks/trellisfw/trading-partners", tradingPartner);
   const { data } = (await oada.get({
     path,
   })) as unknown as { data: { name: string; externalIds: string[] } };
@@ -292,7 +292,7 @@ export async function updateSyncMetadata(
   syncMetadata: LfSyncMetaData,
 ) {
   await oada.put({
-    path: join(document._id, '_meta/services/lf-sync/', key),
+    path: join(document._id, "_meta/services/lf-sync/", key),
     // Considered moving these into each of the vdocs to fix some change propagation issues
     // path: `${document._id}_meta/vdocs/pdf/${key.replaceAll('/', '')}/_meta/services/lf-sync`,
     data: {
@@ -316,22 +316,22 @@ export function filingWorkflow(metadata: Metadata): {
 } {
   const {
     Entity,
-    'Document Type': documentType,
-    'Document Date': documentDate,
-    'Share Mode': shareMode,
-    'Zendesk Ticket ID': ticketId,
+    "Document Type": documentType,
+    "Document Date": documentDate,
+    "Share Mode": shareMode,
+    "Zendesk Ticket ID": ticketId,
   } = metadata;
 
   const ticket = ticketId ? `Ticket${ticketId}` : undefined;
-  let ticketDate = '';
-  if (documentType === 'Zendesk Ticket') {
+  let ticketDate = "";
+  if (documentType === "Zendesk Ticket") {
     const docDate = new Date(documentDate);
-    ticketDate = docDate.toISOString().split('T')[0]!.slice(0, 7);
+    ticketDate = docDate.toISOString().split("T")[0]!.slice(0, 7);
   }
 
   const path: Path = join(
     ...([
-      `/trellis/trading-partners`,
+      "/trellis/trading-partners",
       Entity,
       shareMode,
       documentType,
@@ -345,25 +345,28 @@ export function filingWorkflow(metadata: Metadata): {
   return { path, filename };
 }
 
-export function filingWorkflowFromEntry(entry: DocumentEntry, entityName: string) {
+export function filingWorkflowFromEntry(
+  entry: DocumentEntry,
+  entityName: string,
+) {
   const fieldNames = {
-    'Entity': false,
-    'Document Type': false,
-    'Document Date': false,
-    'Share Mode': false,
-    'Products': true,
-    'Locations': true,
-    'Expiration Date': false,
-    'Zendesk Ticket ID': false,
-    'Original Filename': false,
-    'Ticket Comment Number': false
+    Entity: false,
+    "Document Type": false,
+    "Document Date": false,
+    "Share Mode": false,
+    Products: true,
+    Locations: true,
+    "Expiration Date": false,
+    "Zendesk Ticket ID": false,
+    "Original Filename": false,
+    "Ticket Comment Number": false,
   };
 
   const metadata = Object.fromEntries(
-    Object.entries(fieldNames).map(([fieldName, isArray]) => ([
+    Object.entries(fieldNames).map(([fieldName, isArray]) => [
       fieldName,
-      fieldValueFromEntry(entry, fieldName, isArray)
-    ]))
+      fieldValueFromEntry(entry, fieldName, isArray),
+    ]),
   );
   // Entity names get truncated if they are too long in the metadata Fields. This allows it
   // to be overwritten in the path and filename that gets generated here
@@ -375,41 +378,41 @@ export function filingWorkflowFromEntry(entry: DocumentEntry, entityName: string
 export function getFilename(metadata: Metadata): string {
   const {
     Entity,
-    'Document Type': documentType,
-    'Document Date': documentDate,
+    "Document Type": documentType,
+    "Document Date": documentDate,
     Products,
     Locations,
-    'Expiration Date': expiration,
-    'Zendesk Ticket ID': ticketId,
-    'Original Filename': originalFilename,
-    'Ticket Comment Number': commentNumber,
+    "Expiration Date": expiration,
+    "Zendesk Ticket ID": ticketId,
+    "Original Filename": originalFilename,
+    "Ticket Comment Number": commentNumber,
   } = metadata;
 
   const location =
     Locations && Locations.length === 1
       ? Locations[0]
       : Locations && Locations.length > 1
-        ? 'Multi-Location'
-        : '';
+        ? "Multi-Location"
+        : "";
 
   const product =
     Products && Products.length === 1
       ? Products[0]
       : Products && Products.length > 1
-        ? 'Multi-Product'
-        : '';
+        ? "Multi-Product"
+        : "";
 
   const expire = expiration
-    ? `EXP_${new Date(expiration).toISOString().split('T')[0]}`
+    ? `EXP_${new Date(expiration).toISOString().split("T")[0]}`
     : documentDate
-      ? `EFF_${new Date(documentDate).toISOString().split('T')[0]}`
+      ? `EFF_${new Date(documentDate).toISOString().split("T")[0]}`
       : undefined;
   const ticket = ticketId ? `Ticket${ticketId}` : undefined;
 
-  let filename = '';
+  let filename = "";
   switch (documentType) {
-    case 'Zendesk Ticket': {
-      filename = `[${ticket}]_${commentNumber ? `[Comment${commentNumber}]_` : ''}${originalFilename}`;
+    case "Zendesk Ticket": {
+      filename = `[${ticket}]_${commentNumber ? `[Comment${commentNumber}]_` : ""}${originalFilename}`;
 
       break;
     }
@@ -418,32 +421,38 @@ export function getFilename(metadata: Metadata): string {
       filename = [documentType, Entity, expire, location, product]
         .filter(Boolean)
         .map((index) => `[${index}]`)
-        .join('_');
+        .join("_");
     }
   }
 
   return filename;
 }
 
-export function fieldValueFromEntry(entry: DocumentEntry, fieldName: string, isArray?: boolean) {
-  const field = ((entry.FieldDataList ?? []).find((field) => field.Name === fieldName))
+export function fieldValueFromEntry(
+  entry: DocumentEntry,
+  fieldName: string,
+  isArray?: boolean,
+) {
+  const field = (entry.FieldDataList ?? []).find(
+    (field) => field.Name === fieldName,
+  );
   return field
     ? isArray
-    // @ts-ignore
-      ? field.Values
+      ? // @ts-ignore
+        field.Values
       : field.Value
     : undefined;
 }
 
 export interface Metadata {
-  'Entity': string;
-  'Document Type': string;
-  'Document Date': string;
-  'Share Mode': string;
-  'Expiration Date'?: string;
-  'Zendesk Ticket ID'?: string;
-  'Products'?: string[];
-  'Locations'?: string[];
-  'Original Filename'?: string;
-  'Ticket Comment Number'?: string;
+  Entity: string;
+  "Document Type": string;
+  "Document Date": string;
+  "Share Mode": string;
+  "Expiration Date"?: string;
+  "Zendesk Ticket ID"?: string;
+  Products?: string[];
+  Locations?: string[];
+  "Original Filename"?: string;
+  "Ticket Comment Number"?: string;
 }

@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
+import cws from "./api.js";
 import {
   type Entry,
   type EntryId,
   type EntryIdLike,
   getEntryId,
-} from './entries.js';
-import cws from './api.js';
+} from "./entries.js";
 
 export interface MetadataFieldSingle {
   Name: string;
@@ -38,7 +38,7 @@ export type Metadata = Record<string, string>; /* | readonly string[]>;*/
 
 export function toFieldList(
   metadata: Metadata | FieldList,
-): Array<Omit<MetadataFieldSingle | MetadataFieldMulti, 'IsMulti'>> {
+): Array<Omit<MetadataFieldSingle | MetadataFieldMulti, "IsMulti">> {
   return Array.isArray(metadata)
     ? metadata
     : Object.entries(metadata).map(([name, value]) =>
@@ -53,7 +53,7 @@ export async function getMetadata<E extends Entry = Entry>(
 ) {
   const id = getEntryId(entry);
   return cws
-    .get('api/GetMetadata', { searchParams: { LaserficheEntryId: id } })
+    .get("api/GetMetadata", { searchParams: { LaserficheEntryId: id } })
     .json<{
       ID: EntryId<E>;
       TemplateName: string;
@@ -67,7 +67,7 @@ export async function setMetadata(
   template?: string,
 ) {
   const id = getEntryId(entry);
-  return cws.post<void>('api/SetMetadata', {
+  return cws.post<void>("api/SetMetadata", {
     json: {
       LaserficheEntryId: id,
       LaserficheTemplateName: template,
@@ -78,7 +78,7 @@ export async function setMetadata(
 
 export async function setTemplate(entry: EntryIdLike, template: string) {
   const id = getEntryId(entry);
-  return cws.post<void>('api/SetTemplate', {
+  return cws.post<void>("api/SetTemplate", {
     json: {
       LaserficheEntryId: id,
       LaserficheTemplateName: template,

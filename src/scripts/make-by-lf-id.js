@@ -17,18 +17,18 @@
 
 /* eslint-disable no-console */
 
-import { config } from '../dist/config.js';
+import { config } from "../dist/config.js";
 
-import { connect } from '@oada/client';
+import { connect } from "@oada/client";
 
-const { token: tokens, domain } = config.get('oada');
-const basePath = `/bookmarks/trellisfw/trading-partners/masterid-index`;
+const { token: tokens, domain } = config.get("oada");
+const basePath = "/bookmarks/trellisfw/trading-partners/masterid-index";
 
 function removeReserved(keys) {
-  return keys.filter((key) => key.charAt(0) !== '_');
+  return keys.filter((key) => key.charAt(0) !== "_");
 }
 
-setInterval(() => console.log('ping'), 3000);
+setInterval(() => console.log("ping"), 3000);
 
 const oada = await connect({
   token: tokens[0],
@@ -55,9 +55,9 @@ for await (const tp of tpKeys) {
   const documentTypeKeys = removeReserved(Object.keys(documentTypes));
 
   for await (const documentType of documentTypeKeys) {
-    if (documentType === 'code' || documentType === 'name') {
+    if (documentType === "code" || documentType === "name") {
       console.log(
-        'FOUND bad doctype',
+        "FOUND bad doctype",
         `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}`,
       );
       await oada.delete({
@@ -80,7 +80,7 @@ for await (const tp of tpKeys) {
 
     for await (const documentKey of documentKeys) {
       // Now, edit the vdoc structure and write the content to the by-lf-id
-      console.log('Found:', {
+      console.log("Found:", {
         path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}`,
       });
       const document = await oada
@@ -100,7 +100,7 @@ for await (const tp of tpKeys) {
       if (meta?.vdoc?.pdf?._id) {
         // Old style vdoc pdf that isn't hash indexed
         console.log(
-          'FOUND AN OLD VDOC PDF',
+          "FOUND AN OLD VDOC PDF",
           `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta`,
           meta.vdoc.pdf,
         );
@@ -177,7 +177,7 @@ for await (const tp of tpKeys) {
         }
         */
       console.log(
-        'Delete LaserficheEntryID',
+        "Delete LaserficheEntryID",
         JSON.stringify(
           {
             path: `${basePath}/${tp}/bookmarks/trellisfw/documents/${documentType}/${documentKey}/_meta/services/lf-sync/LaserficheEntryID`,
