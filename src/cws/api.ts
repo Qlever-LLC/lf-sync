@@ -87,7 +87,7 @@ export const cws = client.extend({
           authToken = await refreshAuthToken();
           request!.options.headers.Authorization = `Bearer ${authToken}`;
           // Retry the original request with the new token
-          return new RetryError(request!);
+          throw new RetryError(request!);
         }
 
         return error;
