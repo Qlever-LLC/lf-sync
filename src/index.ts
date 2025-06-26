@@ -19,18 +19,15 @@ import { config } from "./config.js";
 
 import "@oada/lib-prom";
 
-import { type Logger, pino } from "@oada/pino-debug";
-
 import { join } from "node:path";
-
+import { connect, type OADAClient } from "@oada/client";
+import { type Job, type Json, Service, type WorkerContext } from "@oada/jobs";
+import { type Logger, pino } from "@oada/pino-debug";
 import { CronJob } from "cron";
 import esMain from "es-main";
 import { backOff } from "exponential-backoff";
 import { JsonPointer } from "json-ptr";
 import pTimeout from "p-timeout";
-
-import { type OADAClient, connect } from "@oada/client";
-import { type Job, type Json, Service, type WorkerContext } from "@oada/jobs";
 
 import type { DocumentEntry, EntryId, EntryIdLike } from "./cws/index.js";
 import { browse, getEntryId, moveEntry, retrieveEntry } from "./cws/index.js";

@@ -18,8 +18,10 @@
 import { connect } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
 import test from "ava";
+
 import { config } from "../dist/config.js";
 import { renameEntry, retrieveEntry } from "../dist/cws/entries.js";
+
 // @ts-ignore
 const { domain, token } = config.get("oada");
 
@@ -44,7 +46,7 @@ test("rename file within an upsert", async (t) => {
 
   // Run the job to reprocess the doc, allow upsert to occur,
   // and rename it back to the correct filing workflow name
-  const result = await doJob(oada, {
+  await doJob(oada, {
     service: "lf-sync",
     type: "sync-doc",
     config: {

@@ -17,12 +17,10 @@
 
 import "@oada/pino-debug";
 
-import equal from "deep-equal";
-
 import type { Job, Json, WorkerContext } from "@oada/jobs";
-
 import type Link from "@oada/types/oada/link/v1.js";
 import type Resource from "@oada/types/oada/resource.js";
+import equal from "deep-equal";
 import { HTTPError } from "got";
 import {
   createDocument,

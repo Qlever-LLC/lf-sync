@@ -19,9 +19,6 @@ import { Duplex, PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
 import test from "ava";
-
-import setup from "../setup.js";
-
 import {
   createDocument,
   deleteDocument,
@@ -33,6 +30,7 @@ import {
   smallUpload,
   streamUpload,
 } from "../../dist/cws/upload.js";
+import setup from "../setup.js";
 
 setup();
 

@@ -21,19 +21,17 @@
  * @packageDocumentation
  */
 
+import got, { type Got, RetryError } from "got";
 import { config } from "../config.js";
-
-import got from "got";
-import type { Got } from "got";
 
 const {
   repository,
   cws: { apiRoot, login, timeout, token },
 } = config.get("laserfiche");
 
-let authToken: string | null = token;
+let authToken = token ?? "";
 let isRefreshing = false;
-let refreshQueue: any[] = [];
+let refreshQueue: ((t: string) => void)[] = [];
 
 const client: Got = got.extend({
   prefixUrl: apiRoot,
@@ -78,22 +76,18 @@ export const cws = client.extend({
   headers: { Authorization: authToken ?? (await getToken()) },
   hooks: {
     beforeRequest: [
-      (options: any) => {
+      (options) => {
         options.headers.Authorization = authToken;
       },
     ],
     beforeError: [
-      async (error: any) => {
-        const { response } = error;
-        if (response && response.statusCode === 401) {
-          try {
-            authToken = await refreshAuthToken();
-            error.request.options.headers.Authorization = `Bearer ${authToken}`;
-            // Retry the original request with the new token
-            return client(error.request.options);
-          } catch (tokenRefreshError) {
-            throw tokenRefreshError;
-          }
+      async (error) => {
+        const { request, response } = error;
+        if (response?.statusCode === 401) {
+          authToken = await refreshAuthToken();
+          request!.options.headers.Authorization = `Bearer ${authToken}`;
+          // Retry the original request with the new token
+          return new RetryError(request!);
         }
 
         return error;
@@ -113,9 +107,9 @@ const refreshAuthToken = async (): Promise<string> => {
       // Resolve all the pending requests in the queue with the new token
       refreshQueue.forEach((callback) => callback(authToken));
       refreshQueue = [];
-    } catch (error) {
+    } catch (error: unknown) {
       isRefreshing = false;
-      throw new Error("Failed to refresh auth token");
+      throw new Error("Failed to refresh auth token", { cause: error });
     }
   }
 

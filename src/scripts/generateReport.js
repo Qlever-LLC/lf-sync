@@ -17,14 +17,12 @@
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
 
-import { config } from "../dist/config.js";
-
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { connect } from "@oada/client";
 
 import csvjson from "csvjson";
-
-import { connect } from "@oada/client";
+import { config } from "../dist/config.js";
 
 const { token: tokens, domain } = config.get("oada");
 

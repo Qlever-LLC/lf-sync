@@ -409,23 +409,18 @@ export function getFilename(metadata: Metadata): string {
       : undefined;
   const ticket = ticketId ? `Ticket${ticketId}` : undefined;
 
-  let filename = "";
   switch (documentType) {
-    case "Zendesk Ticket": {
-      filename = `[${ticket}]_${commentNumber ? `[Comment${commentNumber}]_` : ""}${originalFilename}`;
+    case "Zendesk Ticket":
+      return `[${ticket}]_${
+        commentNumber ? `[Comment${commentNumber}]_` : ""
+      }${originalFilename}`;
 
-      break;
-    }
-
-    default: {
-      filename = [documentType, Entity, expire, location, product]
+    default:
+      return [documentType, Entity, expire, location, product]
         .filter(Boolean)
         .map((index) => `[${index}]`)
         .join("_");
-    }
   }
-
-  return filename;
 }
 
 export function fieldValueFromEntry(

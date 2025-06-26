@@ -17,11 +17,9 @@
 
 /* eslint-disable no-console */
 
-import { config } from "../dist/config.js";
-
 import { join } from "node:path";
-
 import { connect } from "@oada/client";
+import { config } from "../dist/config.js";
 
 const { token, domain } = config.get("oada");
 
@@ -55,7 +53,7 @@ async function repostJob(oada, job) {
 
   console.log("POSTING THIS DATA", data);
   const response = await oada.post({
-    path: `/bookmarks/services/lf-sync/jobs/pending`,
+    path: "/bookmarks/services/lf-sync/jobs/pending",
     data,
     contentType: "application/json",
     headers: {
@@ -67,7 +65,7 @@ async function repostJob(oada, job) {
 
 async function deleteJobs() {
   const oada = await connect({ token, domain });
-  const path = `/bookmarks/services/lf-sync/jobs/pending`;
+  const path = "/bookmarks/services/lf-sync/jobs/pending";
   const { data: jobs } = await oada.get({ path });
   for await (const jobKey of Object.keys(jobs).filter(
     (k) => !k.startsWith("_"),

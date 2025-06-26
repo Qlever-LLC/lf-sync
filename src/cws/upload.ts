@@ -16,6 +16,7 @@
  */
 
 import { Writable } from "node:stream";
+import mime from "mime-types";
 
 import cws from "./api.js";
 import { type DocumentEntry, type EntryIdLike, getEntryId } from "./entries.js";
@@ -82,12 +83,20 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
  */
 export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
-  extension: string,
-  mimetype: string,
-  length: number,
+  {
+    mimetype,
+    extension = mime.extension(mimetype) || undefined,
+    length,
+  }: {
+    mimetype: string;
+    /** @default try to guess from mimetype */
+    extension?: string;
+    length: number;
+  },
 ): Writable {
   const id = getEntryId(document);
-  return cws.stream.put(`api/Document/${id}/${extension}`, {
+  // TODO: Better default extension?
+  return cws.stream.put(`api/Document/${id}/${extension || "pdf"}`, {
     headers: {
       "Content-Length": `${length}`,
       "Content-Type": mimetype,

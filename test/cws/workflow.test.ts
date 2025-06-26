@@ -15,16 +15,11 @@
  * limitations under the License.
  */
 
+import fs from "node:fs/promises";
 import { PassThrough, Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { setTimeout } from "node:timers/promises";
-
 import test from "ava";
-
-import setup from "../setup.js";
-
-import fs from "node:fs/promises";
-
 import {
   createDocument,
   deleteDocument,
@@ -32,6 +27,7 @@ import {
 } from "../../dist/cws/documents.js";
 import { retrieveDocumentContent } from "../../dist/cws/download.js";
 import { smallUpload, streamUpload } from "../../dist/cws/upload.js";
+import setup from "../setup.js";
 
 setup();
 

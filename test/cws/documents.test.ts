@@ -16,9 +16,6 @@
  */
 
 import test from "ava";
-
-import setup from "../setup.js";
-
 import {
   createDocument,
   createGenericDocument,
@@ -26,6 +23,7 @@ import {
   retrieveDocument,
   searchDocument,
 } from "../../dist/cws/documents.js";
+import setup from "../setup.js";
 
 setup();
 

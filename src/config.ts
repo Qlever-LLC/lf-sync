@@ -17,14 +17,14 @@
 
 /* eslint-disable unicorn/no-null */
 
+import { join } from "node:path/posix";
+
 import libConfig from "@oada/lib-config";
 import {
   DOCS_LIST,
   LF_AUTOMATION_FOLDER,
   TRADING_PARTNER_LIST,
 } from "./tree.js";
-
-import { join } from "node:path";
 
 export const { config } = await libConfig({
   timeouts: {

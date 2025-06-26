@@ -17,9 +17,8 @@
 
 /* eslint-disable no-console */
 
-import { config } from "../dist/config.js";
-
 import { connect } from "@oada/client";
+import { config } from "../dist/config.js";
 
 const { token: tokens, domain } = config.get("oada");
 const basePath = "/bookmarks/trellisfw/trading-partners/masterid-index";

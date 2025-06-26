@@ -15,9 +15,8 @@
  * limitations under the License.
  */
 
-import { config } from "../config.js";
-
 import { join, sep } from "node:path";
+import { config } from "../config.js";
 
 const { baseFolder } = config.get("laserfiche");
 

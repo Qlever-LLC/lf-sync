@@ -36,7 +36,7 @@ import {
   getEntryId,
 } from "./entries.js";
 import { type FieldList, type Metadata, toFieldList } from "./metadata.js";
-import { type Path, normalizePath } from "./paths.js";
+import { normalizePath, type Path } from "./paths.js";
 import { streamUpload } from "./upload.js";
 
 /**
@@ -90,12 +90,11 @@ export async function createDocument({
   if (buffer) {
     await pipeline(
       Readable.from(buffer),
-      streamUpload(
-        r.LaserficheEntryID,
-        extname(name).slice(1),
+      streamUpload(r.LaserficheEntryID, {
+        extension: extname(name).slice(1) || undefined,
         mimetype,
-        buffer.length,
-      ),
+        length: buffer.length,
+      }),
       new PassThrough(),
     );
   }

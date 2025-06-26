@@ -67,12 +67,12 @@ test("filing workflow", (t) => {
 
   docMeta.Products.pop();
   docMeta.Locations.pop();
-  //@ts-expect-error no likey delete
+  //@ts-expect-error no like delete
   delete docMeta["Expiration Date"];
   result = filingWorkflow(docMeta);
   t.is(
     result.filename,
-    `[Certificate of Insurance][Bob Foods, LLC][Location A][Honey Glaze][Certificate of Insurance]`,
+    "[Certificate of Insurance][Bob Foods, LLC][Location A][Honey Glaze][Certificate of Insurance]",
     "Non-ticket filename invalid",
   );
   t.is(

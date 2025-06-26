@@ -20,8 +20,8 @@
 //import csvParser from 'csv-parser';
 import * as fs from "node:fs";
 import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import * as path from "node:path";
+import { join } from "node:path";
 import { connect } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
 import { parse } from "csv-parse";

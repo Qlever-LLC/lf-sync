@@ -19,12 +19,13 @@ import { connect } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
 import test from "ava";
 import { config } from "../dist/config.js";
+
 // @ts-ignore
 const { domain, token } = config.get("oada");
 
 const oada = await connect({ domain, token });
 
-test("filing workflow", async (t) => {
+test("filing workflow", async () => {
   const result = await doJob(oada, {
     service: "lf-sync",
     type: "sync-doc",

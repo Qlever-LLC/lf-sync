@@ -18,11 +18,9 @@
 import { Blob } from "node:buffer";
 
 import test from "ava";
-
-import setup from "../setup.js";
-
 import { createDocument, deleteDocument } from "../../dist/cws/documents.js";
 import { retrieveDocumentContent } from "../../dist/cws/download.js";
+import setup from "../setup.js";
 
 setup();
 

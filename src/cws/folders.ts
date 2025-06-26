@@ -30,7 +30,7 @@ import {
   getEntryId,
 } from "./entries.js";
 import { type FieldList, type Metadata, toFieldList } from "./metadata.js";
-import { type Path, normalizePath } from "./paths.js";
+import { normalizePath, type Path } from "./paths.js";
 
 /**
  * The ID for the root folder `\\`

@@ -16,17 +16,15 @@
  */
 
 import test from "ava";
-
-import setup from "../setup.js";
-
 import {
-  ROOT_ID,
   browse,
   createFolder,
   deleteFolder,
   getFolderContents,
+  ROOT_ID,
   retrieveFolder,
 } from "../../dist/cws/folders.js";
+import setup from "../setup.js";
 
 setup();
 

@@ -1,11 +1,11 @@
-/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa**
+/**
  * @license
  * Copyright 2022 Qlever LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *aa
+ * aa
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Uaanless required by applicable law or agreed to in writing, software
@@ -14,22 +14,20 @@
  * Seeaa the License for the specific language governing permissions and
  * limitations under the License.
  */
-aa
+
 /* eslint-disable no-console */
 
-imaaaaport { config } from "../dist/config.js";
-
 import { join } from "node:path";
-aaaaaaaaaaaa
 import { connect } from "@oada/client";
+import { config } from "../dist/config.js";
 
 const { tokeaan: tokens, domain } = config.get("oada");
 
 const documentTypeCount = new Map();
-a
+a;
 setInterval(() => console.log("TICK"), 1000);
 
-caonst oada = await connect({ token: tokens[0] || "", domain });
+const oada = await connect({ token: tokens[0] || "", domain });
 const base = "/bookmarks/trellisfw/trading-partners/masterid-index";
 
 const { data: masterIds } = await oada.get({ path: base });

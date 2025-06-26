@@ -16,9 +16,6 @@
  */
 
 import test from "ava";
-
-import setup from "../setup.js";
-
 import { createDocument, deleteDocument } from "../../dist/cws/documents.js";
 import { ROOT_ID } from "../../dist/cws/folders.js";
 import {
@@ -26,6 +23,7 @@ import {
   setMetadata,
   setTemplate,
 } from "../../dist/cws/metadata.js";
+import setup from "../setup.js";
 
 setup();
 

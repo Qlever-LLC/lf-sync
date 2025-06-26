@@ -20,6 +20,7 @@ import { pino } from "@oada/pino-debug";
 import { config } from "../dist/config.js";
 import { createDocument } from "../dist/cws/documents.js";
 import { getBuffer } from "../dist/utils.js";
+
 // @ts-ignore
 const { domain, token } = config.get("oada");
 const logger = pino({ base: { service: "lf-sync" } });

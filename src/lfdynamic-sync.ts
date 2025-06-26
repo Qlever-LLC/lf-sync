@@ -15,13 +15,11 @@
  * limitations under the License.
  */
 
-import { config } from "./config.js";
-
-import debug from "debug";
-import sql from "mssql";
-
-import { type JsonObject, type OADAClient, connect } from "@oada/client";
+import { connect, type JsonObject, type OADAClient } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
+import debug from "debug";
+import { query as sql, connect as sqlConnect } from "mssql";
+import { config } from "./config.js";
 
 const info = debug("lf-sync--lfdynamic:info");
 const error = debug("lf-sync--lfdynamic:error");
@@ -61,39 +59,39 @@ if (PRODUCTION) {
 
 async function main() {
   try {
-    await sql.connect(sqlConfig);
+    await sqlConnect(sqlConfig);
 
     // Get some table info
-    // const qresult = await sql.query`select * from SYSOBJECTS WHERE xtype = 'U'`;
-    // const rresult = await sql.query`select * from LFDynamic.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'SFI_Entities'`;
-    // const rresult = await sql.query`ALTER TABLE [dbo].[SFI_Entities] ADD trellis_masterid VARCHAR(255) NOT NULL`;
+    // const qresult = await sql`select * from SYSOBJECTS WHERE xtype = 'U'`;
+    // const rresult = await sql`select * from LFDynamic.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'SFI_Entities'`;
+    // const rresult = await sql`ALTER TABLE [dbo].[SFI_Entities] ADD trellis_masterid VARCHAR(255) NOT NULL`;
     // Our user permissions
-    // const rresult = await sql.query`select * FROM sys.fn_my_permissions(NULL, 'SERVER')`;
+    // const rresult = await sql`select * FROM sys.fn_my_permissions(NULL, 'SERVER')`;
     // All possible permissions
-    // const rresult = await sql.query`select * FROM sys.fn_builtin_permissions(DEFAULT)`;
+    // const rresult = await sql`select * FROM sys.fn_builtin_permissions(DEFAULT)`;
     // console.log(JSON.stringify(rresult, null, 2));
-    // let res = await sql.query`select * from SFI_Entities`;
-    // const r = await sql.query`select COL_LENGTH('dbo.SFI_Entities', 'Entity Name') AS Result`
+    // let res = await sql`select * from SFI_Entities`;
+    // const r = await sql`select COL_LENGTH('dbo.SFI_Entities', 'Entity Name') AS Result`
     // console.log(r);
     const name = "Reynolds Presto Products, Inc. dba Presto Products Company";
 
     try {
-      const result = await sql.query /* sql */`
+      const result = await sql`
           DECLARE @NAME NVARCHAR(100)
           SET @NAME=(${sanitize(name)})
           INSERT INTO SFI_Entities ("Entity Name") VALUES (@NAME)`;
       const res =
-        await sql.query /* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
-      //      Const result = await sql.query/* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
+        await sql`SELECT * FROM SFI_Entities WHERE ("Entity Name")=STRING_ESCAPE(${name})`;
+      //      Const result = await sql`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
       info({ res, result });
     } catch (error_: unknown) {
       error(error_);
     }
-    // Let res = await sql.query/* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${name})`;
+    // Let res = await sql`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${name})`;
 
     /*
     // Get the current table content
-    const { recordset: qresult } = await sql.query`SELECT * FROM SFI_Entities`;
+    const { recordset: qresult } = await sql`SELECT * FROM SFI_Entities`;
     // Get the trading partners expand index
     const { oada, trellisList } = await fetchTradingPartners();
     await handleEntities(oada, trellisList);
@@ -119,14 +117,14 @@ Async function addRemove(list: Array<sqlEntry>, name: string) {
 
 */
 async function removeEntity(rowguid: string) {
-  return sql.query`DELETE FROM SFI_Entities WHERE rowguid=${rowguid}`;
+  return sql`DELETE FROM SFI_Entities WHERE rowguid=${rowguid}`;
 }
 
 export async function addEntity(name: string) {
   info(`adding ${name}`);
   try {
-    return await sql.query /* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
-    // Await sql.query`INSERT INTO SFI_Entities ("Entity Name", "masterid") VALUES (${name}, ${masterid})`;
+    return await sql`INSERT INTO SFI_Entities ("Entity Name") VALUES (${name})`;
+    // Await sql`INSERT INTO SFI_Entities ("Entity Name", "masterid") VALUES (${name}, ${masterid})`;
   } catch (error_: unknown) {
     error(error_, `ERRORED ON THIS ONE ${name}`);
     throw error_;
@@ -166,7 +164,9 @@ export async function pruneEntities(
     const lfdynamic = `lfdynamic:${ent.rowguid}`;
     const foundTp = trellis.find((tp) => tp.externalIds.includes(lfdynamic));
     info(
-      `pruneEntities found no matches for ${ent["Entity Name"]} [${ent.rowguid}]`,
+      `pruneEntities found no matches for ${
+        ent["Entity Name"]
+      } [${ent.rowguid}]`,
     );
     if (!foundTp) {
       await removeEntity(ent.rowguid);
@@ -192,7 +192,9 @@ export async function handleEntities(
     if (!tp.externalIds) continue;
     if (!tp.externalIds.some((id: string) => id.startsWith("lfdynamic"))) {
       let res =
-        await sql.query /* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${sanitize(tp.name)})`;
+        await sql`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${sanitize(
+          tp.name,
+        )})`;
       let record =
         res?.recordset.length > 1
           ? await removeDupeEntities(Array.from(res.recordset as SqlEntry[]))
@@ -201,9 +203,9 @@ export async function handleEntities(
         error("No result for TP", tp.name);
         // Does not exist. Create it
         try {
-          await sql.query /* sql */`INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
+          await sql`INSERT INTO SFI_Entities ("Entity Name") VALUES (${tp.name})`;
           res =
-            await sql.query /* sql */`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
+            await sql`SELECT * FROM SFI_Entities WHERE ("Entity Name")=(${tp.name})`;
           record = res?.recordset?.[0] as SqlEntry;
         } catch (error_: unknown) {
           error(

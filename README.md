@@ -9,7 +9,7 @@
 
 ### Environment
 
-```shell
+```sh
 NODE_TLS_REJECT_UNAUTHORIZED=0
 CWS_USER=
 CWS_PASSWORD=
@@ -34,12 +34,12 @@ The service will run the following jobs:
 
 #### `get-lf-entry`
 
-```javascript
+```typescript
 const job = {
-  service: 'lf-sync',
-  type: 'get-lf-entry',
+  service: "lf-sync",
+  type: "get-lf-entry",
   config: {
-    doc: 'resources/abc123', //a trellis document (the json parent doc with vdocs)
+    doc: "resources/abc123", // a trellis document (the json parent doc with vdocs)
   },
 };
 
@@ -62,21 +62,22 @@ let { result } = await doJob(job);
 
 #### `sync-doc`
 
-Generally, this job is triggered by dropping any document in the trading-partners docs endpoints:
+Generally, this job is triggered by dropping any document in the
+trading-partners docs endpoints:
 
 `/bookmarks/trellisfw/trading-partners/<trading partner key>/bookmarks/trellisfw/documents/<doc type>/<doc key>`
 
 The configuration appears as follows:
 
-```javascript
+```typescript
 const job = {
-  service: 'lf-sync',
-  type: 'sync-doc',
+  service: "lf-sync",
+  type: "sync-doc",
   config: {
     doc: {
-      id: 'resources/abc123', //a trellis document (the json parent doc with vdocs)
+      id: "resources/abc123", //a trellis document (the json parent doc with vdocs)
     },
-    tpKey: '/tradingpartnerabc123', //a trellis trading partner key from the /bookmarks/trellisfw/trading-partners/ resource
+    tpKey: "/tradingpartnerabc123", //a trellis trading partner key from the /bookmarks/trellisfw/trading-partners/ resource
   },
 };
 

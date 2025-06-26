@@ -18,7 +18,7 @@
 import type { Opaque } from "type-fest";
 
 import cws from "./api.js";
-import { type Path, normalizePath } from "./paths.js";
+import { normalizePath, type Path } from "./paths.js";
 
 export type EntryId<T extends Partial<BaseEntry> = Entry> = Opaque<number, T>;
 interface BaseEntry {
