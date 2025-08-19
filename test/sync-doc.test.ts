@@ -20,7 +20,7 @@ import { doJob } from "@oada/client/jobs";
 import test from "ava";
 import { config } from "../dist/config.js";
 
-// @ts-ignore
+// @ts-expect-error
 const { domain, token } = config.get("oada");
 
 const oada = await connect({ domain, token });
