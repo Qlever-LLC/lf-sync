@@ -91,10 +91,9 @@ export async function sync(
         const { data: shareMode } = (await oada.get({
           path: `/${document._id}/_meta/shared`,
         })) as unknown as { data: string };
-        fieldList["Share Mode"] =
-          shareMode === "incoming"
-            ? "Shared To Smithfield"
-            : "Shared From Smithfield";
+        fieldList["Share Mode"] = shareMode === "incoming"
+          ? "Shared To Smithfield"
+          : "Shared From Smithfield";
       } catch (error_: unknown) {
         // @ts-expect-error error nonsense
         if (error_.status !== 404 || error_.code !== "404") throw error_;
@@ -146,7 +145,7 @@ export async function sync(
         } catch (error) {
           if (
             error instanceof HTTPError &&
-            error.response.rawBody.includes("Entry not found")
+            error.response.body.includes("Entry not found")
           ) {
             // Document was removed from Laserfiche, process it like it is new.
             syncMetadata.LaserficheEntryID = undefined;
