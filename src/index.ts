@@ -91,9 +91,7 @@ async function startService() {
   await serv;
 }
 
-/**
- *
- */
+/** */
 export function watchLaserfiche(
   log: Logger,
   task: (file: DocumentEntry) => void,
@@ -206,8 +204,8 @@ async function waitForLfEntries(
     for await (const change of changes) {
       if (selfChange.has(change)) {
         log.info(
-          `Got a change containing a meta entry for one of the vdocs: ${path}`,
           selfChange.get(change),
+          `Got a change containing a meta entry for one of the vdocs: ${path}`,
         );
         data = {
           ...data,
@@ -232,7 +230,6 @@ async function waitForLfEntries(
 }
 
 /**
- *
  * @param metadoc
  * @returns
  */
