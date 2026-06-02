@@ -19,6 +19,7 @@ import type { Opaque } from 'type-fest';
 
 import { type Path, normalizePath } from './paths.js';
 import cws from './api.js';
+import { withCwsErrorContext } from './errors.js';
 
 export type EntryId<T extends Partial<BaseEntry> = Entry> = Opaque<number, T>;
 interface BaseEntry {
@@ -42,9 +43,10 @@ export interface DocumentEntry extends BaseEntry {
 }
 
 export interface FieldData {
-  [x: string]: any;
+  [x: string]: boolean | number | string | string[] | undefined;
   Name: string;
   Value: string;
+  Values?: string[];
 }
 
 export type FolderId = EntryId<FolderEntry>;
@@ -75,15 +77,28 @@ export async function retrieveEntry<E extends Entry>(
   entry: EntryIdLike<E> | Path,
 ): Promise<EntryEntry<E>> {
   if (typeof entry === 'string') {
-    return cws
-      .get('api/RetrieveEntry', {
-        searchParams: { Path: normalizePath(entry) },
-      })
-      .json();
+    const path = normalizePath(entry);
+    return withCwsErrorContext(
+      cws
+        .get('api/RetrieveEntry', {
+          searchParams: { Path: path },
+        })
+        .json(),
+      {
+        endpoint: 'api/RetrieveEntry',
+        request: { Path: path },
+      },
+    );
   }
 
   const id = getEntryId(entry);
-  return cws.get(`api/RetrieveEntry/${Number(id)}`).json();
+  return withCwsErrorContext(
+    cws.get(`api/RetrieveEntry/${Number(id)}`).json(),
+    {
+      endpoint: 'api/RetrieveEntry',
+      request: { LaserficheEntryId: id },
+    },
+  );
 }
 
 /**
@@ -130,25 +145,46 @@ export async function migrateEntry(entry: EntryIdLike, volume: string) {
 
 export async function moveEntry(entry: EntryIdLike, path: Path) {
   const entryId = getEntryId(entry);
-  return cws.put<void>('api/Entry/Move', {
-    json: {
-      LaserficheEntryID: entryId,
-      DestinationParentPath: normalizePath(path),
+  const destinationParentPath = normalizePath(path);
+  return withCwsErrorContext(
+    cws.put<void>('api/Entry/Move', {
+      json: {
+        LaserficheEntryID: entryId,
+        DestinationParentPath: destinationParentPath,
+      },
+    }),
+    {
+      endpoint: 'api/Entry/Move',
+      request: {
+        DestinationParentPath: destinationParentPath,
+        LaserficheEntryID: entryId,
+      },
     },
-  });
+  );
 }
 
 export async function renameEntry(
   entry: EntryIdLike,
   path: Path,
-  Name: string,
+  name: string,
 ) {
   const entryId = getEntryId(entry);
-  return cws.put<void>('api/Entry/Move', {
-    json: {
-      LaserficheEntryID: entryId,
-      DestinationParentPath: normalizePath(path),
-      Name,
+  const destinationParentPath = normalizePath(path);
+  return withCwsErrorContext(
+    cws.put<void>('api/Entry/Move', {
+      json: {
+        LaserficheEntryID: entryId,
+        DestinationParentPath: destinationParentPath,
+        Name: name,
+      },
+    }),
+    {
+      endpoint: 'api/Entry/Move',
+      request: {
+        DestinationParentPath: destinationParentPath,
+        LaserficheEntryID: entryId,
+        Name: name,
+      },
     },
-  });
+  );
 }

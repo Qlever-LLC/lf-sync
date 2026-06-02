@@ -24,6 +24,7 @@ import { type Job, type Json, type WorkerContext } from '@oada/jobs';
 import type { LfSyncMetaData, Metadata } from './utils.js';
 import {
   createDocument,
+  getCwsErrorDetails,
   getMetadata,
   moveEntry,
   renameEntry,
@@ -51,6 +52,37 @@ export interface SyncConfig {
   tradingPartner: string;
 }
 
+type StageContext = Record<string, boolean | number | string | undefined>;
+
+async function withStageTiming<T>(
+  log: WorkerContext['log'],
+  stage: string,
+  context: StageContext,
+  work: () => Promise<T> | T,
+): Promise<T> {
+  const startedAt = Date.now();
+  try {
+    const result = await work();
+    log.info(
+      { ...context, durationMs: Date.now() - startedAt, stage },
+      'lf-sync stage completed',
+    );
+    return result;
+  } catch (error: unknown) {
+    log.error(
+      { err: error, ...context, durationMs: Date.now() - startedAt, stage },
+      'lf-sync stage failed',
+    );
+    throw error;
+  }
+}
+
+function isLaserficheEntryNotFound(error: unknown) {
+  return (
+    error instanceof HTTPError && error.response.rawBody.includes('Entry not found')
+  );
+}
+
 /**
  * Sync a trellis doc to LF
  */
@@ -61,25 +93,40 @@ export async function sync(
 ): Promise<Json> {
   // Keeping deprecating tpKey
   const { doc, tpKey, tradingPartner } = job.config as unknown as SyncConfig;
+  const documentId = doc._id;
   try {
-    const { data: document } = (await oada.get({
-      path: `/${doc._id}`,
-    })) as unknown as { data: Resource };
+    const { data: document } = (await withStageTiming(
+      log,
+      'source-fetch',
+      { documentId },
+      async () =>
+        oada.get({
+          path: `/${documentId}`,
+        }),
+    )) as unknown as { data: Resource };
     const transformers = getTransformers(document._type);
 
     if (!transformers) {
       throw new Error('Document type is unknown.');
     }
 
-    const fieldList = await transformers.doc(document);
+    const fieldList = await withStageTiming(
+      log,
+      'payload-base-transform',
+      { documentId, documentType: document._type },
+      async () => transformers.doc(document),
+    );
 
     if (!(tradingPartner || tpKey)) {
       throw new Error('No trading partner key or id provided');
     }
 
-    const { name, externalIds } = await fetchTradingPartner(
-      oada,
-      tradingPartner || tpKey,
+    const tradingPartnerId = tradingPartner || tpKey;
+    const { name, externalIds } = await withStageTiming(
+      log,
+      'trading-partner-fetch',
+      { documentId, tradingPartnerId },
+      async () => fetchTradingPartner(oada, tradingPartnerId),
     );
     fieldList.Entity = name.toString() ?? '';
     const xIds = externalIds
@@ -107,35 +154,60 @@ export async function sync(
     const docsSyncMetadata: Record<string, LfSyncMetaData> = {};
 
     log.trace('Fetching vdocs for %s', document._id);
-    const vdocs = await getPdfVdocs(oada, document);
+    const vdocs = await withStageTiming(
+      log,
+      'vdocs-fetch',
+      { documentId },
+      async () => getPdfVdocs(oada, document),
+    );
 
     // Each "vdoc" is a single LF Document (In trellis "documents" have multiple attachments)
     for await (const [key, value] of Object.entries(vdocs)) {
       // TODO: Remove when target-helper vdoc extra link bug is fixed
       if (key === '_id') continue;
 
+      const vdocContext = {
+        documentId,
+        vdocKey: key,
+        vdocResourceId: value._id,
+      };
+
       // Prep the fields list with
       const fields = {
         ...fieldList,
         ...(transformers.vdoc
-          ? await transformers.vdoc(await fetchVdocMeta(oada, value._id))
+          ? await withStageTiming(
+              log,
+              'payload-vdoc-transform',
+              vdocContext,
+              async () => transformers.vdoc(await fetchVdocMeta(oada, value._id)),
+            )
           : {}),
       };
 
-      const syncMetadata = await fetchSyncMetadata(
-        oada,
-        document._id,
-        key,
+      const syncMetadata = await withStageTiming(
         log,
+        'sync-metadata-fetch',
+        vdocContext,
+        async () => fetchSyncMetadata(oada, document._id, key, log),
       );
       const syncMetaCopy = { ...syncMetadata };
       let currentFields: LfSyncMetaData['fields'] = {};
 
       // Document is not new to LF
       if (syncMetadata.LaserficheEntryID) {
+        const laserficheEntryId = syncMetadata.LaserficheEntryID;
         // Fetch the current LF fields to compare for changes
         try {
-          const metadata = await getMetadata(syncMetadata.LaserficheEntryID);
+          const metadata = await withStageTiming(
+            log,
+            'laserfiche-metadata-fetch',
+            {
+              ...vdocContext,
+              laserficheEntryId: Number(laserficheEntryId),
+            },
+            async () => getMetadata(laserficheEntryId),
+          );
           // Only keep fields that have a value
           // eslint-disable-next-line unicorn/no-array-reduce
           currentFields = metadata.LaserficheFieldList.reduce(
@@ -146,13 +218,10 @@ export async function sync(
             {},
           );
         } catch (error) {
-          if (
-            error instanceof HTTPError &&
-            error.response.rawBody.includes('Entry not found')
-          ) {
-            // Document was removed from Laserfiche, process it like it is new.
-            syncMetadata.LaserficheEntryID = undefined;
-          }
+          // Document was removed from Laserfiche, process it like it is new.
+          syncMetadata.LaserficheEntryID = isLaserficheEntryNotFound(error)
+            ? undefined
+            : syncMetadata.LaserficheEntryID;
         }
       }
 
@@ -181,40 +250,67 @@ export async function sync(
 
       // Upsert into LF
       if (syncMetadata.LaserficheEntryID) {
+        const laserficheEntryId = syncMetadata.LaserficheEntryID;
+        const syncFields = syncMetadata.fields ?? {};
         log.info(
-          `LF Entry ${syncMetadata.LaserficheEntryID} (vdoc ${key}) already exists. Updating.`,
+          `LF Entry ${laserficheEntryId} (vdoc ${key}) already exists. Updating.`,
         );
-        await setMetadata(
-          syncMetadata.LaserficheEntryID,
-          syncMetadata.fields || {},
-          syncMetadata.fields['Document Type'],
-        );
+        await withStageTiming(
+          log,
+          'laserfiche-update',
+          {
+            ...vdocContext,
+            laserficheEntryId: Number(laserficheEntryId),
+            targetPath: path,
+          },
+          async () => {
+            await setMetadata(
+              laserficheEntryId,
+              syncFields,
+              syncFields['Document Type'],
+            );
 
-        log.trace(`Moving the LF document to ${path} with name ${filename}`);
-        // Use our own filing workflow instead of incomingFolder
-        await moveEntry(syncMetadata.LaserficheEntryID, path as `/{string}`);
-        // Rename is different from Metadata, but should be part of upsert
-        await renameEntry(
-          syncMetadata.LaserficheEntryID,
-          path as `/{string}`,
-          filename,
+            log.trace(`Moving the LF document to ${path} with name ${filename}`);
+            // Use our own filing workflow instead of incomingFolder
+            await moveEntry(laserficheEntryId, path);
+            // Rename is different from Metadata, but should be part of upsert
+            await renameEntry(laserficheEntryId, path, filename);
+          },
         );
 
         // New to LF
       } else {
         log.info(`Document (vdoc ${key}) is new to LF`);
 
-        const { buffer, mimetype } = await getBuffer(log, oada, value);
+        const { buffer, mimetype } = await withStageTiming(
+          log,
+          'attachment-fetch',
+          vdocContext,
+          async () => getBuffer(log, oada, value),
+        );
         log.trace('Uploading document to Laserfiche');
-        const lfDocument = await createDocument({
-          // Name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
-          name: filename,
-          path,
-          mimetype,
-          metadata: syncMetadata.fields || {},
-          template: syncMetadata.fields['Document Type'],
-          buffer,
-        });
+        const syncFields = syncMetadata.fields ?? {};
+        const lfDocument = await withStageTiming(
+          log,
+          'laserfiche-submit',
+          {
+            ...vdocContext,
+            byteLength: buffer.length,
+            filename,
+            mimetype,
+            targetPath: path,
+          },
+          async () =>
+            createDocument({
+              // Name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
+              name: filename,
+              path,
+              mimetype,
+              metadata: syncFields,
+              template: syncFields['Document Type'],
+              buffer,
+            }),
+        );
 
         log.info(
           `Created LF document ${lfDocument.LaserficheEntryID} (vdoc ${key})`,
@@ -222,9 +318,23 @@ export async function sync(
         syncMetadata.LaserficheEntryID = lfDocument.LaserficheEntryID;
       }
 
-      const entry = await retrieveEntry({
-        LaserficheEntryID: syncMetadata.LaserficheEntryID,
-      });
+      const laserficheEntryId = syncMetadata.LaserficheEntryID;
+      if (!laserficheEntryId) {
+        throw new Error(`No Laserfiche entry ID recorded for vdoc ${key}.`);
+      }
+
+      const entry = await withStageTiming(
+        log,
+        'laserfiche-entry-fetch',
+        {
+          ...vdocContext,
+          laserficheEntryId: Number(laserficheEntryId),
+        },
+        async () =>
+          retrieveEntry({
+            LaserficheEntryID: laserficheEntryId,
+          }),
+      );
 
       syncMetadata.Name = entry.Name;
       syncMetadata.Path = entry.Path;
@@ -233,7 +343,15 @@ export async function sync(
 
       // Update the sync metadata in Trellis only if it has actually changed
       if (!equal(syncMetaCopy, syncMetadata)) {
-        await updateSyncMetadata(oada, document, key, syncMetadata);
+        await withStageTiming(
+          log,
+          'sync-metadata-update',
+          {
+            ...vdocContext,
+            laserficheEntryId: Number(laserficheEntryId),
+          },
+          async () => updateSyncMetadata(oada, document, key, syncMetadata),
+        );
       }
 
       docsSyncMetadata[key] = entry;
@@ -241,7 +359,16 @@ export async function sync(
 
     return docsSyncMetadata as unknown as Json;
   } catch (error_: unknown) {
-    log.error(error_, `Could not sync document ${doc._id}.`);
+    const cws = getCwsErrorDetails(error_);
+    if (cws) {
+      log.error(
+        { cws, documentId, err: error_ },
+        `Could not sync document ${documentId}.`,
+      );
+    } else {
+      log.error(error_, `Could not sync document ${documentId}.`);
+    }
+
     throw error_;
   }
 }

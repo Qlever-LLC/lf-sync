@@ -369,7 +369,7 @@ export function filingWorkflowFromEntry(entry: DocumentEntry, entityName: string
   // to be overwritten in the path and filename that gets generated here
   metadata.Entity = entityName || metadata.Entity;
 
-  return filingWorkflow(metadata as Metadata);
+  return filingWorkflow(metadata as unknown as Metadata);
 }
 
 export function getFilename(metadata: Metadata): string {
@@ -385,19 +385,8 @@ export function getFilename(metadata: Metadata): string {
     'Ticket Comment Number': commentNumber,
   } = metadata;
 
-  const location =
-    Locations && Locations.length === 1
-      ? Locations[0]
-      : Locations && Locations.length > 1
-        ? 'Multi-Location'
-        : '';
-
-  const product =
-    Products && Products.length === 1
-      ? Products[0]
-      : Products && Products.length > 1
-        ? 'Multi-Product'
-        : '';
+  const location = singleOrMulti(Locations, 'Multi-Location');
+  const product = singleOrMulti(Products, 'Multi-Product');
 
   const expire = expiration
     ? `EXP_${new Date(expiration).toISOString().split('T')[0]}`
@@ -425,11 +414,22 @@ export function getFilename(metadata: Metadata): string {
   return filename;
 }
 
-export function fieldValueFromEntry(entry: DocumentEntry, fieldName: string, isArray?: boolean) {
-  const field = ((entry.FieldDataList ?? []).find((field) => field.Name === fieldName))
+function singleOrMulti(values: string[] | undefined, multiValue: string) {
+  if (!values) return '';
+  if (values.length === 1) return values[0] ?? '';
+  return values.length > 1 ? multiValue : '';
+}
+
+export function fieldValueFromEntry(
+  entry: DocumentEntry,
+  fieldName: string,
+  isArray?: boolean,
+): string | string[] | undefined {
+  const field = (entry.FieldDataList ?? []).find(
+    (entryField) => entryField.Name === fieldName,
+  );
   return field
     ? isArray
-    // @ts-ignore
       ? field.Values
       : field.Value
     : undefined;

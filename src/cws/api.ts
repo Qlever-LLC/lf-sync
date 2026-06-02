@@ -23,28 +23,26 @@
 
 import { config } from '../config.js';
 
-import got from 'got';
-import type { Got } from 'got';
+import got, { type Got } from 'got';
+import { enrichCwsError } from './errors.js';
 
 const {
   repository,
   cws: { apiRoot, login, timeout, token },
 } = config.get('laserfiche');
 
-let authToken: string | null = token;
+let authToken: string | undefined = token ?? undefined;
 let isRefreshing = false;
-let refreshQueue: any[] = [];
+let refreshQueue: Array<(token: string) => void> = [];
 
 const client: Got = got.extend({
   prefixUrl: apiRoot,
   https: {
     rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
   },
-  /*
   timeout: {
     request: timeout,
   },
-  */
 });
 
 /**
@@ -78,27 +76,22 @@ export const cws = client.extend({
   headers: { Authorization: authToken ?? (await getToken()) },
   hooks: {
     beforeRequest: [
-      (options: any) => {
-        options.headers.Authorization = authToken;
+      (options) => {
+        if (authToken) options.headers.Authorization = authToken;
+      },
+    ],
+    afterResponse: [
+      async (response, retryWithMergedOptions) => {
+        if (response.statusCode !== 401) return response;
+
+        authToken = await refreshAuthToken();
+        return retryWithMergedOptions({
+          headers: { Authorization: authToken },
+        });
       },
     ],
     beforeError: [
-      async (error: any) => {
-        const { response } = error;
-        if (response && response.statusCode === 401) {
-          try {
-            authToken = await refreshAuthToken();
-            error.request.options.headers['Authorization'] =
-              `Bearer ${authToken}`;
-            // Retry the original request with the new token
-            return client(error.request.options);
-          } catch (tokenRefreshError) {
-            throw tokenRefreshError;
-          }
-        }
-
-        return error;
-      },
+      (error) => enrichCwsError(error) as typeof error,
     ],
   },
 });
@@ -112,16 +105,22 @@ const refreshAuthToken = async (): Promise<string> => {
       isRefreshing = false;
 
       // Resolve all the pending requests in the queue with the new token
-      refreshQueue.forEach((callback) => callback(authToken));
+      for (const callback of refreshQueue) {
+        callback(authToken);
+      }
+
       refreshQueue = [];
-    } catch (error) {
+      return authToken;
+    } catch {
       isRefreshing = false;
       throw new Error('Failed to refresh auth token');
     }
   }
 
   // Return a promise that resolves with the new token
-  return new Promise((resolve) => refreshQueue.push(resolve));
+  return new Promise((resolve) => {
+    refreshQueue.push(resolve);
+  });
 };
 
 export default cws;

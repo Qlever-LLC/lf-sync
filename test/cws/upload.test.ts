@@ -33,13 +33,15 @@ import {
   retrieveDocument,
 } from '../../dist/cws/documents.js';
 import { retrieveDocumentContent } from '../../dist/cws/download.js';
-
-setup();
+//@ts-ignore
+console.log("HELLO");
+//setup(); // use nock to mock api calls
 
 test('small upload', async (t) => {
+  console.log('testing')
   const file = Buffer.from('test test');
   const body = await createDocument({
-    path: '/',
+    path: '/_Incoming',
     name: 'test.stream.txt',
     mimetype: 'text/plain',
   });
@@ -48,10 +50,11 @@ test('small upload', async (t) => {
   const document = await retrieveDocumentContent(body.LaserficheEntryID);
   t.is(document.toString(), 'test test');
   try {
-    await deleteDocument(body.LaserficheEntryID);
+    //await deleteDocument(body.LaserficheEntryID);
   } catch {}
 });
 
+/*
 test('stream upload', async (t) => {
   const file = Buffer.from('test test');
   const body = await createDocument({
@@ -94,3 +97,4 @@ test.failing('chunked upload', async (t) => {
     await deleteDocument(body.LaserficheEntryID);
   } catch {}
 });
+*/

@@ -22,6 +22,7 @@ import {
   getEntryId,
 } from './entries.js';
 import cws from './api.js';
+import { withCwsErrorContext } from './errors.js';
 
 export interface MetadataFieldSingle {
   Name: string;
@@ -52,13 +53,19 @@ export async function getMetadata<E extends Entry = Entry>(
   entry: EntryIdLike<E>,
 ) {
   const id = getEntryId(entry);
-  return cws
-    .get('api/GetMetadata', { searchParams: { LaserficheEntryId: id } })
-    .json<{
-      ID: EntryId<E>;
-      TemplateName: string;
-      LaserficheFieldList: FieldList;
-    }>();
+  return withCwsErrorContext(
+    cws
+      .get('api/GetMetadata', { searchParams: { LaserficheEntryId: id } })
+      .json<{
+        ID: EntryId<E>;
+        TemplateName: string;
+        LaserficheFieldList: FieldList;
+      }>(),
+    {
+      endpoint: 'api/GetMetadata',
+      request: { LaserficheEntryId: id },
+    },
+  );
 }
 
 export async function setMetadata(
@@ -67,21 +74,38 @@ export async function setMetadata(
   template?: string,
 ) {
   const id = getEntryId(entry);
-  return cws.post<void>('api/SetMetadata', {
-    json: {
-      LaserficheEntryId: id,
-      LaserficheTemplateName: template,
-      LaserficheFieldList: toFieldList(metadata),
+  const fieldList = toFieldList(metadata);
+  return withCwsErrorContext(
+    cws.post<void>('api/SetMetadata', {
+      json: {
+        LaserficheEntryId: id,
+        LaserficheTemplateName: template,
+        LaserficheFieldList: fieldList,
+      },
+    }),
+    {
+      endpoint: 'api/SetMetadata',
+      request: {
+        LaserficheEntryId: id,
+        LaserficheTemplateName: template,
+        LaserficheFieldNames: fieldList.map(({ Name }) => Name),
+      },
     },
-  });
+  );
 }
 
 export async function setTemplate(entry: EntryIdLike, template: string) {
   const id = getEntryId(entry);
-  return cws.post<void>('api/SetTemplate', {
-    json: {
-      LaserficheEntryId: id,
-      LaserficheTemplateName: template,
+  return withCwsErrorContext(
+    cws.post<void>('api/SetTemplate', {
+      json: {
+        LaserficheEntryId: id,
+        LaserficheTemplateName: template,
+      },
+    }),
+    {
+      endpoint: 'api/SetTemplate',
+      request: { LaserficheEntryId: id, LaserficheTemplateName: template },
     },
-  });
+  );
 }

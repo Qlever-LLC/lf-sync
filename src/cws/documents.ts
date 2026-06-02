@@ -38,6 +38,7 @@ import { type FieldList, type Metadata, toFieldList } from './metadata.js';
 import { type Path, normalizePath } from './paths.js';
 import cws from './api.js';
 import { streamUpload } from './upload.js';
+import { withCwsErrorContext } from './errors.js';
 
 /**
  * Can be used to set template and field data at time of creation
@@ -69,23 +70,38 @@ export async function createDocument({
   buffer?: Uint8Array;
 }) {
   const form = new FormData();
+  const folderPath = normalizePath(path);
+  const fieldList = metadata && toFieldList(metadata);
   const parameters = {
-    LaserficheFolderPath: normalizePath(path),
+    LaserficheFolderPath: folderPath,
     LaserficheDocumentName: name,
     LaserficheVolumeName: volume,
     LaserficheTemplateName: template,
-    LaserficheFieldList: metadata && toFieldList(metadata),
+    LaserficheFieldList: fieldList,
   };
   if (file !== undefined) {
     form.set('File', Buffer.isBuffer(file) ? new Blob([file]) : file, name);
   }
 
   form.set('Parameters', JSON.stringify(parameters));
-  const r = await cws
-    .post('api/CreateDocument', {
-      body: form,
-    })
-    .json<{ LaserficheEntryID: DocumentId }>();
+  const r = await withCwsErrorContext(
+    cws
+      .post('api/CreateDocument', {
+        body: form,
+      })
+      .json<{ LaserficheEntryID: DocumentId }>(),
+    {
+      endpoint: 'api/CreateDocument',
+      request: {
+        LaserficheDocumentName: name,
+        LaserficheFieldNames: fieldList?.map(({ Name }) => Name),
+        LaserficheFolderPath: folderPath,
+        LaserficheTemplateName: template,
+        LaserficheVolumeName: volume,
+        hasFile: file !== undefined || buffer !== undefined,
+      },
+    },
+  );
 
   if (buffer) {
     await pipeline(
@@ -116,20 +132,32 @@ export async function createGenericDocument({
     form.set('Metadata', metadata);
   }
 
-  return cws
-    .post('api/CreateGenericDocument', {
-      body: form,
-    })
-    .json<{ LaserficheEntryID: DocumentId }>();
+  return withCwsErrorContext(
+    cws
+      .post('api/CreateGenericDocument', {
+        body: form,
+      })
+      .json<{ LaserficheEntryID: DocumentId }>(),
+    {
+      endpoint: 'api/CreateGenericDocument',
+      request: { DocumentName: name },
+    },
+  );
 }
 
 export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {
   const id = getEntryId(document);
-  return cws.delete<void>('api/DeleteDocument', {
-    json: {
-      LaserficheEntryId: id,
+  return withCwsErrorContext(
+    cws.delete<void>('api/DeleteDocument', {
+      json: {
+        LaserficheEntryId: id,
+      },
+    }),
+    {
+      endpoint: 'api/DeleteDocument',
+      request: { LaserficheEntryId: id },
     },
-  });
+  );
 }
 
 /**
@@ -161,9 +189,15 @@ export async function searchDocument(
 
 export async function retrieveDocument(document: EntryIdLike<DocumentEntry>) {
   const id = getEntryId(document);
-  return cws
-    .get('api/RetrieveDocument', {
-      searchParams: { LaserficheEntryId: id },
-    })
-    .json<DocumentEntry>();
+  return withCwsErrorContext(
+    cws
+      .get('api/RetrieveDocument', {
+        searchParams: { LaserficheEntryId: id },
+      })
+      .json<DocumentEntry>(),
+    {
+      endpoint: 'api/RetrieveDocument',
+      request: { LaserficheEntryId: id },
+    },
+  );
 }
