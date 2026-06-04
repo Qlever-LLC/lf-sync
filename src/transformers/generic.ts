@@ -15,13 +15,13 @@
  * limitations under the License.
  */
 
-import type Resource from '@oada/types/oada/resource.js';
+import type Resource from "@oada/types/oada/resource.js";
 
-import type { Metadata } from '../cws/metadata.js';
-import { getFormattedDate } from '../utils.js';
+import type { Metadata } from "../cws/metadata.js";
+import { getFormattedDate } from "../utils.js";
 
 export function generateGenericMetadata(type: string) {
-  return function (document: Resource): Metadata {
+  return (document: Resource): Metadata => {
     // FIXME: Should this assert the base type with @oada/formats?
     //
 
@@ -30,13 +30,13 @@ export function generateGenericMetadata(type: string) {
       : new Date();
 
     const metadata: Metadata = {
-      'Document Type': type,
-      'Document Date': getFormattedDate(documentDate),
+      "Document Type": type,
+      "Document Date": getFormattedDate(documentDate),
     };
 
     for (const [trellisKey, lfField] of Object.entries(metadataMappings)) {
       // Handle products and locations
-      if (['locations', 'products'].includes(trellisKey)) {
+      if (["locations", "products"].includes(trellisKey)) {
         const value = (document[trellisKey] || []) as Array<
           Record<string, unknown>
         >;
@@ -50,7 +50,7 @@ export function generateGenericMetadata(type: string) {
 
       const value = document[trellisKey] as string;
       if (value) {
-        metadata[lfField] = lfField.includes('Date')
+        metadata[lfField] = lfField.includes("Date")
           ? getFormattedDate(new Date(value))
           : value;
       }
@@ -63,31 +63,31 @@ export function generateGenericMetadata(type: string) {
 export function genericVdocMetadata(meta: Record<string, unknown>): Metadata {
   const metadata: Metadata = {};
 
-  if ('filename' in meta && typeof meta.filename === 'string') {
-    metadata['Original Filename'] = meta.filename;
+  if ("filename" in meta && typeof meta.filename === "string") {
+    metadata["Original Filename"] = meta.filename;
   }
 
   return metadata;
 }
 
 const metadataMappings = {
-  adjustment_date: 'Adjustment Date',
-  expire_date: 'Expiration Date',
-  audit_date: 'Audit Date',
-  certifying_body: 'Certifying Body',
+  adjustment_date: "Adjustment Date",
+  expire_date: "Expiration Date",
+  audit_date: "Audit Date",
+  certifying_body: "Certifying Body",
 
   // 'fsis_directive_108001_compliance',
-  effective_date: 'Effective Date', // 'certifying_body.name',
-  score: 'Grade Score', // 'score.value',
-  initial_term_date: 'Initial Term Date',
-  is_paaco_certified: 'PAACO Certified',
-  document_date: 'Document Date',
+  effective_date: "Effective Date", // 'certifying_body.name',
+  score: "Grade Score", // 'score.value',
+  initial_term_date: "Initial Term Date",
+  is_paaco_certified: "PAACO Certified",
+  document_date: "Document Date",
   // 'regulation_compliance',
 
-  auditor: 'Auditor Name',
-  issue_date: 'Issue Date',
-  products: 'Products',
-  locations: 'Locations',
+  auditor: "Auditor Name",
+  issue_date: "Issue Date",
+  products: "Products",
+  locations: "Locations",
   // 'failures':
   // 'reaudit_date':
   // 'scheme':

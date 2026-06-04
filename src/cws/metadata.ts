@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
+import cws from "./api.js";
 import {
   type Entry,
   type EntryId,
   type EntryIdLike,
   getEntryId,
-} from './entries.js';
-import cws from './api.js';
-import { withCwsErrorContext } from './errors.js';
+} from "./entries.js";
+import { withCwsErrorContext } from "./errors.js";
 
 export interface MetadataFieldSingle {
   Name: string;
@@ -39,7 +39,7 @@ export type Metadata = Record<string, string>; /* | readonly string[]>;*/
 
 export function toFieldList(
   metadata: Metadata | FieldList,
-): Array<Omit<MetadataFieldSingle | MetadataFieldMulti, 'IsMulti'>> {
+): Array<Omit<MetadataFieldSingle | MetadataFieldMulti, "IsMulti">> {
   return Array.isArray(metadata)
     ? metadata
     : Object.entries(metadata).map(([name, value]) =>
@@ -55,14 +55,14 @@ export async function getMetadata<E extends Entry = Entry>(
   const id = getEntryId(entry);
   return withCwsErrorContext(
     cws
-      .get('api/GetMetadata', { searchParams: { LaserficheEntryId: id } })
+      .get("api/GetMetadata", { searchParams: { LaserficheEntryId: id } })
       .json<{
         ID: EntryId<E>;
         TemplateName: string;
         LaserficheFieldList: FieldList;
       }>(),
     {
-      endpoint: 'api/GetMetadata',
+      endpoint: "api/GetMetadata",
       request: { LaserficheEntryId: id },
     },
   );
@@ -76,7 +76,7 @@ export async function setMetadata(
   const id = getEntryId(entry);
   const fieldList = toFieldList(metadata);
   return withCwsErrorContext(
-    cws.post<void>('api/SetMetadata', {
+    cws.post<void>("api/SetMetadata", {
       json: {
         LaserficheEntryId: id,
         LaserficheTemplateName: template,
@@ -84,7 +84,7 @@ export async function setMetadata(
       },
     }),
     {
-      endpoint: 'api/SetMetadata',
+      endpoint: "api/SetMetadata",
       request: {
         LaserficheEntryId: id,
         LaserficheTemplateName: template,
@@ -97,14 +97,14 @@ export async function setMetadata(
 export async function setTemplate(entry: EntryIdLike, template: string) {
   const id = getEntryId(entry);
   return withCwsErrorContext(
-    cws.post<void>('api/SetTemplate', {
+    cws.post<void>("api/SetTemplate", {
       json: {
         LaserficheEntryId: id,
         LaserficheTemplateName: template,
       },
     }),
     {
-      endpoint: 'api/SetTemplate',
+      endpoint: "api/SetTemplate",
       request: { LaserficheEntryId: id, LaserficheTemplateName: template },
     },
   );

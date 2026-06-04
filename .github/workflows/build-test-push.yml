@@ -14,6 +14,8 @@
 
 name: Build, test, and push service images
 
+permissions: read-all
+
 on:
   push:
   pull_request:
@@ -21,6 +23,7 @@ on:
 jobs:
   yarn:
     name: yarn CI
+    permissions: write-all
     uses: qlever-llc/workflows/.github/workflows/build-and-publish-package.yml@master
     secrets:
       npm_token: ${{ secrets.NPM_AUTH_TOKEN }}
@@ -31,8 +34,9 @@ jobs:
   docker:
     name: Docker CI
     # Wait for yarn tests to pass?
-    # needs:
-    #   - yarn
+    #needs:
+    #  - yarn
+    permissions: write-all
     uses: qlever-llc/workflows/.github/workflows/build-and-push-service.yml@master
     secrets:
       dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -43,3 +47,4 @@ jobs:
       snyk_token: ${{ secrets.SNYK_TOKEN }}
       cosign_key: ${{ secrets.COSIGN_KEY }}
       cosign_password: ${{ secrets.COSIGN_PASSWORD }}
+

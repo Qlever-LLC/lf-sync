@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+import { createHash } from "node:crypto";
+import { retrieveDocumentContent } from "../../cws/download.js";
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit, unicorn/no-array-reduce, max-depth */
 /*
  * This script recursively searches the trading partner docs looking for files that
@@ -25,20 +27,18 @@ import {
   type DocumentEntry,
   type FolderEntry,
   moveEntry,
-} from '../../cws/entries.js';
-import { browse, getFolderContents } from '../../cws/folders.js';
-import { createHash } from 'node:crypto';
-import { retrieveDocumentContent } from '../../cws/download.js';
+} from "../../cws/entries.js";
+import { browse, getFolderContents } from "../../cws/folders.js";
 
 interface HashedDoc {
   hash: string;
   doc: DocumentEntry;
 }
 
-const partners = await browse(`/trellis/trading-partners`);
+const partners = await browse("/trellis/trading-partners");
 
 for await (const partner of partners) {
-  if (partner.Type === 'Folder') {
+  if (partner.Type === "Folder") {
     await trashDuplicates(partner);
   }
 }
@@ -50,12 +50,12 @@ async function trashDuplicates(root: FolderEntry) {
   const docs: DocumentEntry[] = [];
   for await (const item of items) {
     switch (item.Type) {
-      case 'Folder': {
+      case "Folder": {
         await trashDuplicates(item);
         break;
       }
 
-      case 'Document': {
+      case "Document": {
         // There is currently a bug where we have zero sized docs. We need to fix that,
         // but for now skip them here beacuse they cause problems later in the script
         if (item.ElectronicDocumentSize === 0) {
@@ -86,9 +86,9 @@ async function trashDuplicates(root: FolderEntry) {
     hashes.push(
       ...(await Promise.all(
         (matches[key] ?? []).map(async (doc) => ({
-          hash: createHash('sha256')
+          hash: createHash("sha256")
             .update(await retrieveDocumentContent(doc))
-            .digest('base64'),
+            .digest("base64"),
           doc,
         })),
       )),
@@ -113,7 +113,7 @@ async function trashDuplicates(root: FolderEntry) {
     const cleanNames = hashMatch.map((hashDoc) => {
       const { doc } = hashDoc;
       return {
-        cleanName: doc.Name.replace(/\s\(\d\)$/, ''),
+        cleanName: doc.Name.replace(/\s\(\d\)$/, ""),
         doc,
       };
     });
@@ -197,9 +197,9 @@ function filterObject<T>(
 }
 
 function trashPath(path: string): `/${string}` {
-  const parts = path.split('\\').slice(2, -1);
-  parts[0] = 'trellis-trash';
-  return `/${parts.join('/')}`;
+  const parts = path.split("\\").slice(2, -1);
+  parts[0] = "trellis-trash";
+  return `/${parts.join("/")}`;
 }
 
 process.exit();

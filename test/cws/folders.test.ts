@@ -15,39 +15,37 @@
  * limitations under the License.
  */
 
-import test from 'ava';
-
-import setup from '../setup.js';
-
+import test from "ava";
 import {
-  ROOT_ID,
   browse,
   createFolder,
   deleteFolder,
   getFolderContents,
+  ROOT_ID,
   retrieveFolder,
-} from '../../dist/cws/folders.js';
+} from "../../dist/cws/folders.js";
+import setup from "../setup.js";
 
 setup();
 
-test('browse', async (t) => {
-  const results = await browse('/');
+test("browse", async (t) => {
+  const results = await browse("/");
   t.assert(Array.isArray(results));
 });
 
-test('retrieveFolder', async (t) => {
+test("retrieveFolder", async (t) => {
   const folder = await retrieveFolder(ROOT_ID);
   t.is(folder.LaserficheEntryID, ROOT_ID);
 });
 
-test('getFolderContents', async (t) => {
+test("getFolderContents", async (t) => {
   const document = await getFolderContents(ROOT_ID);
   t.assert(Array.isArray(document));
 });
 
-test('createFolder', async (t) => {
+test("createFolder", async (t) => {
   const body = await createFolder({
-    path: '/test.create.folder/',
+    path: "/test.create.folder/",
   });
   t.truthy(body.LaserficheEntryID);
   try {
@@ -55,9 +53,9 @@ test('createFolder', async (t) => {
   } catch {}
 });
 
-test('deleteFolder', async (t) => {
+test("deleteFolder", async (t) => {
   const body = await createFolder({
-    path: '/test.delete.folder/',
+    path: "/test.delete.folder/",
   });
   await deleteFolder(body.LaserficheEntryID);
   t.pass();

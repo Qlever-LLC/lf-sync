@@ -15,17 +15,19 @@
  * limitations under the License.
  */
 
-import { config } from '../dist/config.js';
-import { connect } from '@oada/client';
-import { doJob } from '@oada/client/jobs';
-import test from 'ava';
-import { renameEntry, retrieveEntry } from '../dist/cws/entries.js';
-// @ts-ignore
-const { domain, token } = config.get('oada');
+import { connect } from "@oada/client";
+import { doJob } from "@oada/client/jobs";
+import test from "ava";
 
-let oada = await connect({ domain, token });
+import { config } from "../dist/config.js";
+import { renameEntry, retrieveEntry } from "../dist/cws/entries.js";
 
-test('rename file within an upsert', async (t) => {
+// @ts-expect-error
+const { domain, token } = config.get("oada");
+
+const oada = await connect({ domain, token });
+
+test("rename file within an upsert", async (t) => {
   // Get the current "correct" filename for a thing in LF (dev)
   const entryId = 162961;
   let entry = await retrieveEntry(entryId);
@@ -34,26 +36,26 @@ test('rename file within an upsert', async (t) => {
   // rename it to something else
   await renameEntry(
     entryId,
-    '/FSQA/trellis/trading-partners/Smithfield Foods/Shared From Smithfield/Zendesk Ticket/2024-06/Ticket8727',
-    'test',
+    "/FSQA/trellis/trading-partners/Smithfield Foods/Shared From Smithfield/Zendesk Ticket/2024-06/Ticket8727",
+    "test",
   );
 
   // Confirm the rename worked
   entry = await retrieveEntry(entryId);
-  t.is(entry.Name, 'test');
+  t.is(entry.Name, "test");
 
   // Run the job to reprocess the doc, allow upsert to occur,
   // and rename it back to the correct filing workflow name
-  let result = await doJob(oada, {
-    service: 'lf-sync',
-    type: 'sync-doc',
+  await doJob(oada, {
+    service: "lf-sync",
+    type: "sync-doc",
     config: {
       //doc: { _id: 'resources/2jZ34SPf7qMPBiRFr4QebddgSnc'},
       //tradingPartner: 'resources/2TA8ikqFp44u7nfz2UYK7FQweF1',
 
       // dev
-      doc: { _id: 'resources/2nYGl57bHxlklRcRqFRHhChicrn' },
-      tradingPartner: 'resources/2fZ3qnoDID1fcNtBrsiKNKBezK4',
+      doc: { _id: "resources/2nYGl57bHxlklRcRqFRHhChicrn" },
+      tradingPartner: "resources/2fZ3qnoDID1fcNtBrsiKNKBezK4",
     },
   });
 

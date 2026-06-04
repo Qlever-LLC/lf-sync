@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-import { type DocumentEntry, type EntryIdLike, getEntryId } from './entries.js';
-import cws from './api.js';
+import cws from "./api.js";
+import { type DocumentEntry, type EntryIdLike, getEntryId } from "./entries.js";
 
 export async function retrieveDocumentContent(
   document: EntryIdLike<DocumentEntry>,
 ) {
   const id = getEntryId(document);
   return cws
-    .get('api/RetrieveDocumentContent', {
+    .get("api/RetrieveDocumentContent", {
       searchParams: { LaserficheEntryId: id },
     })
     .buffer();

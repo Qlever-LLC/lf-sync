@@ -15,36 +15,33 @@
  * limitations under the License.
  */
 
-import { config } from './config.js';
+import { config } from "./config.js";
 
-import '@oada/lib-prom';
+import "@oada/lib-prom";
 
-import { type Logger, pino } from '@oada/pino-debug';
+import { join } from "node:path";
+import { connect, type OADAClient } from "@oada/client";
+import { type Job, type Json, Service, type WorkerContext } from "@oada/jobs";
+import { type Logger, pino } from "@oada/pino-debug";
+import { CronJob } from "cron";
+import esMain from "es-main";
+import { backOff } from "exponential-backoff";
+import { JsonPointer } from "json-ptr";
+import pTimeout from "p-timeout";
 
-import { join } from 'node:path';
+import type { DocumentEntry, EntryId, EntryIdLike } from "./cws/index.js";
+import { browse, getEntryId, moveEntry, retrieveEntry } from "./cws/index.js";
+import { sync } from "./sync.js";
+import { LF_AUTOMATION_FOLDER } from "./tree.js";
 
-import { CronJob } from 'cron';
-import { JsonPointer } from 'json-ptr';
-import { backOff } from 'exponential-backoff';
-import esMain from 'es-main';
-import pTimeout from 'p-timeout';
-
-import { type Job, type Json, Service, type WorkerContext } from '@oada/jobs';
-import { type OADAClient, connect } from '@oada/client';
-
-import type { DocumentEntry, EntryId, EntryIdLike } from './cws/index.js';
-import { browse, getEntryId, moveEntry, retrieveEntry } from './cws/index.js';
-import { LF_AUTOMATION_FOLDER } from './tree.js';
-import { sync } from './sync.js';
-
-const selfChange = new JsonPointer('/body/_meta/services/lf-sync');
+const selfChange = new JsonPointer("/body/_meta/services/lf-sync");
 
 // Stuff from config
-const { token, domain } = config.get('oada');
-const CONCURRENCY = config.get('concurrency');
-const LF_POLL_RATE = config.get('laserfiche.pollRate');
-const SYNC_JOB_TIMEOUT = config.get('timeouts.sync');
-const ENTRY_JOB_TIMEOUT = config.get('timeouts.getEntry');
+const { token, domain } = config.get("oada");
+const CONCURRENCY = config.get("concurrency");
+const LF_POLL_RATE = config.get("laserfiche.pollRate");
+const SYNC_JOB_TIMEOUT = config.get("timeouts.sync");
+const ENTRY_JOB_TIMEOUT = config.get("timeouts.getEntry");
 // Const REPORT_PATH = '/bookmarks/services/lf-sync/jobs/reports/docs-synced';
 
 // OADA is rate limited by @oada/client
@@ -56,9 +53,9 @@ const ENTRY_JOB_TIMEOUT = config.get('timeouts.getEntry');
 let oada: OADAClient;
 
 async function startService() {
-  const log = pino({ base: { service: 'lf-sync' } });
+  const log = pino({ base: { service: "lf-sync" } });
 
-  log.info('Service: lf-sync');
+  log.info("Service: lf-sync");
   log.info(`Version: ${process.env.npm_package_version}`);
 
   // Connect to the OADA API
@@ -67,7 +64,7 @@ async function startService() {
     : (oada = await connect({ token, domain }));
 
   const svc = new Service({
-    name: 'lf-sync',
+    name: "lf-sync",
     oada: conn,
     concurrency: CONCURRENCY,
     log,
@@ -77,10 +74,10 @@ async function startService() {
   // watchLaserfiche();
 
   // Handle syncing docs to lf
-  svc.on('sync-doc', config.get('timeouts.sync'), sync);
+  svc.on("sync-doc", config.get("timeouts.sync"), sync);
 
   // Handle outside inquiries for the LF Entry ID on trellis docs
-  svc.on('get-lf-entry', config.get('timeouts.getEntry'), getLfEntry);
+  svc.on("get-lf-entry", config.get("timeouts.getEntry"), getLfEntry);
 
   // Ensure the reporting endpoint is created
   //  await oada.ensure({ path: REPORT_PATH, data: {}, tree });
@@ -94,9 +91,7 @@ async function startService() {
   await serv;
 }
 
-/**
- *
- */
+/** */
 export function watchLaserfiche(
   log: Logger,
   task: (file: DocumentEntry) => void,
@@ -109,7 +104,7 @@ export function watchLaserfiche(
     for await (const [id, startTime] of workQueue.entries()) {
       if (start.getTime() > startTime + SYNC_JOB_TIMEOUT) {
         log.warn(`LF ${id} work never completed. moved to _NeedsReview`);
-        await moveEntry(id as EntryId, '/_NeedsReview');
+        await moveEntry(id as EntryId, "/_NeedsReview");
         workQueue.delete(id);
       }
     }
@@ -119,9 +114,9 @@ export function watchLaserfiche(
     const files = await backOff(async () => browse(LF_AUTOMATION_FOLDER));
     for await (const file of files) {
       if (!workQueue.has(file.EntryId)) {
-        if (file.Type !== 'Document') {
+        if (file.Type !== "Document") {
           log.info(`LF ${file.EntryId} not a document. Moved to _NeedsReview.`);
-          await moveEntry(file, '/_NeedsReview');
+          await moveEntry(file, "/_NeedsReview");
 
           continue;
         }
@@ -151,7 +146,7 @@ interface LfMetaEntry {
 interface MetaEntry {
   _rev: number;
   services: {
-    'lf-sync'?: Record<string, LfMetaEntry>;
+    "lf-sync"?: Record<string, LfMetaEntry>;
   };
   vdoc: {
     pdf: Record<
@@ -176,15 +171,15 @@ async function getLfEntry(
   const { doc } = job.config as unknown as GetLfEntryConfig;
   let data: Record<string, LfMetaEntry> = {};
   const { data: meta } = (await conn.get({
-    path: join('/', doc, '/_meta'),
+    path: join("/", doc, "/_meta"),
   })) as unknown as { data: MetaEntry };
-  data = meta.services?.['lf-sync'] ?? {};
+  data = meta.services?.["lf-sync"] ?? {};
 
   if (Object.keys(meta.vdoc.pdf).every((key) => data[key])) {
     return entriesFromMeta(data);
   }
 
-  log.info('Missing LF Entries for vdocs, waiting for remainder');
+  log.info("Missing LF Entries for vdocs, waiting for remainder");
   return waitForLfEntries(log, conn, doc, meta);
 }
 
@@ -194,10 +189,10 @@ async function waitForLfEntries(
   path: string,
   meta: MetaEntry,
 ): Promise<Json> {
-  let data = meta.services?.['lf-sync'] ?? {};
+  let data = meta.services?.["lf-sync"] ?? {};
   const { changes } = await conn.watch({
-    path: join('/', path),
-    type: 'single',
+    path: join("/", path),
+    type: "single",
     rev: meta._rev,
   });
 
@@ -209,8 +204,8 @@ async function waitForLfEntries(
     for await (const change of changes) {
       if (selfChange.has(change)) {
         log.info(
-          `Got a change containing a meta entry for one of the vdocs: ${path}`,
           selfChange.get(change),
+          `Got a change containing a meta entry for one of the vdocs: ${path}`,
         );
         data = {
           ...data,
@@ -235,7 +230,6 @@ async function waitForLfEntries(
 }
 
 /**
- *
  * @param metadoc
  * @returns
  */
@@ -248,10 +242,9 @@ async function entriesFromMeta(
     const result = await backOff(async () => {
       const entry = await retrieveEntry(value.LaserficheEntryID);
       if (entry.Path.startsWith(String.raw`\FSQA\_Incoming`)) {
-        throw new Error('Entry is still in _Incoming');
-      } else {
-        return entry;
+        throw new Error("Entry is still in _Incoming");
       }
+      return entry;
     });
     entries.push([
       key,

@@ -1,7 +1,6 @@
-
 -- Create the docs table
--- //bookmarks/trellisfw/documents/<docType>/<trellisDocKey>/_id => trellisDocKey
--- //bookmarks/trellisfw/documents/<docType>/<trellisDocKey>/_meta/vdoc/pdfs/<trellisPdfKey>/_id => pdfId
+-- /bookmarks/trellisfw/documents/<docType>/<trellisDocKey>/_id => trellisDocKey
+-- /bookmarks/trellisfw/documents/<docType>/<trellisDocKey>/_meta/vdoc/pdfs/<trellisPdfKey>/_id => pdfId
 CREATE TABLE docs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pdfId VARCHAR(255) NOT NULL,

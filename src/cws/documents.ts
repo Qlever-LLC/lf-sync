@@ -21,22 +21,22 @@
  * @packageDocumentation
  */
 
-import { Blob } from 'node:buffer';
-import { extname } from 'node:path';
+import { Blob } from "node:buffer";
+import { extname } from "node:path";
 
-import { FormData } from 'formdata-node';
+import { FormData } from "formdata-node";
 
+import cws from "./api.js";
 import {
   type DocumentEntry,
   type DocumentId,
   type EntryIdLike,
   getEntryId,
-} from './entries.js';
-import { type FieldList, type Metadata, toFieldList } from './metadata.js';
-import { type Path, normalizePath } from './paths.js';
-import cws from './api.js';
-import { bufferUpload } from './upload.js';
-import { withCwsErrorContext } from './errors.js';
+} from "./entries.js";
+import { withCwsErrorContext } from "./errors.js";
+import { type FieldList, type Metadata, toFieldList } from "./metadata.js";
+import { normalizePath, type Path } from "./paths.js";
+import { bufferUpload } from "./upload.js";
 
 /**
  * Can be used to set template and field data at time of creation
@@ -52,7 +52,7 @@ export async function createDocument({
   path,
   name,
   mimetype,
-  volume = 'Default',
+  volume = "Default",
   template,
   metadata,
   file,
@@ -80,18 +80,18 @@ export async function createDocument({
     LaserficheFieldList: fieldList,
   };
   if (file !== undefined) {
-    form.set('File', Buffer.isBuffer(file) ? new Blob([file]) : file, name);
+    form.set("File", Buffer.isBuffer(file) ? new Blob([file]) : file, name);
   }
 
-  form.set('Parameters', JSON.stringify(parameters));
+  form.set("Parameters", JSON.stringify(parameters));
   const r = await withCwsErrorContext(
     cws
-      .post('api/CreateDocument', {
+      .post("api/CreateDocument", {
         body: form,
       })
       .json<{ LaserficheEntryID: DocumentId }>(),
     {
-      endpoint: 'api/CreateDocument',
+      endpoint: "api/CreateDocument",
       request: {
         LaserficheDocumentName: name,
         LaserficheFieldNames: fieldList?.map(({ Name }) => Name),
@@ -106,11 +106,12 @@ export async function createDocument({
   onCreated?.(r);
 
   if (buffer) {
-    const extension = extname(name).slice(1);
+    const extension = extname(name).slice(1) || undefined;
+    const uploadExtension = extension ?? "pdf";
     await withCwsErrorContext(
-      bufferUpload(r.LaserficheEntryID, extension, mimetype, buffer),
+      bufferUpload(r.LaserficheEntryID, { extension, mimetype }, buffer),
       {
-        endpoint: `api/Document/${r.LaserficheEntryID}/${extension}`,
+        endpoint: `api/Document/${r.LaserficheEntryID}/${uploadExtension}`,
         request: {
           LaserficheDocumentName: name,
           LaserficheEntryID: r.LaserficheEntryID,
@@ -135,19 +136,19 @@ export async function createGenericDocument({
   metadata?: Record<string, unknown>;
 }) {
   const form = new FormData();
-  form.set('DocumentName', name);
+  form.set("DocumentName", name);
   if (metadata !== undefined) {
-    form.set('Metadata', metadata);
+    form.set("Metadata", metadata);
   }
 
   return withCwsErrorContext(
     cws
-      .post('api/CreateGenericDocument', {
+      .post("api/CreateGenericDocument", {
         body: form,
       })
       .json<{ LaserficheEntryID: DocumentId }>(),
     {
-      endpoint: 'api/CreateGenericDocument',
+      endpoint: "api/CreateGenericDocument",
       request: { DocumentName: name },
     },
   );
@@ -156,13 +157,13 @@ export async function createGenericDocument({
 export async function deleteDocument(document: EntryIdLike<DocumentEntry>) {
   const id = getEntryId(document);
   return withCwsErrorContext(
-    cws.delete<void>('api/DeleteDocument', {
+    cws.delete<void>("api/DeleteDocument", {
       json: {
         LaserficheEntryId: id,
       },
     }),
     {
-      endpoint: 'api/DeleteDocument',
+      endpoint: "api/DeleteDocument",
       request: { LaserficheEntryId: id },
     },
   );
@@ -184,11 +185,11 @@ export async function searchDocument(
   metadata?: ReadonlyArray<string | { Name: string }>,
 ) {
   return cws
-    .post('api/SearchDocument', {
+    .post("api/SearchDocument", {
       json: {
         LaserficheSearchPhrase: phrase,
         MetaDataObjectList: metadata?.map((field) =>
-          typeof field === 'string' ? { Name: field } : field,
+          typeof field === "string" ? { Name: field } : field,
         ),
       },
     })
@@ -199,12 +200,12 @@ export async function retrieveDocument(document: EntryIdLike<DocumentEntry>) {
   const id = getEntryId(document);
   return withCwsErrorContext(
     cws
-      .get('api/RetrieveDocument', {
+      .get("api/RetrieveDocument", {
         searchParams: { LaserficheEntryId: id },
       })
       .json<DocumentEntry>(),
     {
-      endpoint: 'api/RetrieveDocument',
+      endpoint: "api/RetrieveDocument",
       request: { LaserficheEntryId: id },
     },
   );

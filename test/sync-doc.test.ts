@@ -15,26 +15,27 @@
  * limitations under the License.
  */
 
-import { config } from '../dist/config.js';
-import { connect } from '@oada/client';
-import { doJob } from '@oada/client/jobs';
-import test from 'ava';
-// @ts-ignore
-const { domain, token } = config.get('oada');
+import { connect } from "@oada/client";
+import { doJob } from "@oada/client/jobs";
+import test from "ava";
+import { config } from "../dist/config.js";
 
-let oada = await connect({ domain, token });
+// @ts-expect-error
+const { domain, token } = config.get("oada");
 
-test('filing workflow', async (t) => {
-  let result = await doJob(oada, {
-    service: 'lf-sync',
-    type: 'sync-doc',
+const oada = await connect({ domain, token });
+
+test("filing workflow", async () => {
+  const result = await doJob(oada, {
+    service: "lf-sync",
+    type: "sync-doc",
     config: {
       //doc: { _id: 'resources/2jZ34SPf7qMPBiRFr4QebddgSnc'},
       //tradingPartner: 'resources/2TA8ikqFp44u7nfz2UYK7FQweF1',
 
       // dev
-      doc: { _id: 'resources/2nYGl57bHxlklRcRqFRHhChicrn' },
-      tradingPartner: 'resources/2fZ3qnoDID1fcNtBrsiKNKBezK4',
+      doc: { _id: "resources/2nYGl57bHxlklRcRqFRHhChicrn" },
+      tradingPartner: "resources/2fZ3qnoDID1fcNtBrsiKNKBezK4",
     },
   });
 

@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-import { Writable } from 'node:stream';
+import { Writable } from "node:stream";
+import mime from "mime-types";
 
-import { type DocumentEntry, type EntryIdLike, getEntryId } from './entries.js';
-import cws from './api.js';
-import { withCwsErrorContext } from './errors.js';
+import cws from "./api.js";
+import { withCwsErrorContext } from "./errors.js";
+import { type DocumentEntry, type EntryIdLike, getEntryId } from "./entries.js";
 
 /**
  * Chunks cannot be larger than 10 MB
@@ -39,7 +40,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     // Initiate the upload
     async construct(callback) {
       try {
-        await cws.post<void>('api/InitUpload', {
+        await cws.post<void>("api/InitUpload", {
           json: { LaserficheEntryID: id },
         });
         callback();
@@ -51,7 +52,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     async write(chunk, _encoding, callback) {
       const body = chunk as string | Uint8Array;
       try {
-        await cws.post<void>('api/UploadChunk', {
+        await cws.post<void>("api/UploadChunk", {
           searchParams: { offset, laserficheEntryID: id },
           body: body instanceof Uint8Array ? Buffer.from(body) : body,
         });
@@ -64,7 +65,7 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
     // Finish the upload
     async final(callback) {
       try {
-        await cws.put<void>('api/CompleteUpload', {
+        await cws.put<void>("api/CompleteUpload", {
           json: { LaserficheEntryID: id },
         });
         callback();
@@ -83,32 +84,46 @@ export function chunkedUpload(document: EntryIdLike<DocumentEntry>) {
  */
 export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
-  extension: string,
-  mimetype: string,
-  length: number,
+  {
+    mimetype,
+    extension = mime.extension(mimetype) || undefined,
+    length,
+  }: {
+    mimetype: string;
+    /** @default try to guess from mimetype */
+    extension?: string;
+    length: number;
+  },
 ): Writable {
   const id = getEntryId(document);
-  return cws.stream.put(`api/Document/${id}/${extension}`, {
+  // TODO: Better default extension?
+  return cws.stream.put(`api/Document/${id}/${extension || "pdf"}`, {
     headers: {
-      'Content-Length': `${length}`,
-      'Content-Type': mimetype,
+      "Content-Length": `${length}`,
+      "Content-Type": mimetype,
     },
   });
 }
 
 export async function bufferUpload(
   document: EntryIdLike<DocumentEntry>,
-  extension: string,
-  mimetype: string,
+  {
+    mimetype,
+    extension = mime.extension(mimetype) || undefined,
+  }: {
+    mimetype: string;
+    /** @default try to guess from mimetype */
+    extension?: string;
+  },
   file: Uint8Array,
 ) {
   const id = getEntryId(document);
-  const endpoint = `api/Document/${id}/${extension}`;
+  const endpoint = `api/Document/${id}/${extension || "pdf"}`;
   return withCwsErrorContext(
     cws.put(endpoint, {
       headers: {
-        'Content-Length': `${file.length}`,
-        'Content-Type': mimetype,
+        "Content-Length": `${file.length}`,
+        "Content-Type": mimetype,
       },
       body: file instanceof Uint8Array ? Buffer.from(file) : file,
     }),
@@ -132,8 +147,8 @@ export async function smallUpload(
   return withCwsErrorContext(
     cws.post(`api/Document/${id}`, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Length': `${file.length}`,
+        "Content-Type": "application/pdf",
+        "Content-Length": `${file.length}`,
       },
       body: file instanceof Uint8Array ? Buffer.from(file) : file,
     }),
@@ -142,7 +157,7 @@ export async function smallUpload(
       request: {
         LaserficheEntryID: id,
         contentLength: file.length,
-        contentType: 'application/pdf',
+        contentType: "application/pdf",
       },
     },
   );

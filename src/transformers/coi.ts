@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-import { getFormattedDate, has } from '../utils.js';
-import type { Metadata } from '../cws/metadata.js';
-import type Resource from '@oada/types/oada/resource.js';
+import type Resource from "@oada/types/oada/resource.js";
+import type { Metadata } from "../cws/metadata.js";
+import { getFormattedDate, has } from "../utils.js";
 
 export interface Policy {
   type: string;
@@ -31,8 +31,8 @@ export interface Policy {
 // eslint-disable-next-line complexity
 export function coiMetadata(document: Resource): Metadata {
   let metadata: Metadata = {
-    'Document Type': 'Certificate of Insurance',
-    'Document Date': getFormattedDate(
+    "Document Type": "Certificate of Insurance",
+    "Document Date": getFormattedDate(
       new Date(
         Number(
           new Date(
@@ -47,8 +47,8 @@ export function coiMetadata(document: Resource): Metadata {
 
   // FIXME: Should this assert the CoI type with @oada/formats?
   if (
-    has(document, 'policies') &&
-    typeof document.policies === 'object' &&
+    has(document, "policies") &&
+    typeof document.policies === "object" &&
     document.policies
   ) {
     // TODO: Is this the summary they want?
@@ -78,59 +78,59 @@ export function coiMetadata(document: Resource): Metadata {
 
     metadata = {
       ...metadata,
-      'General Liability': (
-        policies['Commercial General Liability']?.general_aggregate ?? ''
+      "General Liability": (
+        policies["Commercial General Liability"]?.general_aggregate ?? ""
       ).toString(),
-      'Automotive Liability': (
-        policies['Automobile Liability']?.combined_single_limit ?? ''
+      "Automotive Liability": (
+        policies["Automobile Liability"]?.combined_single_limit ?? ""
       ).toString(),
-      'Workers Comp and Employers Liability': (
-        policies["Employers' Liability"]?.el_each_accident ?? ''
+      "Workers Comp and Employers Liability": (
+        policies["Employers' Liability"]?.el_each_accident ?? ""
       ).toString(),
-      'Document Date':
-        getFormattedDate(effectiveDate) ?? metadata['Document Date'] ?? '',
-      'Expiration Date': getFormattedDate(expireDate),
+      "Document Date":
+        getFormattedDate(effectiveDate) ?? metadata["Document Date"] ?? "",
+      "Expiration Date": getFormattedDate(expireDate),
     };
   }
 
   if (
-    has(document, 'insured') &&
-    has(document.insured, 'name') &&
-    typeof document.insured.name === 'string' &&
-    has(document, 'holder') &&
-    has(document.holder, 'name') &&
-    typeof document.holder.name === 'string'
+    has(document, "insured") &&
+    has(document.insured, "name") &&
+    typeof document.insured.name === "string" &&
+    has(document, "holder") &&
+    has(document.holder, "name") &&
+    typeof document.holder.name === "string"
   ) {
     let entity: string;
     let shareMode: string;
 
     if (
-      document.insured.name.trim().toLowerCase().startsWith('smithfield foods')
+      document.insured.name.trim().toLowerCase().startsWith("smithfield foods")
     ) {
       entity = document.holder.name;
-      shareMode = 'Shared From Smithfield';
+      shareMode = "Shared From Smithfield";
     } else {
       entity = document.insured.name;
-      shareMode = 'Shared To Smithfield';
+      shareMode = "Shared To Smithfield";
     }
 
     metadata = {
       ...metadata,
-      'Entity': entity,
-      'Share Mode': shareMode,
-      'Insured Company': document.insured.name,
-      'Certificate Holder': document.holder.name,
+      Entity: entity,
+      "Share Mode": shareMode,
+      "Insured Company": document.insured.name,
+      "Certificate Holder": document.holder.name,
     };
   }
 
   if (
-    has(document, 'producer') &&
-    has(document.producer, 'name') &&
-    typeof document.producer.name === 'string'
+    has(document, "producer") &&
+    has(document.producer, "name") &&
+    typeof document.producer.name === "string"
   ) {
     metadata = {
       ...metadata,
-      'Insurance Producer': document.producer.name,
+      "Insurance Producer": document.producer.name,
     };
   }
 

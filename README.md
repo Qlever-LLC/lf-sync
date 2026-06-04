@@ -1,15 +1,12 @@
 # Qlever-LLC/lf-sync
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/Qlever-LLC/lf-sync)][dockerhub]
-[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
+[![Docker Pulls](https://img.shields.io/docker/pulls/Qlever-LLC/lf-sync)][dockerhub]
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
 [![License](https://img.shields.io/github/license/Qlever-LLC/lf-sync)](LICENSE)
 
-[dockerhub]: https://hub.docker.com/repository/docker/Qlever-LLC/lf-sync
-[oada reference api server]: https://github.com/OADA/server
+## Environment
 
-### Environment
-
-```shell
+```sh
 NODE_TLS_REJECT_UNAUTHORIZED=0
 CWS_USER=
 CWS_PASSWORD=
@@ -28,18 +25,18 @@ CWS_REPO= #CWS Repository name
 LF_INCOMING=_Incoming #Where we drop files in CWS for the filing workflow
 ```
 
-### Jobs
+## Jobs
 
 The service will run the following jobs:
 
-#### `get-lf-entry`
+### `get-lf-entry`
 
-```javascript
+```typescript
 const job = {
-  service: 'lf-sync',
-  type: 'get-lf-entry',
+  service: "lf-sync",
+  type: "get-lf-entry",
   config: {
-    doc: 'resources/abc123', //a trellis document (the json parent doc with vdocs)
+    doc: "resources/abc123", // a trellis document (the json parent doc with vdocs)
   },
 };
 
@@ -60,23 +57,27 @@ let { result } = await doJob(job);
 */
 ```
 
-#### `sync-doc`
+### `sync-doc`
 
-Generally, this job is triggered by dropping any document in the trading-partners docs endpoints:
+Generally, this job is triggered by dropping any document in the
+trading-partners docs endpoints:
 
-`/bookmarks/trellisfw/trading-partners/<trading partner key>/bookmarks/trellisfw/documents/<doc type>/<doc key>`
+`/bookmarks/trellisfw/trading-partners/<trading partner
+key>/bookmarks/trellisfw/documents/<doc type>/<doc key>`
 
 The configuration appears as follows:
 
-```javascript
+```typescript
 const job = {
-  service: 'lf-sync',
-  type: 'sync-doc',
+  service: "lf-sync",
+  type: "sync-doc",
   config: {
     doc: {
-      id: 'resources/abc123', //a trellis document (the json parent doc with vdocs)
+      // a trellis document (the json parent doc with vdocs)
+      id: "resources/abc123",
     },
-    tpKey: '/tradingpartnerabc123', //a trellis trading partner key from the /bookmarks/trellisfw/trading-partners/ resource
+    // a trellis trading partner key from /bookmarks/trellisfw/trading-partners/
+    tpKey: "/tradingpartnerabc123",
   },
 };
 
@@ -95,3 +96,5 @@ let { result } = await doJob(job);
   }
 */
 ```
+
+[dockerhub]: https://hub.docker.com/repository/docker/Qlever-LLC/lf-sync

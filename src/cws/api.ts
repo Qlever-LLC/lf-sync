@@ -21,15 +21,14 @@
  * @packageDocumentation
  */
 
-import { config } from '../config.js';
-
-import got, { type Got } from 'got';
-import { enrichCwsError } from './errors.js';
+import got, { type Got } from "got";
+import { config } from "../config.js";
+import { enrichCwsError } from "./errors.js";
 
 const {
   repository,
   cws: { apiRoot, login, timeout, token },
-} = config.get('laserfiche');
+} = config.get("laserfiche");
 
 let authToken: string | undefined = token ?? undefined;
 let isRefreshing = false;
@@ -38,7 +37,7 @@ let refreshQueue: Array<(token: string) => void> = [];
 const client: Got = got.extend({
   prefixUrl: apiRoot,
   https: {
-    rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0',
+    rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0",
   },
   timeout: {
     request: timeout,
@@ -52,11 +51,11 @@ async function getToken() {
   // "Password" is base64 encoded JSON string of login info
   const auth = Buffer.from(
     JSON.stringify({ repositoryName: repository, ...login }),
-  ).toString('base64');
+  ).toString("base64");
   const { access_token: accessToken, token_type: type } = await client
-    .post('api/ConnectionToLaserfiche', {
+    .post("api/ConnectionToLaserfiche", {
       headers: { Authorization: `basic ${auth}` },
-      form: { grant_type: 'password' },
+      form: { grant_type: "password" },
     })
     .json<{
       access_token: string;
@@ -111,9 +110,9 @@ const refreshAuthToken = async (): Promise<string> => {
 
       refreshQueue = [];
       return authToken;
-    } catch {
+    } catch (error: unknown) {
       isRefreshing = false;
-      throw new Error('Failed to refresh auth token');
+      throw new Error("Failed to refresh auth token", { cause: error });
     }
   }
 

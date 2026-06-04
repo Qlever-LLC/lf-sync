@@ -22,12 +22,12 @@
  * documents of the given types to trash.
  */
 
-import { browse, getFolderContents } from '../../cws/folders.js';
-import { argv } from 'node:process';
+import { argv } from "node:process";
+import { browse, getFolderContents } from "../../cws/folders.js";
 
 if (argv.length < 3) {
   console.error(
-    'USAGE: node list-by-doc-types.js docType1 <docType2> ... <docTypeN>',
+    "USAGE: node list-by-doc-types.js docType1 <docType2> ... <docTypeN>",
   );
   console.log('For example: node list-by-doc-types.js "W-9" "ACH Form"');
   process.exit(1);
@@ -35,18 +35,18 @@ if (argv.length < 3) {
 
 const docTypes = new Set(argv.splice(2));
 
-const partners = await browse(`/trellis/trading-partners`);
+const partners = await browse("/trellis/trading-partners");
 for await (const partner of partners) {
   try {
-    if (partner.Type !== 'Folder') {
-      console.error('Non-folder? Parent: /trellis/trading-partner path?');
+    if (partner.Type !== "Folder") {
+      console.error("Non-folder? Parent: /trellis/trading-partner path?");
       process.exit();
     }
 
     const shareDirections = await getFolderContents(partner);
 
     for await (const shareDirection of shareDirections) {
-      if (shareDirection.Type !== 'Folder') {
+      if (shareDirection.Type !== "Folder") {
         console.error(`Non-folder? Parent: ${partner.EntryId}`);
         process.exit();
       }
@@ -54,7 +54,7 @@ for await (const partner of partners) {
       const types = await getFolderContents(shareDirection);
 
       for await (const type of types) {
-        if (type.Type !== 'Folder') {
+        if (type.Type !== "Folder") {
           console.error(`Non-folder? Parent: ${shareDirection.EntryId}`);
           process.exit();
         }
@@ -63,14 +63,14 @@ for await (const partner of partners) {
           const dates = await getFolderContents(type);
 
           for await (const date of dates) {
-            if (date.Type !== 'Folder') {
+            if (date.Type !== "Folder") {
               console.error(`Non-folder? Parent: ${date.EntryId}`);
               process.exit();
             }
 
             const tickets = await getFolderContents(date);
             for await (const ticket of tickets) {
-              if (ticket.Type !== 'Folder') {
+              if (ticket.Type !== "Folder") {
                 console.error(`Non-folder? Parent: ${ticket.EntryId}`);
                 process.exit();
               }
@@ -87,7 +87,7 @@ for await (const partner of partners) {
     if (
       error &&
       (error as { code: string | undefined }).code !==
-        'ERR_NON_2XX_3XX_RESPONSE'
+        "ERR_NON_2XX_3XX_RESPONSE"
     ) {
       console.log(error);
       process.exit();
@@ -95,5 +95,5 @@ for await (const partner of partners) {
   }
 }
 
-console.log('DONE');
+console.log("DONE");
 process.exit();
