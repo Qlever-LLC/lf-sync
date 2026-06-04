@@ -30,6 +30,7 @@ import {
   renameEntry,
   retrieveEntry,
   setMetadata,
+  withCwsErrorContext,
 } from './cws/index.js';
 import {
   fetchSyncMetadata,
@@ -168,6 +169,9 @@ export async function sync(
 
       const vdocContext = {
         documentId,
+        documentType: document._type,
+        tradingPartnerId,
+        tradingPartnerName: name.toString(),
         vdocKey: key,
         vdocResourceId: value._id,
       };
@@ -301,15 +305,39 @@ export async function sync(
             targetPath: path,
           },
           async () =>
-            createDocument({
-              // Name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
-              name: filename,
-              path,
-              mimetype,
-              metadata: syncFields,
-              template: syncFields['Document Type'],
-              buffer,
-            }),
+            withCwsErrorContext(
+              createDocument({
+                // Name: `${document._id}-${key}.${extname(syncMetadata.fields['Original Filename'] ?? '').slice(1)}`,
+                name: filename,
+                path,
+                mimetype,
+                metadata: syncFields,
+                template: syncFields['Document Type'],
+                buffer,
+                onCreated: ({ LaserficheEntryID }) => {
+                  log.info(
+                    {
+                      ...vdocContext,
+                      filename,
+                      laserficheEntryId: Number(LaserficheEntryID),
+                      targetPath: path,
+                    },
+                    'Created LF document entry before content upload',
+                  );
+                },
+              }),
+              {
+                request: {
+                  documentType: document._type,
+                  filename,
+                  generatedLaserfichePath: path,
+                  tradingPartnerId,
+                  tradingPartnerName: name.toString(),
+                  vdocKey: key,
+                  vdocResourceId: value._id,
+                },
+              },
+            ),
         );
 
         log.info(

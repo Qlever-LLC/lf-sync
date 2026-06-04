@@ -19,6 +19,7 @@ import { Writable } from 'node:stream';
 
 import { type DocumentEntry, type EntryIdLike, getEntryId } from './entries.js';
 import cws from './api.js';
+import { withCwsErrorContext } from './errors.js';
 
 /**
  * Chunks cannot be larger than 10 MB
@@ -95,16 +96,54 @@ export function streamUpload(
   });
 }
 
+export async function bufferUpload(
+  document: EntryIdLike<DocumentEntry>,
+  extension: string,
+  mimetype: string,
+  file: Uint8Array,
+) {
+  const id = getEntryId(document);
+  const endpoint = `api/Document/${id}/${extension}`;
+  return withCwsErrorContext(
+    cws.put(endpoint, {
+      headers: {
+        'Content-Length': `${file.length}`,
+        'Content-Type': mimetype,
+      },
+      body: file instanceof Uint8Array ? Buffer.from(file) : file,
+    }),
+    {
+      endpoint,
+      request: {
+        LaserficheEntryID: id,
+        contentLength: file.length,
+        contentType: mimetype,
+        extension,
+      },
+    },
+  );
+}
+
 export async function smallUpload(
   document: EntryIdLike<DocumentEntry>,
   file: Uint8Array,
 ) {
   const id = getEntryId(document);
-  return cws.post(`api/Document/${id}`, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Length': `${file.length}`,
+  return withCwsErrorContext(
+    cws.post(`api/Document/${id}`, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Length': `${file.length}`,
+      },
+      body: file instanceof Uint8Array ? Buffer.from(file) : file,
+    }),
+    {
+      endpoint: `api/Document/${id}`,
+      request: {
+        LaserficheEntryID: id,
+        contentLength: file.length,
+        contentType: 'application/pdf',
+      },
     },
-    body: file instanceof Uint8Array ? Buffer.from(file) : file,
-  });
+  );
 }

@@ -21,10 +21,8 @@
  * @packageDocumentation
  */
 
-import { PassThrough, Readable } from 'node:stream';
 import { Blob } from 'node:buffer';
 import { extname } from 'node:path';
-import { pipeline } from 'node:stream/promises';
 
 import { FormData } from 'formdata-node';
 
@@ -37,7 +35,7 @@ import {
 import { type FieldList, type Metadata, toFieldList } from './metadata.js';
 import { type Path, normalizePath } from './paths.js';
 import cws from './api.js';
-import { streamUpload } from './upload.js';
+import { bufferUpload } from './upload.js';
 import { withCwsErrorContext } from './errors.js';
 
 /**
@@ -59,6 +57,7 @@ export async function createDocument({
   metadata,
   file,
   buffer,
+  onCreated,
 }: {
   path: Path;
   name: string;
@@ -68,6 +67,7 @@ export async function createDocument({
   metadata?: Metadata | FieldList;
   file?: Uint8Array | Blob;
   buffer?: Uint8Array;
+  onCreated?: (document: { LaserficheEntryID: DocumentId }) => void;
 }) {
   const form = new FormData();
   const folderPath = normalizePath(path);
@@ -103,16 +103,24 @@ export async function createDocument({
     },
   );
 
+  onCreated?.(r);
+
   if (buffer) {
-    await pipeline(
-      Readable.from(buffer),
-      streamUpload(
-        r.LaserficheEntryID,
-        extname(name).slice(1),
-        mimetype,
-        buffer.length,
-      ),
-      new PassThrough(),
+    const extension = extname(name).slice(1);
+    await withCwsErrorContext(
+      bufferUpload(r.LaserficheEntryID, extension, mimetype, buffer),
+      {
+        endpoint: `api/Document/${r.LaserficheEntryID}/${extension}`,
+        request: {
+          LaserficheDocumentName: name,
+          LaserficheEntryID: r.LaserficheEntryID,
+          LaserficheFieldNames: fieldList?.map(({ Name }) => Name),
+          LaserficheFolderPath: folderPath,
+          LaserficheTemplateName: template,
+          contentLength: buffer.length,
+          contentType: mimetype,
+        },
+      },
     );
   }
 
