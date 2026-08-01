@@ -1,0 +1,23 @@
+package.json
+  s_a4873baa120754::t_4cac34cceab974 116
+src/sync.ts
+  s_a4873baa120754::t_6eeb067db19912 57,67,73,80-85,102,117,129,186,188-189,196,210,279-281,360,380
+yarn.lock
+  s_a4873baa120754::t_4128760e4eb989 1197,1206-1214,1597-1598,1601,1606-1607,1610,2736-2738,3258-3265,3719-3720,3726,4619-4626,5658-5659,5666,5917-5919,5967-5969,5971-5972,6129-6130,6139,6220-6221,6230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "8f1520df2b34f9b7690463cd05af055c0106553a",
+  "prompts": {},
+  "sessions": {
+    "s_a4873baa120754": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_040dc0087ffeFf88vaaz40EWac",
+        "model": "gpt-5.3-codex"
+      },
+      "human_author": "Alex Layton <alex@qlever.io>"
+    }
+  }
+}
