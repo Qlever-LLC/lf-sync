@@ -19,8 +19,8 @@ import { Writable } from "node:stream";
 import mime from "mime-types";
 
 import cws from "./api.js";
-import { withCwsErrorContext } from "./errors.js";
 import { type DocumentEntry, type EntryIdLike, getEntryId } from "./entries.js";
+import { withCwsErrorContext } from "./errors.js";
 
 /**
  * Chunks cannot be larger than 10 MB

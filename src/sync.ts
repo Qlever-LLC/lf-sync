@@ -54,7 +54,7 @@ export interface SyncConfig {
 type StageContext = Record<string, boolean | number | string | undefined>;
 
 async function withStageTiming<T>(
-  log: WorkerContext['log'],
+  log: WorkerContext["log"],
   stage: string,
   context: StageContext,
   work: () => Promise<T> | T,
@@ -64,22 +64,25 @@ async function withStageTiming<T>(
     const result = await work();
     log.info(
       { ...context, durationMs: Date.now() - startedAt, stage },
-      'lf-sync stage completed',
+      "lf-sync stage completed",
     );
     return result;
   } catch (error: unknown) {
     log.error(
       { err: error, ...context, durationMs: Date.now() - startedAt, stage },
-      'lf-sync stage failed',
+      "lf-sync stage failed",
     );
     throw error;
   }
 }
 
 function isLaserficheEntryNotFound(error: unknown) {
-  return (
-    error instanceof HTTPError && error.response.rawBody.includes('Entry not found')
-  );
+  if (!(error instanceof HTTPError)) {
+    return false;
+  }
+
+  const bodyText = Buffer.from(error.response.rawBody).toString("utf8");
+  return bodyText.includes("Entry not found");
 }
 
 /**
@@ -96,7 +99,7 @@ export async function sync(
   try {
     const { data: document } = (await withStageTiming(
       log,
-      'source-fetch',
+      "source-fetch",
       { documentId },
       async () =>
         oada.get({
@@ -111,7 +114,7 @@ export async function sync(
 
     const fieldList = await withStageTiming(
       log,
-      'payload-base-transform',
+      "payload-base-transform",
       { documentId, documentType: document._type },
       async () => transformers.doc(document),
     );
@@ -123,7 +126,7 @@ export async function sync(
     const tradingPartnerId = tradingPartner || tpKey;
     const { name, externalIds } = await withStageTiming(
       log,
-      'trading-partner-fetch',
+      "trading-partner-fetch",
       { documentId, tradingPartnerId },
       async () => fetchTradingPartner(oada, tradingPartnerId),
     );
@@ -180,16 +183,17 @@ export async function sync(
         ...(transformers.vdoc
           ? await withStageTiming(
               log,
-              'payload-vdoc-transform',
+              "payload-vdoc-transform",
               vdocContext,
-              async () => transformers.vdoc(await fetchVdocMeta(oada, value._id)),
+              async () =>
+                transformers.vdoc(await fetchVdocMeta(oada, value._id)),
             )
           : {}),
       };
 
       const syncMetadata = await withStageTiming(
         log,
-        'sync-metadata-fetch',
+        "sync-metadata-fetch",
         vdocContext,
         async () => fetchSyncMetadata(oada, document._id, key, log),
       );
@@ -203,7 +207,7 @@ export async function sync(
         try {
           const metadata = await withStageTiming(
             log,
-            'laserfiche-metadata-fetch',
+            "laserfiche-metadata-fetch",
             {
               ...vdocContext,
               laserficheEntryId: Number(laserficheEntryId),
@@ -272,7 +276,9 @@ export async function sync(
               syncFields["Document Type"],
             );
 
-            log.trace(`Moving the LF document to ${path} with name ${filename}`);
+            log.trace(
+              `Moving the LF document to ${path} with name ${filename}`,
+            );
             // Use our own filing workflow instead of incomingFolder
             await moveEntry(laserficheEntryId, path);
             // Rename is different from Metadata, but should be part of upsert
@@ -351,7 +357,7 @@ export async function sync(
 
       const entry = await withStageTiming(
         log,
-        'laserfiche-entry-fetch',
+        "laserfiche-entry-fetch",
         {
           ...vdocContext,
           laserficheEntryId: Number(laserficheEntryId),
@@ -371,7 +377,7 @@ export async function sync(
       if (!equal(syncMetaCopy, syncMetadata)) {
         await withStageTiming(
           log,
-          'sync-metadata-update',
+          "sync-metadata-update",
           {
             ...vdocContext,
             laserficheEntryId: Number(laserficheEntryId),

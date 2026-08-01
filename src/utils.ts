@@ -426,11 +426,7 @@ export function fieldValueFromEntry(
   const field = (entry.FieldDataList ?? []).find(
     (entryField) => entryField.Name === fieldName,
   );
-  return field
-    ? isArray
-      ? field.Values
-      : field.Value
-    : undefined;
+  return field ? (isArray ? field.Values : field.Value) : undefined;
 }
 
 export interface Metadata {
