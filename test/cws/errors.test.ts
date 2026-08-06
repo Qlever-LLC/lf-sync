@@ -15,12 +15,9 @@
  * limitations under the License.
  */
 
-import test from 'ava';
+import test from "ava";
 
-import {
-  enrichCwsError,
-  getCwsErrorDetails,
-} from '../../dist/cws/errors.js';
+import { enrichCwsError, getCwsErrorDetails } from "../../dist/cws/errors.js";
 
 interface TestHttpError extends Error {
   options: { method: string };
@@ -42,7 +39,7 @@ function httpError({
   body,
   rawBody,
   statusCode = 400,
-  statusMessage = 'Bad Request',
+  statusMessage = "Bad Request",
 }: {
   body?: unknown;
   rawBody?: Uint8Array;
@@ -52,31 +49,31 @@ function httpError({
   const error = new Error(
     `Response code ${statusCode} (${statusMessage})`,
   ) as TestHttpError;
-  error.options = { method: 'POST' };
+  error.options = { method: "POST" };
   error.response = {
     body,
     rawBody,
     statusCode,
     statusMessage,
-    url: 'http://localhost/CWSAPI/api/CreateDocument',
+    url: "http://localhost/CWSAPI/api/CreateDocument",
   };
   return error;
 }
 
-test('enriches CWS validation errors with response details', (t) => {
+test("enriches CWS validation errors with response details", (t) => {
   const error = enrichCwsError(
     httpError({
       body: {
-        ExceptionMessage: 'The Document Date field is invalid.',
-        Message: 'An error has occurred.',
-        StackTrace: 'server stack',
+        ExceptionMessage: "The Document Date field is invalid.",
+        Message: "An error has occurred.",
+        StackTrace: "server stack",
       },
     }),
     {
-      endpoint: 'api/CreateDocument',
+      endpoint: "api/CreateDocument",
       request: {
-        LaserficheDocumentName: 'invoice.pdf',
-        LaserficheFieldNames: ['Document Date'],
+        LaserficheDocumentName: "invoice.pdf",
+        LaserficheFieldNames: ["Document Date"],
       },
     },
   );
@@ -85,54 +82,57 @@ test('enriches CWS validation errors with response details', (t) => {
 
   t.is(
     error.message,
-    'api/CreateDocument failed with 400 Bad Request: The Document Date field is invalid.',
+    "api/CreateDocument failed with 400 Bad Request: The Document Date field is invalid.",
   );
   t.like(details, {
-    endpoint: 'api/CreateDocument',
-    failureClass: 'validation',
-    method: 'POST',
-    reason: 'The Document Date field is invalid.',
+    endpoint: "api/CreateDocument",
+    failureClass: "validation",
+    method: "POST",
+    reason: "The Document Date field is invalid.",
     retryable: false,
     statusCode: 400,
   });
-  t.deepEqual(details?.request?.LaserficheFieldNames, ['Document Date']);
-  t.false(details?.responseBody?.includes('server stack'));
+  t.deepEqual(details?.request?.LaserficheFieldNames, ["Document Date"]);
+  t.false(details?.responseBody?.includes("server stack"));
 });
 
-test('classifies CWS not found errors from raw response bodies', (t) => {
+test("classifies CWS not found errors from raw response bodies", (t) => {
   const details = getCwsErrorDetails(
     httpError({
       rawBody: Buffer.from(
-        JSON.stringify({ Message: 'Entry not found.', StackTrace: 'server stack' }),
+        JSON.stringify({
+          Message: "Entry not found.",
+          StackTrace: "server stack",
+        }),
       ),
       statusCode: 404,
-      statusMessage: 'Not Found',
+      statusMessage: "Not Found",
     }),
   );
 
   t.like(details, {
-    endpoint: 'api/CreateDocument',
-    failureClass: 'not-found',
-    reason: 'Entry not found.',
+    endpoint: "api/CreateDocument",
+    failureClass: "not-found",
+    reason: "Entry not found.",
     retryable: false,
     statusCode: 404,
   });
-  t.false(details?.responseBody?.includes('server stack'));
+  t.false(details?.responseBody?.includes("server stack"));
 });
 
-test('classifies response-less CWS timeout errors', (t) => {
-  const error = new Error('Timeout awaiting CWS response') as TestRequestError;
-  error.code = 'ETIMEDOUT';
+test("classifies response-less CWS timeout errors", (t) => {
+  const error = new Error("Timeout awaiting CWS response") as TestRequestError;
+  error.code = "ETIMEDOUT";
   error.options = {
-    method: 'PUT',
-    url: 'http://localhost/CWSAPI/api/Document/123/pdf',
+    method: "PUT",
+    url: "http://localhost/CWSAPI/api/Document/123/pdf",
   };
 
   t.like(getCwsErrorDetails(error), {
-    endpoint: 'api/Document/123/pdf',
-    failureClass: 'timeout',
-    method: 'PUT',
-    reason: 'Timeout awaiting CWS response',
+    endpoint: "api/Document/123/pdf",
+    failureClass: "timeout",
+    method: "PUT",
+    reason: "Timeout awaiting CWS response",
     retryable: true,
   });
 });

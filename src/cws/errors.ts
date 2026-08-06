@@ -16,12 +16,12 @@
  */
 
 export type CwsFailureClass =
-  | 'validation'
-  | 'not-found'
-  | 'timeout'
-  | 'transient'
-  | 'code-bug'
-  | 'unknown';
+  | "validation"
+  | "not-found"
+  | "timeout"
+  | "transient"
+  | "code-bug"
+  | "unknown";
 
 export interface CwsErrorDetails {
   endpoint?: string;
@@ -64,38 +64,38 @@ interface GotLikeError extends Error {
 const MAX_REASON_LENGTH = 1000;
 const MAX_BODY_LENGTH = 2000;
 const MESSAGE_FIELDS = [
-  'ExceptionMessage',
-  'Message',
-  'message',
-  'error_description',
-  'error',
-  'detail',
-  'title',
-  'Reason',
-  'reason',
+  "ExceptionMessage",
+  "Message",
+  "message",
+  "error_description",
+  "error",
+  "detail",
+  "title",
+  "Reason",
+  "reason",
 ];
 const DETAIL_FIELDS = [
-  'ModelState',
-  'modelState',
-  'Errors',
-  'errors',
-  'Response',
-  'response',
+  "ModelState",
+  "modelState",
+  "Errors",
+  "errors",
+  "Response",
+  "response",
 ];
 const REDACTED_FIELDS = new Set([
-  'Authorization',
-  'authorization',
-  'Password',
-  'password',
-  'StackTrace',
-  'stackTrace',
-  'access_token',
-  'token',
+  "Authorization",
+  "authorization",
+  "Password",
+  "password",
+  "StackTrace",
+  "stackTrace",
+  "access_token",
+  "token",
 ]);
 
 export async function withCwsErrorContext<T>(
   promise: Promise<T>,
-  context: Pick<CwsErrorDetails, 'endpoint' | 'request'>,
+  context: Pick<CwsErrorDetails, "endpoint" | "request">,
 ): Promise<T> {
   try {
     return await promise;
@@ -110,7 +110,7 @@ export async function withCwsErrorContext<T>(
 
 export function enrichCwsError(
   error: Error,
-  context: Pick<CwsErrorDetails, 'endpoint' | 'request'> = {},
+  context: Pick<CwsErrorDetails, "endpoint" | "request"> = {},
 ): Error {
   const details = getCwsErrorDetails(error);
   if (!details) return error;
@@ -129,7 +129,9 @@ export function enrichCwsError(
   return gotError;
 }
 
-export function getCwsErrorDetails(error: unknown): CwsErrorDetails | undefined {
+export function getCwsErrorDetails(
+  error: unknown,
+): CwsErrorDetails | undefined {
   if (!(error instanceof Error)) return undefined;
 
   const gotError = error as GotLikeError;
@@ -139,7 +141,7 @@ export function getCwsErrorDetails(error: unknown): CwsErrorDetails | undefined 
   const url = getUrl(gotError);
   if (!response) {
     const failureClass = classifyFailure(undefined, gotError.code);
-    if (failureClass === 'unknown') return;
+    if (failureClass === "unknown") return;
 
     return {
       endpoint: getEndpoint(url),
@@ -171,11 +173,11 @@ export function getCwsErrorDetails(error: unknown): CwsErrorDetails | undefined 
 }
 
 function formatCwsErrorMessage(details: CwsErrorDetails, fallback: string) {
-  const endpoint = details.endpoint ?? 'CWS request';
+  const endpoint = details.endpoint ?? "CWS request";
   const status = details.statusCode
-    ? `${details.statusCode}${details.statusMessage ? ` ${details.statusMessage}` : ''}`
+    ? `${details.statusCode}${details.statusMessage ? ` ${details.statusMessage}` : ""}`
     : undefined;
-  const reason = details.reason ? `: ${details.reason}` : '';
+  const reason = details.reason ? `: ${details.reason}` : "";
 
   if (status) return `${endpoint} failed with ${status}${reason}`;
 
@@ -183,10 +185,10 @@ function formatCwsErrorMessage(details: CwsErrorDetails, fallback: string) {
 }
 
 function parseResponseBody(body: unknown, rawBody?: Uint8Array): unknown {
-  if (body !== undefined && body !== '') return body;
+  if (body !== undefined && body !== "") return body;
   if (!rawBody || rawBody.length === 0) return;
 
-  const text = Buffer.from(rawBody).toString('utf8').trim();
+  const text = Buffer.from(rawBody).toString("utf8").trim();
   if (!text) return;
 
   try {
@@ -199,18 +201,19 @@ function parseResponseBody(body: unknown, rawBody?: Uint8Array): unknown {
 function extractReason(body: unknown): string | undefined {
   const messages = collectMessages(body);
   const usefulMessage = messages.find(
-    (message) => message !== 'An error has occurred.',
+    (message) => message !== "An error has occurred.",
   );
   return truncate((usefulMessage ?? messages[0])?.trim(), MAX_REASON_LENGTH);
 }
 
 function collectMessages(value: unknown): string[] {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const message = compact(value);
     return message ? [message] : [];
   }
 
-  if (Array.isArray(value)) return value.flatMap((item) => collectMessages(item));
+  if (Array.isArray(value))
+    return value.flatMap((item) => collectMessages(item));
 
   if (!isRecord(value)) return [];
 
@@ -232,26 +235,26 @@ function classifyFailure(
 ): CwsFailureClass {
   const normalizedCode = code?.toUpperCase();
   if (
-    normalizedCode?.includes('TIMEOUT') === true ||
-    normalizedCode?.includes('TIMEDOUT') === true
+    normalizedCode?.includes("TIMEOUT") === true ||
+    normalizedCode?.includes("TIMEDOUT") === true
   ) {
-    return 'timeout';
+    return "timeout";
   }
 
-  if (normalizedCode === 'EAI_AGAIN' || normalizedCode === 'ECONNRESET') {
-    return 'transient';
+  if (normalizedCode === "EAI_AGAIN" || normalizedCode === "ECONNRESET") {
+    return "transient";
   }
 
-  if (statusCode === 400 || statusCode === 422) return 'validation';
-  if (statusCode === 404) return 'not-found';
-  if (statusCode === 408 || statusCode === 504) return 'timeout';
-  if (statusCode && statusCode >= 500) return 'transient';
+  if (statusCode === 400 || statusCode === 422) return "validation";
+  if (statusCode === 404) return "not-found";
+  if (statusCode === 408 || statusCode === 504) return "timeout";
+  if (statusCode && statusCode >= 500) return "transient";
 
-  return 'unknown';
+  return "unknown";
 }
 
 function isRetryable(failureClass: CwsFailureClass) {
-  return failureClass === 'timeout' || failureClass === 'transient';
+  return failureClass === "timeout" || failureClass === "transient";
 }
 
 function stringifyBody(body: unknown): string | undefined {
@@ -259,7 +262,7 @@ function stringifyBody(body: unknown): string | undefined {
 
   const sanitized = sanitize(body);
   const text =
-    typeof sanitized === 'string'
+    typeof sanitized === "string"
       ? compact(sanitized)
       : JSON.stringify(sanitized);
 
@@ -273,7 +276,7 @@ function sanitize(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [
       key,
-      REDACTED_FIELDS.has(key) ? '[redacted]' : sanitize(item),
+      REDACTED_FIELDS.has(key) ? "[redacted]" : sanitize(item),
     ]),
   );
 }
@@ -284,7 +287,7 @@ function getUrl(error: GotLikeError) {
       error.request?.requestUrl ??
       error.options?.url ??
       error.request?.options?.url ??
-      '',
+      "",
   );
 }
 
@@ -292,14 +295,14 @@ function getEndpoint(url: string | undefined) {
   if (!url) return;
 
   try {
-    return new URL(url).pathname.replace(/^.*\/api\//, 'api/');
+    return new URL(url).pathname.replace(/^.*\/api\//, "api/");
   } catch {
-    return url.replace(/^.*\/api\//, 'api/');
+    return url.replace(/^.*\/api\//, "api/");
   }
 }
 
 function compact(value: string) {
-  return value.replaceAll(/\s+/g, ' ').trim();
+  return value.replaceAll(/\s+/g, " ").trim();
 }
 
 function truncate(value: string | undefined, maxLength: number) {
@@ -308,5 +311,5 @@ function truncate(value: string | undefined, maxLength: number) {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object';
+  return value !== null && typeof value === "object";
 }

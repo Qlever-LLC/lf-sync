@@ -92,9 +92,7 @@ export const cws = client.extend({
         });
       },
     ],
-    beforeError: [
-      (error) => enrichCwsError(error) as typeof error,
-    ],
+    beforeError: [(error) => enrichCwsError(error) as typeof error],
   },
 });
 
