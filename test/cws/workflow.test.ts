@@ -76,7 +76,11 @@ test("streamUpload", async (t) => {
       "Share Mode": "Shared To Smithfield",
     },
   } as const);
-  const upload = streamUpload(id, "pdf", "application/pdf", file.length);
+  const upload = streamUpload(id, {
+    extension: "pdf",
+    length: file.length,
+    mimetype: "application/pdf",
+  });
   await pipeline(Readable.from(file), upload, new PassThrough());
   await setTimeout(1000);
   const content = await retrieveDocumentContent(id);

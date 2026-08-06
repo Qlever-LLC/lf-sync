@@ -23,7 +23,7 @@
 
 import got, { type Got } from "got";
 import { config } from "../config.js";
-import { enrichCwsError } from "./errors.js";
+import { enrichCwsError, withCwsErrorContext } from "./errors.js";
 
 const {
   repository,
@@ -52,17 +52,20 @@ async function getToken() {
   const auth = Buffer.from(
     JSON.stringify({ repositoryName: repository, ...login }),
   ).toString("base64");
-  const { access_token: accessToken, token_type: type } = await client
-    .post("api/ConnectionToLaserfiche", {
-      headers: { Authorization: `basic ${auth}` },
-      form: { grant_type: "password" },
-    })
-    .json<{
-      access_token: string;
-      token_type: string;
-      expires_in: number;
-      api_version: string;
-    }>();
+  const { access_token: accessToken, token_type: type } = await withCwsErrorContext(
+    client
+      .post("api/ConnectionToLaserfiche", {
+        headers: { Authorization: `basic ${auth}` },
+        form: { grant_type: "password" },
+      })
+      .json<{
+        access_token: string;
+        token_type: string;
+        expires_in: number;
+        api_version: string;
+      }>(),
+    { endpoint: "api/ConnectionToLaserfiche" },
+  );
 
   authToken = `${type} ${accessToken}`;
   return `${type} ${accessToken}`;

@@ -16,11 +16,11 @@
  */
 
 import { Writable } from "node:stream";
-import mime from "mime-types";
 
 import cws from "./api.js";
-import { withCwsErrorContext } from "./errors.js";
 import { type DocumentEntry, type EntryIdLike, getEntryId } from "./entries.js";
+import { withCwsErrorContext } from "./errors.js";
+import { resolveUploadExtension } from "./upload-extension.js";
 
 /**
  * Chunks cannot be larger than 10 MB
@@ -86,7 +86,7 @@ export function streamUpload(
   document: EntryIdLike<DocumentEntry>,
   {
     mimetype,
-    extension = mime.extension(mimetype) || undefined,
+    extension,
     length,
   }: {
     mimetype: string;
@@ -96,8 +96,8 @@ export function streamUpload(
   },
 ): Writable {
   const id = getEntryId(document);
-  // TODO: Better default extension?
-  return cws.stream.put(`api/Document/${id}/${extension || "pdf"}`, {
+  const uploadExtension = resolveUploadExtension({ extension, mimetype });
+  return cws.stream.put(`api/Document/${id}/${uploadExtension}`, {
     headers: {
       "Content-Length": `${length}`,
       "Content-Type": mimetype,
@@ -109,7 +109,7 @@ export async function bufferUpload(
   document: EntryIdLike<DocumentEntry>,
   {
     mimetype,
-    extension = mime.extension(mimetype) || undefined,
+    extension,
   }: {
     mimetype: string;
     /** @default try to guess from mimetype */
@@ -118,7 +118,8 @@ export async function bufferUpload(
   file: Uint8Array,
 ) {
   const id = getEntryId(document);
-  const endpoint = `api/Document/${id}/${extension || "pdf"}`;
+  const uploadExtension = resolveUploadExtension({ extension, mimetype });
+  const endpoint = `api/Document/${id}/${uploadExtension}`;
   return withCwsErrorContext(
     cws.put(endpoint, {
       headers: {
@@ -133,7 +134,7 @@ export async function bufferUpload(
         LaserficheEntryID: id,
         contentLength: file.length,
         contentType: mimetype,
-        extension,
+        extension: uploadExtension,
       },
     },
   );

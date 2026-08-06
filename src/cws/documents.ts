@@ -22,8 +22,6 @@
  */
 
 import { Blob } from "node:buffer";
-import { extname } from "node:path";
-
 import { FormData } from "formdata-node";
 
 import cws from "./api.js";
@@ -106,12 +104,10 @@ export async function createDocument({
   onCreated?.(r);
 
   if (buffer) {
-    const extension = extname(name).slice(1) || undefined;
-    const uploadExtension = extension ?? "pdf";
     await withCwsErrorContext(
-      bufferUpload(r.LaserficheEntryID, { extension, mimetype }, buffer),
+      bufferUpload(r.LaserficheEntryID, { mimetype }, buffer),
       {
-        endpoint: `api/Document/${r.LaserficheEntryID}/${uploadExtension}`,
+        endpoint: `api/Document/${r.LaserficheEntryID}/pdf`,
         request: {
           LaserficheDocumentName: name,
           LaserficheEntryID: r.LaserficheEntryID,

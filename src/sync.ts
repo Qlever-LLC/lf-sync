@@ -78,7 +78,8 @@ async function withStageTiming<T>(
 
 function isLaserficheEntryNotFound(error: unknown) {
   return (
-    error instanceof HTTPError && error.response.rawBody.includes('Entry not found')
+    error instanceof HTTPError &&
+    Buffer.from(error.response.rawBody).toString('utf8').includes('Entry not found')
   );
 }
 
