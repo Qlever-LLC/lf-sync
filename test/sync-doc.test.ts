@@ -20,8 +20,11 @@ import { doJob } from "@oada/client/jobs";
 import test from "ava";
 import { config } from "../dist/config.js";
 
-// @ts-expect-error Avoid deep config type instantiation in this live integration test.
-const { domain, token } = config.get("oada");
+const { domain, token } = (
+  config as unknown as {
+    get: (key: "oada") => { domain: string; token: string };
+  }
+).get("oada");
 
 const oada = await connect({ domain, token });
 
