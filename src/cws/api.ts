@@ -32,7 +32,10 @@ const {
 
 let authToken: string | undefined = token ?? undefined;
 let isRefreshing = false;
-let refreshQueue: Array<(token: string) => void> = [];
+let refreshQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}> = [];
 
 const client: Got = got.extend({
   prefixUrl: apiRoot,
@@ -52,20 +55,21 @@ async function getToken() {
   const auth = Buffer.from(
     JSON.stringify({ repositoryName: repository, ...login }),
   ).toString("base64");
-  const { access_token: accessToken, token_type: type } = await withCwsErrorContext(
-    client
-      .post("api/ConnectionToLaserfiche", {
-        headers: { Authorization: `basic ${auth}` },
-        form: { grant_type: "password" },
-      })
-      .json<{
-        access_token: string;
-        token_type: string;
-        expires_in: number;
-        api_version: string;
-      }>(),
-    { endpoint: "api/ConnectionToLaserfiche" },
-  );
+  const { access_token: accessToken, token_type: type } =
+    await withCwsErrorContext(
+      client
+        .post("api/ConnectionToLaserfiche", {
+          headers: { Authorization: `basic ${auth}` },
+          form: { grant_type: "password" },
+        })
+        .json<{
+          access_token: string;
+          token_type: string;
+          expires_in: number;
+          api_version: string;
+        }>(),
+      { endpoint: "api/ConnectionToLaserfiche" },
+    );
 
   authToken = `${type} ${accessToken}`;
   return `${type} ${accessToken}`;
@@ -75,11 +79,10 @@ async function getToken() {
  * Authenticated connection to the configured CWS API
  */
 export const cws = client.extend({
-  headers: { Authorization: authToken ?? (await getToken()) },
   hooks: {
     beforeRequest: [
-      (options) => {
-        if (authToken) options.headers.Authorization = authToken;
+      async (options) => {
+        options.headers.Authorization = authToken ?? (await refreshAuthToken());
       },
     ],
     afterResponse: [
@@ -100,26 +103,28 @@ const refreshAuthToken = async (): Promise<string> => {
   if (!isRefreshing) {
     isRefreshing = true;
     try {
-      // Replace this with your actual token refresh logic.
-      authToken = await getToken(); // Update your auth token
+      authToken = await getToken();
       isRefreshing = false;
 
-      // Resolve all the pending requests in the queue with the new token
-      for (const callback of refreshQueue) {
-        callback(authToken);
+      for (const { resolve } of refreshQueue) {
+        resolve(authToken);
       }
 
       refreshQueue = [];
       return authToken;
     } catch (error: unknown) {
       isRefreshing = false;
+      for (const { reject } of refreshQueue) {
+        reject(error);
+      }
+
+      refreshQueue = [];
       throw new Error("Failed to refresh auth token", { cause: error });
     }
   }
 
-  // Return a promise that resolves with the new token
-  return new Promise((resolve) => {
-    refreshQueue.push(resolve);
+  return new Promise((resolve, reject) => {
+    refreshQueue.push({ resolve, reject });
   });
 };
 
