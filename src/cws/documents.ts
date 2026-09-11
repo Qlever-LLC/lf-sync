@@ -21,9 +21,6 @@
  * @packageDocumentation
  */
 
-import { Blob } from "node:buffer";
-import { FormData } from "formdata-node";
-
 import cws from "./api.js";
 import {
   type DocumentEntry,

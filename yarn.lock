@@ -715,7 +715,6 @@ __metadata:
     dotenv: "npm:^17.4.2"
     es-main: "npm:^1.4.0"
     exponential-backoff: "npm:^3.1.3"
-    formdata-node: "npm:^6.0.3"
     got: "npm:^15.1.0"
     json-ptr: "npm:^3.1.1"
     jsonpath: "npm:^1.3.0"
@@ -2848,13 +2847,6 @@ __metadata:
     cross-spawn: "npm:^7.0.6"
     signal-exit: "npm:^4.0.1"
   checksum: 10/427b33f997a98073c0424e5c07169264a62cda806d8d2ded159b5b903fdfc8f0a1457e06b5fc35506497acb3f1e353f025edee796300209ac6231e80edece835
-  languageName: node
-  linkType: hard
-
-"formdata-node@npm:^6.0.3":
-  version: 6.0.3
-  resolution: "formdata-node@npm:6.0.3"
-  checksum: 10/26ec90f5dd5d5572dceb524b86f42e28b148022e5c50b2af83ee8ad99d56f26157a7b5583ddbf10725e567bba30ad8bf6b6527f17f5e94d64ccaa950d1fe0b5f
   languageName: node
   linkType: hard
 
