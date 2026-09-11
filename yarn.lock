@@ -4138,10 +4138,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"media-type@npm:^1.0.1":
-  version: 1.0.1
-  resolution: "media-type@npm:1.0.1"
-  checksum: 10/7be17c26086deab721c9876c0b2ae338adc3788422478c139ab75a520b389a3167af41c7a6e896762751fbc0efa5d06433c8a4c17b22a71e27982f4257bc30a7
+"media-type@npm:0.3.1":
+  version: 0.3.1
+  resolution: "media-type@npm:0.3.1"
+  checksum: 10/5dce0bf8d62828bc1ca65ddc9f8d3065c2c79bbeab656a9d456a823f0d830e54d9d4ce1d1c7b656d15e773886cfcb0ea95f32802db2d4c82818ca68a840450dc
   languageName: node
   linkType: hard
 
