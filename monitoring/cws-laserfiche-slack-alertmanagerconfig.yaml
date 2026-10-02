@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: cws-laserfiche-slack
+  namespace: trellis-monitoring
+  labels:
+    app.kubernetes.io/name: cws-laserfiche-probe
+spec:
+  route:
+    receiver: cws-laserfiche-slack
+    matchers:
+      - name: alertname
+        value: CwsLaserficheLoginFailed
+        matchType: =
+  receivers:
+    - name: cws-laserfiche-slack
+      slackConfigs:
+        - apiURL:
+            name: cws-laserfiche-slack
+            key: webhook-url
+          sendResolved: true
+          title: '{{ .Status | toUpper }}: {{ .CommonLabels.alertname }}'
+          text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'

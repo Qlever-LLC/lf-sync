@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cws-laserfiche-probe
+  namespace: trellis-monitoring
+  labels:
+    app.kubernetes.io/name: cws-laserfiche-probe
+spec:
+  groups:
+    - name: cws-laserfiche-probe
+      rules:
+        - alert: CwsLaserficheLoginFailed
+          expr: kube_job_status_failed{namespace="trellis-prod", job_name=~"cws-laserfiche-probe-.*"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: CWS cannot authenticate to the Laserfiche Directory Server
+            description: The scheduled CWS Laserfiche login probe failed in trellis-prod. Inspect the cws-laserfiche-probe Job logs.

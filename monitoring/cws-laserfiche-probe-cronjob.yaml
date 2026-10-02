@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cws-laserfiche-probe
+  namespace: trellis-prod
+  labels:
+    app.kubernetes.io/name: cws-laserfiche-probe
+    app.kubernetes.io/component: monitoring
+spec:
+  schedule: "17 */3 * * *"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 60
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: cws-laserfiche-probe
+            app.kubernetes.io/component: monitoring
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: probe
+              image: node:22-alpine
+              imagePullPolicy: IfNotPresent
+              command:
+                - node
+                - -e
+                - |
+                  const cws = {
+                    repositoryName: process.env.CWS_REPO,
+                    username: process.env.CWS_USER,
+                    password: process.env.CWS_PASSWORD,
+                    serverName: process.env.CWS_SERVER,
+                  };
+                  const response = await fetch(new URL("api/ConnectionToLaserfiche", process.env.CWS_API), {
+                    method: "POST",
+                    headers: {
+                      authorization: `basic ${Buffer.from(JSON.stringify(cws)).toString("base64")}`,
+                      "content-type": "application/x-www-form-urlencoded",
+                    },
+                    body: "grant_type=password",
+                    signal: AbortSignal.timeout(30_000),
+                  });
+                  if (!response.ok) throw new Error(`CWS login returned HTTP ${response.status}`);
+                  const result = await response.json();
+                  if (!result.access_token) throw new Error("CWS login response had no access token");
+                  console.log("CWS Laserfiche login succeeded");
+              env:
+                - name: CWS_API
+                  valueFrom:
+                    secretKeyRef:
+                      name: lf-sync
+                      key: CWS_API
+                - name: CWS_REPO
+                  valueFrom:
+                    secretKeyRef:
+                      name: lf-sync
+                      key: CWS_REPO
+                - name: CWS_SERVER
+                  valueFrom:
+                    secretKeyRef:
+                      name: lf-sync
+                      key: CWS_SERVER
+                - name: CWS_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: lf-sync
+                      key: CWS_USER
+                - name: CWS_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: lf-sync
+                      key: CWS_PASSWORD
