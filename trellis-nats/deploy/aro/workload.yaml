@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: laserfiche-sync
+  labels:
+    app.kubernetes.io/name: laserfiche-sync
+    app.kubernetes.io/component: trellis-service
+    app.kubernetes.io/part-of: laserfiche
+spec:
+  selector:
+    app.kubernetes.io/name: laserfiche-sync
+    app.kubernetes.io/component: trellis-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laserfiche-sync
+  labels:
+    app.kubernetes.io/name: laserfiche-sync
+    app.kubernetes.io/component: trellis-service
+    app.kubernetes.io/part-of: laserfiche
+  annotations:
+    image.openshift.io/triggers: >-
+       [{"from":{"kind":"ImageStreamTag","name":"laserfiche-sync:rc11"},"fieldPath":"spec.template.spec.containers[?(@.name==\"laserfiche-sync\")].image","pause":"false"}]
+spec:
+  # Run the reviewed event projection in no-write mode. CWS submission remains
+  # disabled until a separate canary approval changes LF_SYNC_WRITE_MODE.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: laserfiche-sync
+      app.kubernetes.io/component: trellis-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: laserfiche-sync
+        app.kubernetes.io/component: trellis-service
+        app.kubernetes.io/part-of: laserfiche
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: laserfiche-sync
+          image: image-registry.openshift-image-registry.svc:5000/trellis-nats-dev/laserfiche-sync:rc11
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: laserfiche-sync-config
+            - secretRef:
+                name: lf-sync-cws
+            - secretRef:
+                name: lf-sync-database
+            - secretRef:
+                name: lf-sync-trellis-session
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi

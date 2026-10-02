@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: laserfiche-sync-config
+  labels:
+    app.kubernetes.io/name: laserfiche-sync
+    app.kubernetes.io/part-of: laserfiche
+data:
+  LF_SYNC_SERVICE_NAME: lf-sync
+  LF_SYNC_TRELLIS_CONNECT: "true"
+  LF_SYNC_CWS_SMOKE_ON_STARTUP: "true"
+  LF_SYNC_WRITE_MODE: disabled
+  LF_SYNC_BACKFILL_PAGE_SIZE: "100"
+  LF_SYNC_MIGRATION_OBJECT_DIRECTORY: /var/lib/lf-sync/migration-objects
+  LF_SYNC_OUTBOX_INTERVAL_MS: "1000"
+  LF_SYNC_MAX_ATTEMPTS: "5"
+  TRELLIS_URL: http://trellis-runtime:3000
+  CWS_TIMEOUT: "20000"
+  CWS_CONCURRENCY: "1"
+  PORT: "8080"

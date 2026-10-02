@@ -1,0 +1,19 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: laserfiche-sync
+  labels:
+    app.kubernetes.io/name: laserfiche-sync
+    app.kubernetes.io/part-of: laserfiche
+spec:
+  runPolicy: SerialLatestOnly
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: laserfiche-sync:rc11
