@@ -163,3 +163,13 @@ pruneDuplicates.ts
 LF-Renaming*
 SFSupplierAlignment*
 SupplierAlignment*
+
+# Local agent state
+.cortexkit/
+
+# Generated diagnostics and reports
+/logfile
+/tmp-helm.yaml
+/LF-Sync-Report*.csv
+/emptyFolders.csv
+/nonEmptyFolders.csv
