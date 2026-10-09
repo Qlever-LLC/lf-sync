@@ -8,6 +8,7 @@ import { sourceAttachmentEvidenceColumnsMigration } from "./006_source_attachmen
 import { deliveryRetryStateMigration } from "./007_delivery_retry_state.ts";
 import { sourceSupplierNameBackfillMigration } from "./008_backfill_source_supplier_names.ts";
 import { entryMappingEvidenceColumnsMigration } from "./009_entry_mapping_evidence_columns.ts";
+import { deliverySafetyMigration } from "./010_delivery_safety.ts";
 
 export interface Migration {
   readonly version: number;
@@ -69,6 +70,11 @@ const entryMappingEvidenceColumns = {
   version: sourceSupplierNameBackfill.version + 1,
 };
 
+const deliverySafety = {
+  ...deliverySafetyMigration,
+  version: entryMappingEvidenceColumns.version + 1,
+};
+
 export const migrations: readonly Migration[] = [
   foundationMigration,
   ...trellisOutboxMigrations,
@@ -80,4 +86,5 @@ export const migrations: readonly Migration[] = [
   deliveryRetryState,
   sourceSupplierNameBackfill,
   entryMappingEvidenceColumns,
+  deliverySafety,
 ];

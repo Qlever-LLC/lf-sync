@@ -11,7 +11,16 @@ import {
   type QueryExecutor,
 } from "../db/mod.ts";
 import { CwsAdapter } from "../cws.ts";
-import { prepareDelivery, submitDelivery } from "./delivery_workflow.ts";
+import {
+  prepareDelivery,
+  submitDelivery,
+  terminalizeEmptySourceRequest,
+} from "./delivery_workflow.ts";
+import {
+  startSubmissionLease,
+  SubmissionFencedError,
+  submissionLeaseUntil,
+} from "./submission_lease.ts";
 
 type Runtime = {
   service: ConnectedTrellisService<typeof contract>;
@@ -82,21 +91,46 @@ function startDeliveryRetryLoop(runtime: Runtime): void {
 async function retryDueDeliveries(runtime: Runtime): Promise<void> {
   if (runtime.config.writeMode !== "enabled") return;
   const repositories = createRepositories(runtime.database);
+  const pending = await repositories.deliveries.listPendingForActivation(
+    RETRY_BATCH_SIZE,
+  );
   const due = await repositories.deliveries.listDueRetries(RETRY_BATCH_SIZE);
-  const remaining = Math.max(0, RETRY_BATCH_SIZE - due.length);
+  const remaining = Math.max(
+    0,
+    RETRY_BATCH_SIZE - due.length - pending.length,
+  );
   const stale = remaining === 0
     ? []
     : await repositories.deliveries.listStaleActiveForRetry(
       new Date(Date.now() - STALE_ACTIVE_MS),
       remaining,
     );
-  if (due.length === 0 && stale.length === 0) return;
+  if (pending.length === 0 && due.length === 0 && stale.length === 0) return;
   console.info(JSON.stringify({
     level: "info",
     message: "Retrying Laserfiche deliveries",
+    pendingActivationCount: pending.length,
     retryDueCount: due.length,
     staleActiveCount: stale.length,
   }));
+  for (const delivery of pending) {
+    try {
+      await runtime.service.jobs.submitLaserfiche.create({
+        correlationId: `activate:${delivery.id}`,
+        sourceDocumentId: delivery.sourceDocumentId,
+        deliveryId: delivery.id,
+        vdocKey: delivery.vdocKey,
+        idempotencyKey: `submit:activate:${delivery.id}`,
+      }).orThrow();
+    } catch (error) {
+      console.error(JSON.stringify({
+        level: "error",
+        message: "Failed to activate shadow Laserfiche delivery",
+        deliveryId: delivery.id,
+        error: sanitizedError(error),
+      }));
+    }
+  }
   for (const delivery of due) {
     try {
       const retrying = await repositories.deliveries.markRetrying(delivery.id);
@@ -179,6 +213,11 @@ async function receiveReadyEvent(
     if (!receipt.inserted) return;
     const sourceId = required(event, "sourceDocumentId");
     const sourceVersion = required(event, "sourceVersionId");
+    await repositories.sources.lockApprovalVersion(
+      SOURCE_SYSTEM,
+      sourceId,
+      sourceVersion,
+    );
     const supplier = object(object(event, "filing"), "supplier");
     await repositories.sources.upsertCanonicalSource({
       sourceSystem: SOURCE_SYSTEM,
@@ -210,6 +249,16 @@ async function receiveReadyEvent(
         checksum: required(attachment, "sha256"),
         payload: attachment,
       });
+    }
+    if (
+      await repositories.sources.isApprovalRevoked(
+        SOURCE_SYSTEM,
+        sourceId,
+        sourceVersion,
+      )
+    ) {
+      await repositories.inbox.completeRecorded(receipt.record.id);
+      return;
     }
     await job.processSourceEvent.submit({
       correlationId: eventId,
@@ -244,11 +293,27 @@ async function receiveRevocation(
       payload: event,
     });
     if (!receipt.inserted) return;
+    const sourceId = required(event, "sourceDocumentId");
+    const sourceVersion = required(event, "sourceVersionId");
+    await repositories.sources.lockApprovalVersion(
+      SOURCE_SYSTEM,
+      sourceId,
+      sourceVersion,
+    );
+    await repositories.sources.recordApprovalRevocation({
+      sourceSystem: SOURCE_SYSTEM,
+      sourceId,
+      sourceVersion,
+      eventId,
+      reason: "source approval revoked",
+      revokedAt: dateFrom(event.occurredAt) ?? undefined,
+      provenance: { eventType: "Documents.ApprovalRevoked" },
+    });
     await repositories.deliveries.markApprovalRevoked({
       sourceSystem: SOURCE_SYSTEM,
-      sourceId: required(event, "sourceDocumentId"),
-      sourceVersion: required(event, "sourceVersionId"),
-      result: { reason: "source approval revoked" },
+      sourceId,
+      sourceVersion,
+      result: { reason: "source approval revoked", revocationEventId: eventId },
     });
     await repositories.inbox.completeRecorded(receipt.record.id);
   }).orThrow();
@@ -274,19 +339,33 @@ function registerJobs(runtime: Runtime): void {
           payload.sourceVersionId,
         );
         if (!source) throw new Error("Source document is unavailable");
-        const request = await repositories.syncRequests.createRequest({
-          sourceDocumentId: source.id,
-          requestKey: `source-event:${payload.sourceEventId}`,
-          requestedBy: "foodlogiq",
-          reason: "approved",
-          provenance: { correlationId: payload.correlationId },
-        });
+        await repositories.sources.lockApprovalVersion(
+          source.sourceSystem,
+          source.sourceId,
+          source.sourceVersion,
+        );
+        if (
+          await repositories.sources.isApprovalRevoked(
+            source.sourceSystem,
+            source.sourceId,
+            source.sourceVersion,
+          )
+        ) return;
         const attachments = await repositories.sources.listAttachments(
           source.id,
         );
         if (attachments.length === 0) {
           throw new Error("Ready source event did not retain attachments");
         }
+        const requestedVdocKeys = expectedVdocKeys(attachments);
+        const request = await repositories.syncRequests.createRequest({
+          sourceDocumentId: source.id,
+          requestKey: `source-event:${payload.sourceEventId}`,
+          requestedBy: "foodlogiq",
+          reason: "approved",
+          requestedVdocKeys,
+          provenance: { correlationId: payload.correlationId },
+        });
         for (const attachment of attachments) {
           await outboxJob.prepareDelivery.submit({
             correlationId: payload.correlationId,
@@ -319,6 +398,22 @@ function registerJobs(runtime: Runtime): void {
   service.jobs.loadSourceDocument.handle(async ({ job, client }) => {
     try {
       const payload = job.payload;
+      if (
+        payload.sourceVersionId &&
+        await createRepositories(runtime.database).sources.isApprovalRevoked(
+          SOURCE_SYSTEM,
+          payload.sourceDocumentId,
+          payload.sourceVersionId,
+        )
+      ) {
+        return Result.ok({
+          loaded: false,
+          sourceDocumentId: payload.sourceDocumentId,
+          documentTypeKey: payload.documentTypeKey,
+          vdocCount: 0,
+          fileCount: 0,
+        });
+      }
       const documentResult = await client.documentsGet({
         documentId: payload.sourceDocumentId,
       }).orThrow();
@@ -340,61 +435,84 @@ function registerJobs(runtime: Runtime): void {
           ? { documentVersionId: sourceVersion }
           : {}),
       }).orThrow();
-      await runtime.outbox.transaction(async ({ tx, job: outboxJob }) => {
-        const repositories = createRepositories(tx);
-        const source = await repositories.sources.upsertCanonicalSource({
-          sourceSystem: SOURCE_SYSTEM,
-          sourceId: payload.sourceDocumentId,
-          sourceVersion,
-          readinessHash: required(document, "sourceHash"),
-          documentType: optional(document, "documentTypeKey") ??
-            payload.documentTypeKey,
-          supplierId: optional(document, "foodLogiqBusinessId") ?? null,
-          supplierName: optional(objectOrEmpty(document.supplier), "name") ??
-            null,
-          status: "ready",
-          payload: document,
-          sourceUpdatedAt: dateFrom(document.updatedAt),
-        });
-        const attachments = [];
-        for (const file of filesResult.entries as Record<string, unknown>[]) {
-          attachments.push(
-            await repositories.sources.upsertAttachment({
-              sourceSystem: SOURCE_SYSTEM,
-              sourceId: payload.sourceDocumentId,
-              sourceVersion,
-              vdocKey: required(file, "attachmentKey"),
-              byteReference: required(file, "id"),
-              contentType: optional(file, "contentType") ??
-                "application/octet-stream",
-              fileName: optional(file, "fileName"),
-              sizeBytes: numberAsString(file, "byteLength"),
-              checksum: optional(file, "sha256"),
-              payload: file,
-            }),
+      const retained = await runtime.outbox.transaction(
+        async ({ tx, job: outboxJob }) => {
+          const repositories = createRepositories(tx);
+          await repositories.sources.lockApprovalVersion(
+            SOURCE_SYSTEM,
+            payload.sourceDocumentId,
+            sourceVersion,
           );
-        }
-        const request = await repositories.syncRequests.createRequest({
-          sourceDocumentId: source.id,
-          requestKey: `source-event:${payload.correlationId}`,
-          requestedBy: "foodlogiq",
-          reason: "approved",
-          provenance: { correlationId: payload.correlationId },
-        });
-        for (const attachment of attachments) {
-          await outboxJob.prepareDelivery.submit({
-            correlationId: payload.correlationId,
-            sourceDocumentId: payload.sourceDocumentId,
-            sourceVersionId: sourceVersion,
-            vdocKey: attachment.vdocKey,
-            idempotencyKey:
-              `prepare:${payload.sourceDocumentId}:${sourceVersion}:${attachment.vdocKey}`,
-          }).orThrow();
-        }
-        await repositories.syncRequests.markActive(request.id);
-      }).orThrow();
+          const source = await repositories.sources.upsertCanonicalSource({
+            sourceSystem: SOURCE_SYSTEM,
+            sourceId: payload.sourceDocumentId,
+            sourceVersion,
+            readinessHash: required(document, "sourceHash"),
+            documentType: optional(document, "documentTypeKey") ??
+              payload.documentTypeKey,
+            supplierId: optional(document, "foodLogiqBusinessId") ?? null,
+            supplierName: optional(objectOrEmpty(document.supplier), "name") ??
+              null,
+            status: "ready",
+            payload: document,
+            sourceUpdatedAt: dateFrom(document.updatedAt),
+          });
+          if (
+            await repositories.sources.isApprovalRevoked(
+              source.sourceSystem,
+              source.sourceId,
+              source.sourceVersion,
+            )
+          ) return false;
+          const attachments = [];
+          for (const file of filesResult.entries as Record<string, unknown>[]) {
+            attachments.push(
+              await repositories.sources.upsertAttachment({
+                sourceSystem: SOURCE_SYSTEM,
+                sourceId: payload.sourceDocumentId,
+                sourceVersion,
+                vdocKey: required(file, "attachmentKey"),
+                byteReference: required(file, "id"),
+                contentType: optional(file, "contentType") ??
+                  "application/octet-stream",
+                fileName: optional(file, "fileName"),
+                sizeBytes: numberAsString(file, "byteLength"),
+                checksum: optional(file, "sha256"),
+                payload: file,
+              }),
+            );
+          }
+          const request = await repositories.syncRequests.createRequest({
+            sourceDocumentId: source.id,
+            requestKey: `source-event:${payload.correlationId}`,
+            requestedBy: "foodlogiq",
+            reason: "approved",
+            requestedVdocKeys: expectedVdocKeys(attachments),
+            provenance: { correlationId: payload.correlationId },
+          });
+          if (attachments.length === 0) {
+            await terminalizeEmptySourceRequest(
+              repositories.syncRequests,
+              request.id,
+            );
+            return true;
+          }
+          for (const attachment of attachments) {
+            await outboxJob.prepareDelivery.submit({
+              correlationId: payload.correlationId,
+              sourceDocumentId: payload.sourceDocumentId,
+              sourceVersionId: sourceVersion,
+              vdocKey: attachment.vdocKey,
+              idempotencyKey:
+                `prepare:${payload.sourceDocumentId}:${sourceVersion}:${attachment.vdocKey}`,
+            }).orThrow();
+          }
+          await repositories.syncRequests.markActive(request.id);
+          return true;
+        },
+      ).orThrow();
       return Result.ok({
-        loaded: true,
+        loaded: retained && filesResult.entries.length > 0,
         sourceDocumentId: payload.sourceDocumentId,
         documentTypeKey: payload.documentTypeKey,
         vdocCount: filesResult.entries.length,
@@ -424,6 +542,18 @@ function registerJobs(runtime: Runtime): void {
             payload.sourceVersionId,
           );
           if (!source) throw new Error("Source document is unavailable");
+          await repositories.sources.lockApprovalVersion(
+            source.sourceSystem,
+            source.sourceId,
+            source.sourceVersion,
+          );
+          if (
+            await repositories.sources.isApprovalRevoked(
+              source.sourceSystem,
+              source.sourceId,
+              source.sourceVersion,
+            )
+          ) return null;
           const attachment = await repositories.sources.getAttachment(
             source.id,
             payload.vdocKey,
@@ -434,6 +564,9 @@ function registerJobs(runtime: Runtime): void {
             requestKey: `source-event:${payload.correlationId}`,
             requestedBy: SOURCE_SYSTEM,
             reason: "approved",
+            requestedVdocKeys: expectedVdocKeys(
+              await repositories.sources.listAttachments(source.id),
+            ),
             provenance: { correlationId: payload.correlationId },
           });
           const delivery = await prepareDelivery({
@@ -446,17 +579,21 @@ function registerJobs(runtime: Runtime): void {
               "CWS_REPO is required",
             ),
             idempotencyKey: payload.idempotencyKey,
+            activate: runtime.config.writeMode === "enabled",
           });
-          await outboxJob.submitLaserfiche.submit({
-            correlationId: payload.correlationId,
-            sourceDocumentId: payload.sourceDocumentId,
-            deliveryId: delivery.id,
-            vdocKey: payload.vdocKey,
-            idempotencyKey: `submit:${delivery.id}`,
-          }).orThrow();
+          if (runtime.config.writeMode === "enabled") {
+            await outboxJob.submitLaserfiche.submit({
+              correlationId: payload.correlationId,
+              sourceDocumentId: payload.sourceDocumentId,
+              deliveryId: delivery.id,
+              vdocKey: payload.vdocKey,
+              idempotencyKey: `submit:${delivery.id}`,
+            }).orThrow();
+          }
           return delivery;
         },
       ).orThrow();
+      if (!result) return Result.ok({ prepared: false });
       return Result.ok({
         deliveryId: result.id,
         prepared: true,
@@ -475,59 +612,117 @@ function registerJobs(runtime: Runtime): void {
         payload.deliveryId,
       );
       if (!details) throw new Error("Delivery is unavailable");
-      const attachment = await repositories.sources.getAttachmentById(
-        details.delivery.sourceAttachmentId,
-      );
-      if (!attachment) throw new Error("Source attachment is unavailable");
-      const attachmentClient = await TrellisService.connect({
-        trellisUrl: runtime.config.trellisUrl,
-        contract,
-        name:
-          `${runtime.config.serviceName}-attachment-${payload.deliveryId}-${Date.now()}`,
-        sessionKeySeed: requiredConfig(
-          runtime.config.sessionKeySeed,
-          "TRELLIS_SESSION_KEY_SEED is required",
-        ),
-      }).orThrow();
-      let submitted;
-      try {
-        submitted = await submitDelivery({
-          writeMode: runtime.config.writeMode,
-          cws: new CwsAdapter(runtime.config),
-          attachmentClient,
-          repositories,
-          delivery: details.delivery,
-          attachment,
+      if (runtime.config.writeMode !== "enabled") {
+        await repositories.deliveries.deferSubmission(payload.deliveryId);
+        return Result.ok({ deferred: true });
+      }
+      if (
+        details.delivery.status === "completed" && details.delivery.entryId
+      ) {
+        return Result.ok({
+          laserficheEntryId: Number(details.delivery.entryId),
         });
-      } finally {
-        await attachmentClient.stop();
       }
-      await runtime.outbox.transaction(async ({ job: outboxJob }) => {
-        await outboxJob.finalizeDelivery.submit({
-          correlationId: payload.correlationId,
-          sourceDocumentId: payload.sourceDocumentId,
-          deliveryId: payload.deliveryId,
-          vdocKey: payload.vdocKey,
-          idempotencyKey: `finalize:${payload.deliveryId}`,
-        }).orThrow();
-      }).orThrow();
-      if (submitted.reviewRequired || submitted.entryId === undefined) {
-        return Result.err(noWriteError("Attachment requires review"));
-      }
-      await repositories.deliveries.finalize(payload.deliveryId, "completed", {
-        laserficheEntryId: submitted.entryId,
-        ...(submitted.cwsName ? { laserficheName: submitted.cwsName } : {}),
-        ...(submitted.cwsPath ? { laserfichePath: submitted.cwsPath } : {}),
-      });
-      await repositories.syncRequests.finalize(
-        details.delivery.syncRequestId,
-        "completed",
-        {
-          completedDeliveries: 1,
-        },
+      if (
+        await repositories.sources.isApprovalRevoked(
+          SOURCE_SYSTEM,
+          details.delivery.externalSourceDocumentId,
+          details.delivery.sourceVersion,
+        )
+      ) return Result.ok({ revoked: true });
+      const claimOwner = `${payload.idempotencyKey}:${crypto.randomUUID()}`;
+      const claimed = await repositories.deliveries.claimForSubmission(
+        payload.deliveryId,
+        claimOwner,
+        submissionLeaseUntil(),
       );
-      return Result.ok({ laserficheEntryId: submitted.entryId });
+      if (!claimed) {
+        return Result.ok({ deferred: true });
+      }
+      const lease = startSubmissionLease({
+        deliveryId: payload.deliveryId,
+        claimOwner,
+        renew: (deliveryId, owner, leaseUntil) =>
+          repositories.deliveries.renewSubmissionClaim(
+            deliveryId,
+            owner,
+            leaseUntil,
+          ),
+      });
+      try {
+        const attachment = await repositories.sources.getAttachmentById(
+          claimed.sourceAttachmentId,
+        );
+        if (!attachment) throw new Error("Source attachment is unavailable");
+        const attachmentClient = await TrellisService.connect({
+          trellisUrl: runtime.config.trellisUrl,
+          contract,
+          name:
+            `${runtime.config.serviceName}-attachment-${payload.deliveryId}-${Date.now()}`,
+          sessionKeySeed: requiredConfig(
+            runtime.config.sessionKeySeed,
+            "TRELLIS_SESSION_KEY_SEED is required",
+          ),
+        }).orThrow();
+        let submitted;
+        try {
+          submitted = await submitDelivery({
+            writeMode: runtime.config.writeMode,
+            cws: new CwsAdapter(runtime.config),
+            attachmentClient,
+            repositories,
+            delivery: claimed,
+            attachment,
+            claimOwner,
+            guard: lease.guard,
+          });
+        } finally {
+          await attachmentClient.stop();
+        }
+        if (submitted.reviewRequired || submitted.entryId === undefined) {
+          return Result.err(noWriteError("Attachment requires review"));
+        }
+        await lease.guard();
+        await repositories.deliveries.finalize(
+          payload.deliveryId,
+          "completed",
+          {
+            laserficheEntryId: submitted.entryId,
+            ...(submitted.cwsName ? { laserficheName: submitted.cwsName } : {}),
+            ...(submitted.cwsPath ? { laserfichePath: submitted.cwsPath } : {}),
+          },
+          claimOwner,
+        );
+        await repositories.syncRequests.finalizeFromDeliveries(
+          claimed.syncRequestId,
+        );
+        await runtime.outbox.transaction(async ({ job: outboxJob }) => {
+          await outboxJob.finalizeDelivery.submit({
+            correlationId: payload.correlationId,
+            sourceDocumentId: payload.sourceDocumentId,
+            deliveryId: payload.deliveryId,
+            vdocKey: payload.vdocKey,
+            idempotencyKey: `finalize:${payload.deliveryId}`,
+          }).orThrow();
+        }).orThrow();
+        return Result.ok({ laserficheEntryId: submitted.entryId });
+      } finally {
+        await lease.stop();
+        await repositories.deliveries.releaseSubmissionClaim(
+          payload.deliveryId,
+          claimOwner,
+        );
+      }
     } catch (error) {
+      if (error instanceof SubmissionFencedError) {
+        const details = await createRepositories(runtime.database).deliveries
+          .getDelivery(payload.deliveryId);
+        return Result.ok(
+          details?.delivery.status === "approval-revoked"
+            ? { revoked: true }
+            : { deferred: true },
+        );
+      }
       return Result.err(unexpectedError(error, "submitLaserfiche failed"));
     }
   });
@@ -544,9 +739,6 @@ function registerJobs(runtime: Runtime): void {
             details.delivery.status === "pending"
           ? "completed"
           : details.delivery.status;
-        if (status === "approval-revoked") {
-          throw new Error("Delivery approval was revoked");
-        }
         const delivery = await repositories.deliveries.finalize(
           payload.deliveryId,
           status,
@@ -567,7 +759,8 @@ function registerJobs(runtime: Runtime): void {
           | "completed"
           | "partial"
           | "failed"
-          | "review-required",
+          | "review-required"
+          | "approval-revoked",
         lifecycleEventId: `delivery:${result.id}`,
       });
     } catch (error) {
@@ -980,6 +1173,14 @@ function array(
   if (!Array.isArray(item)) throw new Error("Invalid source event");
   return item.map((entry) => objectOrEmpty(entry));
 }
+
+function expectedVdocKeys(
+  attachments: readonly { vdocKey: string }[],
+): string[] {
+  return [...new Set(attachments.map((attachment) => attachment.vdocKey))]
+    .sort();
+}
+
 function dateFrom(value: unknown): Date | null {
   return typeof value === "string" && !Number.isNaN(Date.parse(value))
     ? new Date(value)
@@ -1001,7 +1202,9 @@ function unexpectedError(error: unknown, fallback: string): UnexpectedError {
 }
 
 function sanitizedError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return error instanceof Error && error.message.startsWith("CWS")
+    ? "CWS request failed"
+    : "Operation failed";
 }
 
 async function payloadHash(value: unknown): Promise<string> {
@@ -1023,11 +1226,17 @@ async function hashPayload(payload: unknown): Promise<string> {
     (byte) => byte.toString(16).padStart(2, "0"),
   ).join("");
 }
-function deliveryStatus(
-  value: unknown,
-): "pending" | "active" | "completed" | "partial" | "failed" {
+function deliveryStatus(value: unknown):
+  | "pending"
+  | "active"
+  | "completed"
+  | "partial"
+  | "failed"
+  | "review-required"
+  | "approval-revoked" {
   return value === "pending" || value === "active" || value === "completed" ||
-      value === "partial"
+      value === "partial" || value === "review-required" ||
+      value === "approval-revoked"
     ? value
     : "failed";
 }

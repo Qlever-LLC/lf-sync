@@ -5,6 +5,10 @@ import contract from "../contracts/lf_sync.ts";
 import { connectPostgres, createRepositories } from "../db/mod.ts";
 import type { FoodLogiQAttachmentTransferClient } from "../domain/attachment_validation.ts";
 import { submitDelivery } from "../runtime/delivery_workflow.ts";
+import {
+  startSubmissionLease,
+  submissionLeaseUntil,
+} from "../runtime/submission_lease.ts";
 
 const apply = Deno.args.includes("--apply");
 const deliveryIds = values("--delivery-id");
@@ -92,36 +96,63 @@ try {
             continue;
           }
         }
+        if (failureReason || reviewCode) {
+          await db.execute(
+            `UPDATE deliveries
+              SET status = 'active', retry_count = 0, next_attempt_at = NULL, result = '{}'::jsonb,
+                  finished_at = NULL, updated_at = now()
+              WHERE id = $1
+                AND (
+                  submission_claimed_until IS NULL
+                  OR submission_claimed_until < now()
+                )
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM source_documents AS source
+                  JOIN source_approval_revocations AS revocation
+                    ON revocation.source_system = source.source_system
+                   AND revocation.source_id = source.source_id
+                   AND revocation.source_version = source.source_version
+                  WHERE source.id = deliveries.source_document_id
+                )`,
+            [deliveryId],
+          );
+        }
+        const claimOwner = `direct-drain:${crypto.randomUUID()}`;
+        const claimed = await repositories.deliveries.claimForSubmission(
+          deliveryId,
+          claimOwner,
+          submissionLeaseUntil(),
+        );
+        if (!claimed) {
+          skipped += 1;
+          continue;
+        }
+        const lease = startSubmissionLease({
+          deliveryId,
+          claimOwner,
+          renew: (id, owner, leaseUntil) =>
+            repositories.deliveries.renewSubmissionClaim(id, owner, leaseUntil),
+        });
         try {
-          if (failureReason || reviewCode) {
-            await db.execute(
-              `UPDATE deliveries
-             SET status = 'active', retry_count = 0, next_attempt_at = NULL, result = '{}'::jsonb,
-                 finished_at = NULL, updated_at = now()
-             WHERE id = $1`,
-              [deliveryId],
-            );
-          }
           const result = await submitDelivery({
             writeMode: config.writeMode,
             cws,
             attachmentClient: attachmentClient!,
             repositories,
-            delivery: details.delivery,
+            delivery: claimed,
             attachment,
+            claimOwner,
+            guard: lease.guard,
           });
           if (!result.reviewRequired && result.entryId !== undefined) {
             await repositories.deliveries.finalize(deliveryId, "completed", {
               laserficheEntryId: result.entryId,
               ...(result.cwsName ? { laserficheName: result.cwsName } : {}),
               ...(result.cwsPath ? { laserfichePath: result.cwsPath } : {}),
-            });
-            await repositories.syncRequests.finalize(
-              details.delivery.syncRequestId,
-              "completed",
-              {
-                completedDeliveries: 1,
-              },
+            }, claimOwner);
+            await repositories.syncRequests.finalizeFromDeliveries(
+              claimed.syncRequestId,
             ).catch((error) => {
               console.warn(JSON.stringify({
                 event: "sync-request-finalize-skipped",
@@ -155,6 +186,12 @@ try {
               deliveryId,
               error: error instanceof Error ? error.message : String(error),
             }),
+          );
+        } finally {
+          await lease.stop();
+          await repositories.deliveries.releaseSubmissionClaim(
+            deliveryId,
+            claimOwner,
           );
         }
       }

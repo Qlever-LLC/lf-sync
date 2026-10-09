@@ -597,7 +597,9 @@ export const LfSyncSubmitLaserficheJobPayloadSchema = Type.Object({
 }, { additionalProperties: false });
 
 export const LfSyncSubmitLaserficheJobResultSchema = Type.Object({
-  laserficheEntryId: Type.Integer({ minimum: 1 }),
+  laserficheEntryId: Type.Optional(Type.Integer({ minimum: 1 })),
+  deferred: Type.Optional(Type.Boolean()),
+  revoked: Type.Optional(Type.Boolean()),
 }, { additionalProperties: false });
 
 export const LfSyncFinalizeDeliveryJobPayloadSchema = Type.Object({
@@ -615,6 +617,7 @@ export const LfSyncFinalizeDeliveryJobResultSchema = Type.Object({
     Type.Literal("partial"),
     Type.Literal("failed"),
     Type.Literal("review-required"),
+    Type.Literal("approval-revoked"),
   ]),
   lifecycleEventId: IdSchema,
 }, { additionalProperties: false });

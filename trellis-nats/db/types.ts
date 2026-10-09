@@ -74,6 +74,7 @@ export interface SourceAttachmentRecord extends Record<string, unknown> {
 
 export interface DeliveryContentInput {
   deliveryId: DbId;
+  claimOwner?: string;
   directoryId: DbId;
   sha256: string;
   byteLength: string;
@@ -153,6 +154,7 @@ export interface DeliveryRecord extends Record<string, unknown> {
   result: JsonObject | null;
   byteLength: string | null;
   entryId: DbId | null;
+  uploadCompletedAt: Date | null;
   retryCount: number;
   maxAttempts: number;
   nextAttemptAt: Date | null;

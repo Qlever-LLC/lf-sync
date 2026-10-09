@@ -15,10 +15,16 @@ const limit = limitArg("--limit", 100);
 const apply = Deno.args.includes("--apply");
 const skipExistingSource = Deno.args.includes("--skip-existing-source");
 const foodlogiqDatabaseUrl = Deno.env.get("FOODLOGIQ_DATABASE_URL");
-if (!foodlogiqDatabaseUrl) throw new Error("FOODLOGIQ_DATABASE_URL is required");
+if (!foodlogiqDatabaseUrl) {
+  throw new Error("FOODLOGIQ_DATABASE_URL is required");
+}
 
 const lf = connectPostgres(config.databaseUrl, { max: 2 });
-const fl = postgres(foodlogiqDatabaseUrl, { max: 2, idle_timeout: 20, connect_timeout: 10 });
+const fl = postgres(foodlogiqDatabaseUrl, {
+  max: 2,
+  idle_timeout: 20,
+  connect_timeout: 10,
+});
 
 try {
   const rows = await readinessRows(fl, { documentType, limit });
@@ -28,12 +34,25 @@ try {
   for (const row of rows) {
     inspected += 1;
     if (inspected === 1 || inspected % 100 === 0) {
-      console.log(JSON.stringify({ event: "progress", inspected, total: rows.length, apply }));
+      console.log(
+        JSON.stringify({
+          event: "progress",
+          inspected,
+          total: rows.length,
+          apply,
+        }),
+      );
     }
     const event = readinessEvent(row);
     if (!event) {
       skipped += 1;
-      console.log(JSON.stringify({ event: "skip", reason: "not-ready", sourceDocumentId: row.sourceDocumentId }));
+      console.log(
+        JSON.stringify({
+          event: "skip",
+          reason: "not-ready",
+          sourceDocumentId: row.sourceDocumentId,
+        }),
+      );
       continue;
     }
     if (!apply) {
@@ -57,8 +76,20 @@ try {
       }
     }
     try {
-      await lf.transaction(async (tx) => {
+      const retained = await lf.transaction(async (tx) => {
         const repositories = createRepositories(tx);
+        await repositories.sources.lockApprovalVersion(
+          SOURCE_SYSTEM,
+          event.sourceDocumentId,
+          event.sourceVersionId,
+        );
+        if (
+          await repositories.sources.isApprovalRevoked(
+            SOURCE_SYSTEM,
+            event.sourceDocumentId,
+            event.sourceVersionId,
+          )
+        ) return false;
         const source = await repositories.sources.upsertCanonicalSource({
           sourceSystem: SOURCE_SYSTEM,
           sourceId: event.sourceDocumentId,
@@ -75,25 +106,35 @@ try {
         });
         const retainedAttachments = [];
         for (const attachment of event.attachments) {
-          retainedAttachments.push(await repositories.sources.upsertAttachment({
-            sourceSystem: SOURCE_SYSTEM,
-            sourceId: event.sourceDocumentId,
-            sourceVersion: event.sourceVersionId,
-            vdocKey: attachment.attachmentId,
-            byteReference: attachment.attachmentId,
-            contentType: attachment.contentType ?? "application/octet-stream",
-            fileName: attachment.fileName,
-            sizeBytes: attachment.byteLength === undefined ? null : String(attachment.byteLength),
-            checksum: attachment.sha256,
-            payload: attachment as unknown as JsonObject,
-            provenance: { materializedFrom: "foodlogiq_document_attachments" },
-          }));
+          retainedAttachments.push(
+            await repositories.sources.upsertAttachment({
+              sourceSystem: SOURCE_SYSTEM,
+              sourceId: event.sourceDocumentId,
+              sourceVersion: event.sourceVersionId,
+              vdocKey: attachment.attachmentId,
+              byteReference: attachment.attachmentId,
+              contentType: attachment.contentType ?? "application/octet-stream",
+              fileName: attachment.fileName,
+              sizeBytes: attachment.byteLength === undefined
+                ? null
+                : String(attachment.byteLength),
+              checksum: attachment.sha256,
+              payload: attachment as unknown as JsonObject,
+              provenance: {
+                materializedFrom: "foodlogiq_document_attachments",
+              },
+            }),
+          );
         }
         const request = await repositories.syncRequests.createRequest({
           sourceDocumentId: source.id,
-          requestKey: `materialized-readiness:${event.sourceDocumentId}:${event.sourceVersionId}:${event.archiveReadiness.readinessHash}`,
+          requestKey:
+            `materialized-readiness:${event.sourceDocumentId}:${event.sourceVersionId}:${event.archiveReadiness.readinessHash}`,
           requestedBy: "foodlogiq-materializer",
           reason: "reconcile-existing-laserfiche",
+          requestedVdocKeys: retainedAttachments.map((attachment) =>
+            attachment.vdocKey
+          ).sort(),
           provenance: { materializedFrom: "foodlogiq_readiness_publications" },
         });
         let preparedDeliveries = 0;
@@ -104,13 +145,23 @@ try {
             attachment,
             syncRequestId: request.id,
             repository,
-            idempotencyKey: `materialized:${event.sourceDocumentId}:${event.sourceVersionId}:${attachment.vdocKey}`,
+            idempotencyKey:
+              `materialized:${event.sourceDocumentId}:${event.sourceVersionId}:${attachment.vdocKey}`,
           });
           preparedDeliveries += 1;
         }
-        if (preparedDeliveries === 0) throw new Error(`No deliveries prepared for ${event.sourceDocumentId}`);
+        if (preparedDeliveries === 0) {
+          throw new Error(
+            `No deliveries prepared for ${event.sourceDocumentId}`,
+          );
+        }
         await repositories.syncRequests.markActive(request.id);
+        return true;
       });
+      if (!retained) {
+        skipped += 1;
+        continue;
+      }
       materialized += 1;
     } catch (error) {
       skipped += 1;
@@ -122,7 +173,15 @@ try {
       }));
     }
   }
-  console.log(JSON.stringify({ event: "complete", apply, inspected, materialized, skipped }));
+  console.log(
+    JSON.stringify({
+      event: "complete",
+      apply,
+      inspected,
+      materialized,
+      skipped,
+    }),
+  );
 } finally {
   await fl.end({ timeout: 5 });
   await lf.close();
@@ -160,9 +219,16 @@ type ReadinessRow = DatabaseRow & {
   }>;
 };
 
-async function readinessRows(sql: postgres.Sql, options: { documentType: string; limit: number }): Promise<ReadinessRow[]> {
-  const limitClause = Number.isFinite(options.limit) ? sql`limit ${options.limit}` : sql``;
-  const typeClause = options.documentType ? sql`and d.foodlogiq_type_name = ${options.documentType}` : sql``;
+async function readinessRows(
+  sql: postgres.Sql,
+  options: { documentType: string; limit: number },
+): Promise<ReadinessRow[]> {
+  const limitClause = Number.isFinite(options.limit)
+    ? sql`limit ${options.limit}`
+    : sql``;
+  const typeClause = options.documentType
+    ? sql`and d.foodlogiq_type_name = ${options.documentType}`
+    : sql``;
   const rows = await sql<ReadinessRow[]>`
     select rp.source_document_id as "sourceDocumentId",
            rp.source_version_id as "sourceVersionId",
@@ -214,18 +280,28 @@ async function readinessRows(sql: postgres.Sql, options: { documentType: string;
 
 function readinessEvent(row: ReadinessRow) {
   if (row.approvalStatus !== "Approved") return null;
-  if (!row.foodlogiqBusinessId || !row.supplierName || !row.foodlogiqTypeName) return null;
-  const attachments = row.attachments.filter((attachment: ReadinessRow["attachments"][number]) =>
-    attachment.id && attachment.fileName && attachment.sha256 && attachment.storeKey
+  if (!row.foodlogiqBusinessId || !row.supplierName || !row.foodlogiqTypeName) {
+    return null;
+  }
+  const attachments = row.attachments.filter((
+    attachment: ReadinessRow["attachments"][number],
+  ) =>
+    attachment.id && attachment.fileName && attachment.sha256 &&
+    attachment.storeKey
   ).map((attachment: ReadinessRow["attachments"][number]) => ({
     attachmentId: attachment.id,
     fileName: attachment.fileName!,
     sha256: attachment.sha256!,
     ...(attachment.contentType ? { contentType: attachment.contentType } : {}),
-    ...(attachment.byteLength === null ? {} : { byteLength: attachment.byteLength }),
+    ...(attachment.byteLength === null
+      ? {}
+      : { byteLength: attachment.byteLength }),
   }));
   if (attachments.length === 0) return null;
-  const approvalChangedAt = isoDateTime(row.versionStatusSetAt ?? row.versionChangedAt ?? row.submittedAt ?? row.updatedAt);
+  const approvalChangedAt = isoDateTime(
+    row.versionStatusSetAt ?? row.versionChangedAt ?? row.submittedAt ??
+      row.updatedAt,
+  );
   const rawSource = row.rawSource as Record<string, unknown> | null;
   return {
     sourceDocumentId: row.sourceDocumentId,
@@ -247,13 +323,20 @@ function readinessEvent(row: ReadinessRow) {
       supplier: {
         id: row.foodlogiqBusinessId,
         name: row.supplierName,
-        ...(row.supplierAddressText ? { addressText: row.supplierAddressText } : {}),
+        ...(row.supplierAddressText
+          ? { addressText: row.supplierAddressText }
+          : {}),
       },
       document: {
         ...(row.documentName ? { documentName: row.documentName } : {}),
         documentTypeName: row.foodlogiqTypeName,
-        documentDate: isoDate(row.effectiveDate) ?? isoDateTime(row.submittedAt) ?? approvalChangedAt,
-        ...(row.expirationDate ? { expirationDate: isoDate(row.expirationDate) ?? row.expirationDate } : {}),
+        documentDate: isoDate(row.effectiveDate) ??
+          isoDateTime(row.submittedAt) ?? approvalChangedAt,
+        ...(row.expirationDate
+          ? {
+            expirationDate: isoDate(row.expirationDate) ?? row.expirationDate,
+          }
+          : {}),
         ...optionalArray("products", namesFromValue(rawSource?.products)),
         ...optionalArray("locations", namesFromValue(rawSource?.locations)),
         ...optionalString("ticketSystem", stringValue(rawSource?.ticketSystem)),
@@ -282,11 +365,17 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
-function optionalArray(name: "products" | "locations", value: string[] | undefined): Record<string, string[]> {
+function optionalArray(
+  name: "products" | "locations",
+  value: string[] | undefined,
+): Record<string, string[]> {
   return value && value.length > 0 ? { [name]: value } : {};
 }
 
-function optionalString(name: "ticketSystem" | "ticketId", value: string | undefined): Record<string, string> {
+function optionalString(
+  name: "ticketSystem" | "ticketId",
+  value: string | undefined,
+): Record<string, string> {
   return value ? { [name]: value } : {};
 }
 
@@ -294,7 +383,9 @@ function isoDateTime(value: string | null | undefined): string {
   if (!value) throw new Error("A FoodLogiQ readiness timestamp is required");
   if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return value;
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.valueOf())) throw new Error(`Invalid FoodLogiQ timestamp: ${value}`);
+  if (Number.isNaN(parsed.valueOf())) {
+    throw new Error(`Invalid FoodLogiQ timestamp: ${value}`);
+  }
   return parsed.toISOString();
 }
 
@@ -314,6 +405,8 @@ function limitArg(name: string, fallback: number): number {
   const value = stringArg(name, String(fallback));
   if (value === "all" || value === "unlimited") return Number.POSITIVE_INFINITY;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) throw new Error(`${name} must be a positive integer or 'all'`);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${name} must be a positive integer or 'all'`);
+  }
   return parsed;
 }

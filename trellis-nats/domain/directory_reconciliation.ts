@@ -14,16 +14,24 @@ export interface DirectoryMappingStore {
 
 /** Reconciles a canonical CWS path and persists every segment's verified entry ID. */
 export async function reconcileDirectory(
-  cws: { ensureDirectory(path: string): Promise<CwsDirectory> },
+  cws: {
+    ensureDirectory(
+      path: string,
+      guard?: () => Promise<void>,
+    ): Promise<CwsDirectory>;
+  },
   directories: DirectoryMappingStore,
   repository: string,
   canonicalPath: string,
+  guard?: () => Promise<void>,
 ): Promise<{ directoryId: string; cwsEntryId: string }> {
-  const resolved = await cws.ensureDirectory(canonicalPath);
+  await guard?.();
+  const resolved = await cws.ensureDirectory(canonicalPath, guard);
   let parentDirectoryId: string | null = null;
   let currentPath = "";
   let final: { id: string; cwsEntryId: string } | undefined;
   for (const entry of resolved.entries) {
+    await guard?.();
     currentPath += `/${entry.name}`;
     const record = await directories.upsertVerified({
       repository,
@@ -36,6 +44,8 @@ export async function reconcileDirectory(
     parentDirectoryId = record.id;
     final = { id: record.id, cwsEntryId: String(entry.entryId) };
   }
-  if (!final) throw new Error("CWS directory reconciliation returned no entries");
+  if (!final) {
+    throw new Error("CWS directory reconciliation returned no entries");
+  }
   return { directoryId: final.id, cwsEntryId: final.cwsEntryId };
 }

@@ -4,6 +4,7 @@ import { hasCwsConfig, loadConfig } from "./config.ts";
 import contract from "./contracts/lf_sync.ts";
 import {
   connectPostgres,
+  createRepositories,
   type QueryExecutor,
 } from "./db/mod.ts";
 import deno from "./deno.json" with { type: "json" };
@@ -30,6 +31,7 @@ void runCwsSmoke();
 
 const database = connectPostgres(config.databaseUrl);
 try {
+  await createRepositories(database).health.health();
   databaseStatus = "connected";
 } catch (error) {
   databaseStatus = "failed";
@@ -93,7 +95,17 @@ function startHealthServer(): void {
     const url = new URL(request.url);
     if (url.pathname === "/healthz") return json(statusPayload(true));
     if (url.pathname === "/readyz") {
-      const ready = databaseStatus === "connected" &&
+      let databaseReady = false;
+      try {
+        await createRepositories(database).health.health();
+        databaseStatus = "connected";
+        databaseError = undefined;
+        databaseReady = true;
+      } catch (error) {
+        databaseStatus = "failed";
+        databaseError = sanitizedError(error);
+      }
+      const ready = databaseReady &&
         (!config.trellisConnect || trellisConnected);
       return json(statusPayload(ready), ready ? 200 : 503);
     }

@@ -98,6 +98,26 @@ export async function importMappings(
         continue;
       }
       const mapping = candidate.mapping;
+      await repositories.sources.lockApprovalVersion(
+        mapping.sourceSystem,
+        mapping.sourceId,
+        mapping.sourceVersion,
+      );
+      if (
+        await repositories.sources.isApprovalRevoked(
+          mapping.sourceSystem,
+          mapping.sourceId,
+          mapping.sourceVersion,
+        )
+      ) {
+        output.push({
+          candidateKey: candidate.candidateKey,
+          status: "skipped",
+          classification: "manual-review",
+          reason: "Source approval was revoked before historical import.",
+        });
+        continue;
+      }
       const source = await repositories.sources.upsertCanonicalSource({
         sourceSystem: mapping.sourceSystem,
         sourceId: mapping.sourceId,

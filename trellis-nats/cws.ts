@@ -41,10 +41,12 @@ export class CwsError extends Error {
   constructor(
     readonly operation: string,
     readonly statusCode?: number,
-    readonly responseBody?: string,
   ) {
-    const body = responseBody?.trim();
-    super(`${operation} failed${statusCode === undefined ? "" : ` (${statusCode})`}${body ? `: ${body.slice(0, 1000)}` : ""}`);
+    super(
+      `${operation} failed${
+        statusCode === undefined ? "" : ` (${statusCode})`
+      }`,
+    );
   }
 }
 
@@ -78,7 +80,12 @@ export class CwsAdapter {
   }
 
   async retrieveEntryById(entryId: number): Promise<CwsEntry> {
-    return entry(await this.request("RetrieveEntry", this.url(`api/RetrieveEntry/${entryId}`)));
+    return entry(
+      await this.request(
+        "RetrieveEntry",
+        this.url(`api/RetrieveEntry/${entryId}`),
+      ),
+    );
   }
 
   async browse(path: string): Promise<CwsEntry[]> {
@@ -94,7 +101,12 @@ export class CwsAdapter {
   }
 
   async folderContents(entryId: number): Promise<CwsEntry[]> {
-    return entries(await this.request("FolderContents", this.url(`api/folders/${entryId}/contents`)));
+    return entries(
+      await this.request(
+        "FolderContents",
+        this.url(`api/folders/${entryId}/contents`),
+      ),
+    );
   }
 
   async retrieveDocument(entryId: number): Promise<CwsEntry> {
@@ -115,23 +127,33 @@ export class CwsAdapter {
     url.searchParams.set("LaserficheEntryId", String(entryId));
     const raw = await (await this.request("GetMetadata", url)).json() as {
       TemplateName?: string;
-      LaserficheFieldList?: Array<{ Name?: string; Value?: string; Values?: string[] }>;
+      LaserficheFieldList?: Array<
+        { Name?: string; Value?: string; Values?: string[] }
+      >;
     };
     return {
       ...(raw.TemplateName ? { templateName: raw.TemplateName } : {}),
       fields: (raw.LaserficheFieldList ?? []).flatMap((field) =>
         field.Name
-          ? [{ name: field.Name, values: field.Values ?? (field.Value === undefined ? [] : [field.Value]) }]
+          ? [{
+            name: field.Name,
+            values: field.Values ??
+              (field.Value === undefined ? [] : [field.Value]),
+          }]
           : []
       ),
     };
   }
 
   async searchEntries(phrase: string): Promise<CwsSearchHit[]> {
-    const raw = await (await this.request("SearchEntries", this.url("api/SearchEntries"), {
-      method: "POST",
-      json: { LaserficheSearchPhrase: phrase },
-    })).json() as Array<{ EntryId?: number }>;
+    const raw = await (await this.request(
+      "SearchEntries",
+      this.url("api/SearchEntries"),
+      {
+        method: "POST",
+        json: { LaserficheSearchPhrase: phrase },
+      },
+    )).json() as Array<{ EntryId?: number }>;
     return raw.flatMap((hit) =>
       typeof hit.EntryId === "number" && Number.isInteger(hit.EntryId)
         ? [{ entryId: hit.EntryId }]
@@ -139,7 +161,10 @@ export class CwsAdapter {
     );
   }
 
-  async ensureDirectory(canonicalPath: string): Promise<CwsDirectory> {
+  async ensureDirectory(
+    canonicalPath: string,
+    guard?: () => Promise<void>,
+  ): Promise<CwsDirectory> {
     const segments = canonicalPath.split("/").filter(Boolean);
     if (segments.length === 0) throw new Error("Directory path is required");
     const entries: CwsEntry[] = [];
@@ -147,44 +172,62 @@ export class CwsAdapter {
     let currentPath = "";
     for (const segment of segments) {
       currentPath += `/${segment}`;
-      const existing = (await this.folderContents(parent.entryId)).find((entry) =>
-        entry.type.toLowerCase() === "folder" && entry.name === segment
-      );
+      const existing = (await this.folderContents(parent.entryId)).find((
+        entry,
+      ) => entry.type.toLowerCase() === "folder" && entry.name === segment);
       if (existing) {
         entries.push(existing);
         parent = existing;
         continue;
       }
-      const created = await this.createFolder(currentPath);
+      const created = await this.createFolder(currentPath, guard);
+      await guard?.();
       entries.push(created);
       parent = created;
     }
     return { canonicalPath, entries };
   }
 
-  async createFolder(path: string): Promise<CwsEntry> {
+  async createFolder(
+    path: string,
+    guard?: () => Promise<void>,
+  ): Promise<CwsEntry> {
     this.requireWrite("CreateFolder");
-    const created = await entryId(await this.request("CreateFolder", this.url("api/CreateFolder"), {
-      method: "POST",
-      json: { LaserficheFolderPath: cwsPath(path) },
-    }));
+    await guard?.();
+    const created = await entryId(
+      await this.request("CreateFolder", this.url("api/CreateFolder"), {
+        method: "POST",
+        json: { LaserficheFolderPath: cwsPath(path) },
+        retryGuard: guard,
+      }),
+    );
     return await this.retrieveEntryById(created);
   }
 
-  async createDocument(input: CwsDocumentInput): Promise<CwsEntry> {
+  async createDocument(
+    input: CwsDocumentInput,
+    guard?: () => Promise<void>,
+  ): Promise<CwsEntry> {
     this.requireWrite("CreateDocument");
+    await guard?.();
     const form = new FormData();
-    form.set("Parameters", JSON.stringify({
-      LaserficheFolderPath: cwsPath(input.directoryPath),
-      LaserficheDocumentName: input.name,
-      LaserficheVolumeName: input.volume ?? "Default",
-      LaserficheTemplateName: input.template,
-      LaserficheFieldList: fields(input.metadata),
-    }));
-    const created = await entryId(await this.request("CreateDocument", this.url("api/CreateDocument"), {
-      method: "POST",
-      body: form,
-    }));
+    form.set(
+      "Parameters",
+      JSON.stringify({
+        LaserficheFolderPath: cwsPath(input.directoryPath),
+        LaserficheDocumentName: input.name,
+        LaserficheVolumeName: input.volume ?? "Default",
+        LaserficheTemplateName: input.template,
+        LaserficheFieldList: fields(input.metadata),
+      }),
+    );
+    const created = await entryId(
+      await this.request("CreateDocument", this.url("api/CreateDocument"), {
+        method: "POST",
+        body: form,
+        retryGuard: guard,
+      }),
+    );
     return await this.retrieveEntryById(created);
   }
 
@@ -196,24 +239,32 @@ export class CwsAdapter {
     const form = new FormData();
     form.set("DocumentName", name);
     if (metadata) form.set("Metadata", JSON.stringify(metadata));
-    return entry(await this.request("CreateGenericDocument", this.url("api/CreateGenericDocument"), {
-      method: "POST",
-      body: form,
-    }));
+    return entry(
+      await this.request(
+        "CreateGenericDocument",
+        this.url("api/CreateGenericDocument"),
+        {
+          method: "POST",
+          body: form,
+        },
+      ),
+    );
   }
 
   async uploadBuffer(
     entryId: number,
     extension: string,
     bytes: Uint8Array,
+    guard?: () => Promise<void>,
   ): Promise<void> {
     this.requireWrite("UploadDocument");
+    await guard?.();
     const body = new Uint8Array(bytes.length);
     body.set(bytes);
     await this.request(
       "UploadDocument",
       this.url(`api/Document/${entryId}/${extension}`),
-      { method: "PUT", body: body.buffer },
+      { method: "PUT", body: body.buffer, retryGuard: guard },
     );
   }
 
@@ -233,11 +284,17 @@ export class CwsAdapter {
     });
   }
 
-  async moveEntry(entryId: number, destinationParentPath: string): Promise<void> {
+  async moveEntry(
+    entryId: number,
+    destinationParentPath: string,
+  ): Promise<void> {
     this.requireWrite("MoveEntry");
     await this.request("MoveEntry", this.url("api/Entry/Move"), {
       method: "PUT",
-      json: { LaserficheEntryID: entryId, DestinationParentPath: cwsPath(destinationParentPath) },
+      json: {
+        LaserficheEntryID: entryId,
+        DestinationParentPath: cwsPath(destinationParentPath),
+      },
     });
   }
 
@@ -259,7 +316,9 @@ export class CwsAdapter {
 
   async indexEntry(entryId: number): Promise<void> {
     this.requireWrite("IndexEntry");
-    await this.request("IndexEntry", this.url(`api/Entry/${entryId}/index`), { method: "PUT" });
+    await this.request("IndexEntry", this.url(`api/Entry/${entryId}/index`), {
+      method: "PUT",
+    });
   }
 
   async migrateEntry(entryId: number, volume: string): Promise<void> {
@@ -294,14 +353,21 @@ export class CwsAdapter {
     });
   }
 
-  async uploadChunk(entryId: number, offset: number, bytes: Uint8Array): Promise<void> {
+  async uploadChunk(
+    entryId: number,
+    offset: number,
+    bytes: Uint8Array,
+  ): Promise<void> {
     this.requireWrite("UploadChunk");
     const url = this.url("api/UploadChunk");
     url.searchParams.set("laserficheEntryID", String(entryId));
     url.searchParams.set("offset", String(offset));
     const body = new Uint8Array(bytes.length);
     body.set(bytes);
-    await this.request("UploadChunk", url, { method: "POST", body: body.buffer });
+    await this.request("UploadChunk", url, {
+      method: "POST",
+      body: body.buffer,
+    });
   }
 
   async completeChunkedUpload(entryId: number): Promise<void> {
@@ -314,13 +380,20 @@ export class CwsAdapter {
 
   private requireWrite(operation: string): void {
     if (this.config.writeMode === "enabled") return;
-    throw new CwsError(`${operation} is not permitted while LF_SYNC_WRITE_MODE=${this.config.writeMode}`);
+    throw new CwsError(
+      `${operation} is not permitted while LF_SYNC_WRITE_MODE=${this.config.writeMode}`,
+    );
   }
 
   private async request(
     operation: string,
     url: URL,
-    options: { method?: string; json?: unknown; body?: BodyInit } = {},
+    options: {
+      method?: string;
+      json?: unknown;
+      body?: BodyInit;
+      retryGuard?: () => Promise<void>;
+    } = {},
     retrying = false,
   ): Promise<Response> {
     const token = await this.getToken();
@@ -328,25 +401,32 @@ export class CwsAdapter {
       method: options.method,
       headers: {
         authorization: token,
-        ...(options.json === undefined ? {} : { "content-type": "application/json" }),
+        ...(options.json === undefined
+          ? {}
+          : { "content-type": "application/json" }),
       },
-      ...(options.json === undefined ? { body: options.body } : { body: JSON.stringify(options.json) }),
+      ...(options.json === undefined
+        ? { body: options.body }
+        : { body: JSON.stringify(options.json) }),
       signal: AbortSignal.timeout(this.config.cwsTimeoutMs),
     });
     if (response.status === 401 && !retrying) {
       this.token = undefined;
+      await options.retryGuard?.();
       return await this.request(operation, url, options, true);
     }
     if (!response.ok) {
-      const body = await response.clone().text().catch(() => undefined);
-      throw new CwsError(operation, response.status, body);
+      throw new CwsError(operation, response.status);
     }
     return response;
   }
 
   private async getToken(): Promise<string> {
     if (this.token) return this.token;
-    if (!this.config.cwsApi || !this.config.cwsRepo || !this.config.cwsUser || !this.config.cwsPassword) {
+    if (
+      !this.config.cwsApi || !this.config.cwsRepo || !this.config.cwsUser ||
+      !this.config.cwsPassword
+    ) {
       throw new CwsError("CWS configuration is incomplete");
     }
     const auth = btoa(JSON.stringify({
@@ -355,15 +435,18 @@ export class CwsAdapter {
       password: this.config.cwsPassword,
       serverName: this.config.cwsServer,
     }));
-    const response = await this.fetchFn(this.url("api/ConnectionToLaserfiche"), {
-      method: "POST",
-      headers: {
-        authorization: `basic ${auth}`,
-        "content-type": "application/x-www-form-urlencoded",
+    const response = await this.fetchFn(
+      this.url("api/ConnectionToLaserfiche"),
+      {
+        method: "POST",
+        headers: {
+          authorization: `basic ${auth}`,
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ grant_type: "password" }),
+        signal: AbortSignal.timeout(this.config.cwsTimeoutMs),
       },
-      body: new URLSearchParams({ grant_type: "password" }),
-      signal: AbortSignal.timeout(this.config.cwsTimeoutMs),
-    });
+    );
     if (!response.ok) throw new CwsError("CWS login", response.status);
     const body = await response.json() as CwsTokenResponse;
     this.token = `${body.token_type} ${body.access_token}`;
@@ -371,7 +454,9 @@ export class CwsAdapter {
   }
 
   private url(path: string): URL {
-    if (!this.config.cwsApi) throw new CwsError("CWS configuration is incomplete");
+    if (!this.config.cwsApi) {
+      throw new CwsError("CWS configuration is incomplete");
+    }
     return new URL(path, this.config.cwsApi);
   }
 }
@@ -399,11 +484,14 @@ function entry(response: Response): Promise<CwsEntry> {
     const raw = value as CwsEntryResponse;
     const entryId = raw.EntryId ?? raw.LaserficheEntryID;
     if (
-      typeof entryId !== "number" || !Number.isInteger(entryId) || entryId < 1 ||
+      typeof entryId !== "number" || !Number.isInteger(entryId) ||
+      entryId < 1 ||
       !raw.Name || !raw.Type || !raw.Path
     ) {
       throw new CwsError(
-        `CWS returned an invalid entry response (keys: ${Object.keys(raw).sort().join(",")})`,
+        `CWS returned an invalid entry response (keys: ${
+          Object.keys(raw).sort().join(",")
+        })`,
       );
     }
     return { entryId, name: raw.Name, type: raw.Type, path: raw.Path };
@@ -421,7 +509,9 @@ async function entryId(response: Response): Promise<number> {
 
 function entries(response: Response): Promise<CwsEntry[]> {
   return response.json().then((value) => {
-    if (!Array.isArray(value)) throw new CwsError("CWS returned an invalid entry list");
+    if (!Array.isArray(value)) {
+      throw new CwsError("CWS returned an invalid entry list");
+    }
     return Promise.all(value.map((item) => entry(Response.json(item))));
   });
 }

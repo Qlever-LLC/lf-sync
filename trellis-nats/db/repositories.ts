@@ -144,7 +144,8 @@ const DELIVERY_COLUMNS = `
   sd.payload #> '{syncProvenance}' AS "syncProvenance",
   d.result,
   COALESCE(d.bytes, sa.size_bytes)::text AS "byteLength",
-  em.entry_id::text AS "entryId",
+  COALESCE(em.entry_id, d.cws_entry_id)::text AS "entryId",
+  d.upload_completed_at AS "uploadCompletedAt",
   d.retry_count AS "retryCount",
   d.max_attempts AS "maxAttempts",
   d.next_attempt_at AS "nextAttemptAt",
@@ -369,6 +370,7 @@ export interface DeliveryInput {
 
 export interface DeliveryAttemptInput {
   deliveryId: DbId;
+  claimOwner?: string;
   stage: string;
   attemptNumber: number;
   outcome: AttemptOutcome;
@@ -383,6 +385,7 @@ export interface DeliveryAttemptInput {
 export interface FailureInput {
   syncRequestId?: DbId | null;
   deliveryId?: DbId | null;
+  claimOwner?: string;
   sourceDocumentId?: DbId | null;
   stage: string;
   failureClass: FailureClass;
@@ -397,6 +400,7 @@ export interface FailureInput {
 
 export interface EntryMappingInput {
   deliveryId: DbId;
+  claimOwner?: string;
   entryId: DbId;
   provenance?: JsonObject;
 }
@@ -450,6 +454,13 @@ export interface ApprovalRevokedInput {
   result?: JsonObject;
 }
 
+export interface ApprovalRevocationInput extends ApprovalRevokedInput {
+  eventId: string;
+  reason: string;
+  revokedAt?: Date;
+  provenance?: JsonObject;
+}
+
 export interface InboxEventInput {
   consumer: string;
   eventId: string;
@@ -466,6 +477,7 @@ export interface InboxReceipt {
 
 export interface HealthResult {
   ok: true;
+  migrationReady: true;
   databaseName: string;
   serverVersion: string;
   databaseTime: Date;
@@ -483,16 +495,49 @@ export class HealthRepository {
           databaseName: string;
           serverVersion: string;
           databaseTime: Date;
+          migrationReady: boolean;
         } & Record<string, unknown>
       >(`
       SELECT
         current_database() AS "databaseName",
         current_setting('server_version') AS "serverVersion",
-        now() AS "databaseTime"
+        now() AS "databaseTime",
+        (
+          to_regclass('source_approval_revocations') IS NOT NULL
+          AND (
+            SELECT count(*) = 10
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND (
+                (
+                  table_name = 'deliveries'
+                  AND column_name = ANY (ARRAY[
+                    'upload_completed_at',
+                    'submission_claim_owner',
+                    'submission_claimed_until'
+                  ])
+                ) OR (
+                  table_name = 'source_approval_revocations'
+                  AND column_name = ANY (ARRAY[
+                    'source_system', 'source_id', 'source_version', 'event_id',
+                    'reason', 'provenance', 'revoked_at'
+                  ])
+                )
+              )
+          )
+        ) AS "migrationReady"
     `),
       "Database health query returned no row",
     );
-    return { ok: true, ...row, latencyMs: performance.now() - startedAt };
+    if (!row.migrationReady) {
+      throw new Error("Database migration 010 is not ready");
+    }
+    return {
+      ok: true,
+      ...row,
+      migrationReady: true,
+      latencyMs: performance.now() - startedAt,
+    };
   }
 }
 
@@ -631,6 +676,19 @@ export class InboxRepository {
 export class SourceRepository {
   constructor(private readonly database: QueryExecutor) {}
 
+  async lockApprovalVersion(
+    sourceSystem: string,
+    sourceId: string,
+    sourceVersion: string,
+  ): Promise<void> {
+    await this.database.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [`lf-sync:approval:${
+        JSON.stringify([sourceSystem, sourceId, sourceVersion])
+      }`],
+    );
+  }
+
   async upsertCanonicalSource(
     input: CanonicalSourceInput,
   ): Promise<SourceDocumentRecord> {
@@ -676,6 +734,48 @@ export class SourceRepository {
       ),
       "Canonical source upsert returned no row",
     );
+  }
+
+  async recordApprovalRevocation(
+    input: ApprovalRevocationInput,
+  ): Promise<void> {
+    await this.database.execute(
+      `INSERT INTO source_approval_revocations (
+         source_system, source_id, source_version, event_id, reason,
+         provenance, revoked_at
+       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, COALESCE($7, now()))
+       ON CONFLICT (source_system, source_id, source_version) DO UPDATE
+       SET event_id = EXCLUDED.event_id,
+           reason = EXCLUDED.reason,
+           provenance = source_approval_revocations.provenance || EXCLUDED.provenance,
+           revoked_at = LEAST(source_approval_revocations.revoked_at, EXCLUDED.revoked_at)`,
+      [
+        input.sourceSystem,
+        input.sourceId,
+        input.sourceVersion,
+        input.eventId,
+        input.reason,
+        json(input.provenance ?? {}),
+        input.revokedAt ?? null,
+      ],
+    );
+  }
+
+  async isApprovalRevoked(
+    sourceSystem: string,
+    sourceId: string,
+    sourceVersion: string,
+  ): Promise<boolean> {
+    const rows = await this.database.query<
+      { revoked: boolean } & Record<string, unknown>
+    >(
+      `SELECT EXISTS (
+         SELECT 1 FROM source_approval_revocations
+         WHERE source_system = $1 AND source_id = $2 AND source_version = $3
+       ) AS revoked`,
+      [sourceSystem, sourceId, sourceVersion],
+    );
+    return rows[0]?.revoked === true;
   }
 
   async upsertAttachment(
@@ -843,6 +943,8 @@ export class SyncRepository {
   constructor(private readonly database: QueryExecutor) {}
 
   async createRequest(input: SyncRequestInput): Promise<SyncRequestRecord> {
+    const requestedVdocKeys = [...new Set(input.requestedVdocKeys ?? [])]
+      .sort();
     return one(
       await this.database.query<SyncRequestRecord>(
         `
@@ -851,12 +953,20 @@ export class SyncRepository {
         requested_vdoc_keys, provenance
       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
       ON CONFLICT (request_key) DO UPDATE
-      SET updated_at = sync_requests.updated_at
+      SET requested_vdoc_keys = CASE
+            WHEN sync_requests.requested_vdoc_keys = '[]'::jsonb
+              THEN EXCLUDED.requested_vdoc_keys
+            ELSE sync_requests.requested_vdoc_keys
+          END,
+          updated_at = sync_requests.updated_at
       WHERE sync_requests.source_document_id = EXCLUDED.source_document_id
         AND sync_requests.operation_id IS NOT DISTINCT FROM EXCLUDED.operation_id
         AND sync_requests.requested_by IS NOT DISTINCT FROM EXCLUDED.requested_by
         AND sync_requests.reason = EXCLUDED.reason
-        AND sync_requests.requested_vdoc_keys = EXCLUDED.requested_vdoc_keys
+        AND (
+          sync_requests.requested_vdoc_keys = EXCLUDED.requested_vdoc_keys
+          OR sync_requests.requested_vdoc_keys = '[]'::jsonb
+        )
       RETURNING ${SYNC_REQUEST_COLUMNS}
     `,
         [
@@ -865,7 +975,7 @@ export class SyncRepository {
           input.operationId ?? null,
           input.requestedBy ?? null,
           input.reason,
-          json(input.requestedVdocKeys ?? []),
+          json(requestedVdocKeys),
           json(input.provenance ?? {}),
         ],
       ),
@@ -912,23 +1022,45 @@ export class SyncRepository {
   /** Finalizes only after every attachment delivery has reached a terminal state. */
   async finalizeFromDeliveries(id: DbId): Promise<SyncRequestRecord | null> {
     const rows = await this.database.query<SyncRequestRecord>(
-      `WITH states AS (
-         SELECT bool_or(status IN ('pending', 'active')) AS has_active,
-                bool_or(status = 'completed') AS has_completed,
-                bool_or(status = 'review-required') AS has_review,
-                bool_or(status = 'failed') AS has_failed
-         FROM deliveries WHERE sync_request_id = $1
+      `WITH expected AS (
+         SELECT request.id, expected.vdoc_key
+         FROM sync_requests AS request
+         CROSS JOIN LATERAL jsonb_array_elements_text(
+           request.requested_vdoc_keys
+         ) AS expected(vdoc_key)
+         WHERE request.id = $1
+       ), states AS (
+         SELECT count(expected.vdoc_key)::integer AS expected_count,
+                count(delivery.id)::integer AS delivery_count,
+                bool_or(delivery.status IN ('pending', 'active')) AS has_active,
+                bool_or(delivery.status = 'completed') AS has_completed,
+                bool_or(delivery.status = 'review-required') AS has_review,
+                bool_or(delivery.status = 'approval-revoked') AS has_revoked,
+                bool_or(delivery.status = 'failed') AS has_failed
+         FROM expected
+         LEFT JOIN source_attachments AS attachment
+           ON attachment.vdoc_key = expected.vdoc_key
+          AND attachment.source_document_id = (
+            SELECT source_document_id FROM sync_requests WHERE id = $1
+          )
+         LEFT JOIN deliveries AS delivery
+           ON delivery.sync_request_id = $1
+          AND delivery.source_attachment_id = attachment.id
        ), updated AS (
          UPDATE sync_requests AS request
           SET status = CASE
-                WHEN states.has_completed AND (states.has_review OR states.has_failed) THEN 'partial'
+                 WHEN states.has_revoked THEN 'approval-revoked'
+                 WHEN states.has_completed AND (states.has_review OR states.has_failed) THEN 'partial'
                 WHEN states.has_review THEN 'review-required'
                 WHEN states.has_failed THEN 'failed'
                 ELSE 'completed'
               END::workflow_status,
              finished_at = COALESCE(request.finished_at, now()), updated_at = now()
          FROM states
-         WHERE request.id = $1 AND NOT states.has_active
+         WHERE request.id = $1
+           AND states.expected_count > 0
+           AND states.delivery_count = states.expected_count
+           AND NOT COALESCE(states.has_active, false)
            AND request.status IN ('pending', 'active')
          RETURNING request.*
        ) SELECT ${SYNC_REQUEST_COLUMNS} FROM updated`,
@@ -1042,8 +1174,9 @@ export class DeliveryRepository {
     id: DbId,
     status: TerminalWorkflowStatus,
     result: JsonObject,
+    claimOwner?: string,
   ): Promise<DeliveryRecord> {
-    return await this.updateStatus(id, status, result);
+    return await this.updateStatus(id, status, result, claimOwner);
   }
 
   async getDelivery(id: DbId): Promise<DeliveryDetails | null> {
@@ -1195,17 +1328,25 @@ export class DeliveryRepository {
   ): Promise<DeliveryRecord[]> {
     return await this.database.query<DeliveryRecord>(
       `
-      WITH updated AS (
-        UPDATE deliveries AS target
+       WITH source AS (
+         SELECT id FROM source_documents
+         WHERE source_system = $1 AND source_id = $2 AND source_version = $3
+       ), requests AS (
+         UPDATE sync_requests AS request
+         SET status = 'approval-revoked',
+             result = COALESCE(result, '{}'::jsonb) || COALESCE($4::jsonb, '{}'::jsonb),
+             finished_at = COALESCE(finished_at, now()), updated_at = now()
+         FROM source
+         WHERE request.source_document_id = source.id
+         RETURNING request.id
+       ), updated AS (
+         UPDATE deliveries AS target
         SET status = 'approval-revoked',
-            result = COALESCE($4::jsonb, result),
+             result = COALESCE(result, '{}'::jsonb) || COALESCE($4::jsonb, '{}'::jsonb),
             finished_at = COALESCE(finished_at, now()),
             updated_at = now()
-        FROM source_documents AS source
-        WHERE target.source_document_id = source.id
-          AND source.source_system = $1
-          AND source.source_id = $2
-          AND source.source_version = $3
+         FROM source
+         WHERE target.source_document_id = source.id
         RETURNING target.*
       )
       SELECT ${DELIVERY_COLUMNS}
@@ -1231,9 +1372,25 @@ export class DeliveryRepository {
       INSERT INTO delivery_attempts (
         delivery_id, stage, attempt_number, outcome, retryable, duration_ms,
         request_context, response_context, started_at, finished_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb,
-        COALESCE($9, now()), $10
+      )
+      SELECT $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb,
+             COALESCE($9, now()), $10
+      WHERE $11::text IS NULL OR EXISTS (
+        SELECT 1
+        FROM deliveries AS delivery
+        WHERE delivery.id = $1
+          AND delivery.status = 'active'
+          AND delivery.submission_claim_owner = $11
+          AND delivery.submission_claimed_until > now()
+          AND NOT EXISTS (
+            SELECT 1
+            FROM source_documents AS source
+            JOIN source_approval_revocations AS revocation
+              ON revocation.source_system = source.source_system
+             AND revocation.source_id = source.source_id
+             AND revocation.source_version = source.source_version
+            WHERE source.id = delivery.source_document_id
+          )
       )
       ON CONFLICT (delivery_id, stage, attempt_number) DO UPDATE
       SET outcome = EXCLUDED.outcome,
@@ -1256,6 +1413,7 @@ export class DeliveryRepository {
           json(input.responseContext ?? {}),
           input.startedAt ?? null,
           input.finishedAt ?? null,
+          input.claimOwner ?? null,
         ],
       ),
       "Delivery attempt upsert returned no row",
@@ -1271,9 +1429,25 @@ export class DeliveryRepository {
           sync_request_id, delivery_id, source_document_id, stage, failure_class,
           reason, retryable, status_code, attempt_number, context, provenance,
           occurred_at
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb,
-          COALESCE($12, now())
+        )
+        SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb,
+               $11::jsonb, COALESCE($12, now())
+        WHERE $13::text IS NULL OR EXISTS (
+          SELECT 1
+          FROM deliveries AS delivery
+          WHERE delivery.id = $2
+            AND delivery.status = 'active'
+            AND delivery.submission_claim_owner = $13
+            AND delivery.submission_claimed_until > now()
+            AND NOT EXISTS (
+              SELECT 1
+              FROM source_documents AS source
+              JOIN source_approval_revocations AS revocation
+                ON revocation.source_system = source.source_system
+               AND revocation.source_id = source.source_id
+               AND revocation.source_version = source.source_version
+              WHERE source.id = delivery.source_document_id
+            )
         )
         RETURNING *
       )
@@ -1294,6 +1468,7 @@ export class DeliveryRepository {
           json(input.context ?? {}),
           json(input.provenance ?? {}),
           input.occurredAt ?? null,
+          input.claimOwner ?? null,
         ],
       ),
       "Failure insert returned no row",
@@ -1333,15 +1508,34 @@ export class DeliveryRepository {
     deliveryId: DbId,
     retryAt: Date,
     reason: string,
+    claimOwner?: string,
   ): Promise<void> {
-    await this.database.execute(
+    const rows = await this.database.query<
+      { id: string } & Record<string, unknown>
+    >(
       `UPDATE deliveries
        SET next_attempt_at = $2,
            last_retry_reason = $3,
            updated_at = now()
-       WHERE id = $1`,
-      [deliveryId, retryAt, reason],
+       WHERE id = $1
+         AND ($4::text IS NULL OR (
+           status = 'active'
+           AND submission_claim_owner = $4
+           AND submission_claimed_until > now()
+           AND NOT EXISTS (
+             SELECT 1
+             FROM source_documents AS source
+             JOIN source_approval_revocations AS revocation
+               ON revocation.source_system = source.source_system
+              AND revocation.source_id = source.source_id
+              AND revocation.source_version = source.source_version
+             WHERE source.id = deliveries.source_document_id
+           )
+         ))
+       RETURNING id::text AS id`,
+      [deliveryId, retryAt, reason, claimOwner ?? null],
     );
+    one(rows, `Delivery ${deliveryId} submission claim was lost`);
   }
 
   async listDueRetries(limit: number): Promise<DeliveryRecord[]> {
@@ -1355,6 +1549,12 @@ export class DeliveryRepository {
         AND d.next_attempt_at IS NOT NULL
         AND d.next_attempt_at <= now()
         AND d.retry_count < d.max_attempts
+        AND NOT EXISTS (
+          SELECT 1 FROM source_approval_revocations AS revocation
+          WHERE revocation.source_system = sd.source_system
+            AND revocation.source_id = sd.source_id
+            AND revocation.source_version = sd.source_version
+        )
         AND EXISTS (
           SELECT 1
           FROM failure_records AS f
@@ -1382,12 +1582,13 @@ export class DeliveryRepository {
       WHERE d.status = 'active'
         AND d.updated_at < $1
         AND d.retry_count < d.max_attempts
-        AND em.entry_id IS NULL
         AND NOT EXISTS (
-          SELECT 1
-          FROM delivery_attempts AS da
-          WHERE da.delivery_id = d.id
+          SELECT 1 FROM source_approval_revocations AS revocation
+          WHERE revocation.source_system = sd.source_system
+            AND revocation.source_id = sd.source_id
+            AND revocation.source_version = sd.source_version
         )
+        AND (d.submission_claimed_until IS NULL OR d.submission_claimed_until < now())
       ORDER BY d.updated_at, d.id
       LIMIT $2
     `,
@@ -1399,7 +1600,7 @@ export class DeliveryRepository {
     const rows = await this.database.query<DeliveryRecord>(
       `
       WITH updated AS (
-        UPDATE deliveries
+        UPDATE deliveries AS d
         SET status = 'active',
             result = '{}'::jsonb,
             retry_count = retry_count + 1,
@@ -1407,11 +1608,20 @@ export class DeliveryRepository {
             started_at = COALESCE(started_at, now()),
             finished_at = NULL,
             updated_at = now()
-        WHERE id = $1
-          AND status = 'failed'
-          AND next_attempt_at IS NOT NULL
-          AND next_attempt_at <= now()
-          AND retry_count < max_attempts
+        WHERE d.id = $1
+          AND d.status = 'failed'
+          AND d.next_attempt_at IS NOT NULL
+          AND d.next_attempt_at <= now()
+          AND d.retry_count < d.max_attempts
+          AND NOT EXISTS (
+            SELECT 1
+            FROM source_documents AS source
+            JOIN source_approval_revocations AS revocation
+              ON revocation.source_system = source.source_system
+             AND revocation.source_id = source.source_id
+             AND revocation.source_version = source.source_version
+            WHERE source.id = d.source_document_id
+          )
         RETURNING *
       )
       SELECT ${DELIVERY_COLUMNS}
@@ -1449,15 +1659,15 @@ export class DeliveryRepository {
           AND d.status = 'active'
           AND d.updated_at < $2
           AND d.retry_count < d.max_attempts
+          AND (d.submission_claimed_until IS NULL OR d.submission_claimed_until < now())
           AND NOT EXISTS (
             SELECT 1
-            FROM entry_mappings AS em
-            WHERE em.delivery_id = d.id
-          )
-          AND NOT EXISTS (
-            SELECT 1
-            FROM delivery_attempts AS da
-            WHERE da.delivery_id = d.id
+            FROM source_documents AS source
+            JOIN source_approval_revocations AS revocation
+              ON revocation.source_system = source.source_system
+             AND revocation.source_id = source.source_id
+             AND revocation.source_version = source.source_version
+            WHERE source.id = d.source_document_id
           )
         RETURNING d.*
       )
@@ -1534,9 +1744,13 @@ export class DeliveryRepository {
         delivery_id, repository, entry_id, idempotency_key, payload_hash,
         provenance
       )
-      SELECT id, repository, $2, idempotency_key, payload_hash, $3::jsonb
-      FROM deliveries
-      WHERE id = $1
+       SELECT id, repository, $2, idempotency_key, payload_hash, $3::jsonb
+       FROM deliveries
+       WHERE id = $1
+         AND ($4::text IS NULL OR (
+           submission_claim_owner = $4
+           AND submission_claimed_until > now()
+         ))
       ON CONFLICT (delivery_id) DO UPDATE
       SET provenance = EXCLUDED.provenance,
           updated_at = now()
@@ -1550,14 +1764,19 @@ export class DeliveryRepository {
         input.deliveryId,
         input.entryId,
         json(input.provenance ?? {}),
+        input.claimOwner ?? null,
       ],
     );
     if (rows[0]) {
       await this.database.execute(
         `UPDATE deliveries
          SET cws_entry_id = $2, updated_at = now()
-         WHERE id = $1`,
-        [input.deliveryId, input.entryId],
+         WHERE id = $1
+           AND ($3::text IS NULL OR (
+             submission_claim_owner = $3
+             AND submission_claimed_until > now()
+           ))`,
+        [input.deliveryId, input.entryId, input.claimOwner ?? null],
       );
       return rows[0];
     }
@@ -1579,12 +1798,158 @@ export class DeliveryRepository {
     throw new Error("Entry mapping could not be persisted");
   }
 
-  async persistContent(input: DeliveryContentInput): Promise<void> {
+  async markUploadCompleted(
+    deliveryId: DbId,
+    claimOwner?: string,
+  ): Promise<void> {
+    const rows = await this.database.query<
+      { id: string } & Record<string, unknown>
+    >(
+      `UPDATE deliveries
+       SET upload_completed_at = COALESCE(upload_completed_at, now()), updated_at = now()
+       WHERE id = $1
+         AND ($2::text IS NULL OR (
+           submission_claim_owner = $2
+           AND submission_claimed_until > now()
+         ))
+       RETURNING id::text AS id`,
+      [deliveryId, claimOwner ?? null],
+    );
+    one(rows, `Delivery ${deliveryId} submission claim was lost`);
+  }
+
+  async claimForSubmission(
+    id: DbId,
+    owner: string,
+    leaseUntil: Date,
+  ): Promise<DeliveryRecord | null> {
+    const rows = await this.database.query<DeliveryRecord>(
+      `WITH updated AS (
+         UPDATE deliveries AS delivery
+         SET submission_claim_owner = $2, submission_claimed_until = $3,
+             status = 'active', started_at = COALESCE(started_at, now()),
+             updated_at = now()
+         FROM source_documents AS source
+         WHERE delivery.id = $1
+           AND delivery.source_document_id = source.id
+           AND delivery.status IN ('pending', 'active')
+           AND (delivery.submission_claimed_until IS NULL OR delivery.submission_claimed_until < now())
+           AND NOT EXISTS (
+             SELECT 1 FROM source_approval_revocations AS revocation
+             WHERE revocation.source_system = source.source_system
+               AND revocation.source_id = source.source_id
+               AND revocation.source_version = source.source_version
+           )
+         RETURNING delivery.*
+       )
+       SELECT ${DELIVERY_COLUMNS}
+       FROM updated AS d
+       ${DELIVERY_JOINS}`,
+      [id, owner, leaseUntil],
+    );
+    return rows[0] ?? null;
+  }
+
+  async renewSubmissionClaim(
+    id: DbId,
+    owner: string,
+    leaseUntil: Date,
+  ): Promise<boolean> {
+    const rows = await this.database.query<
+      { id: string } & Record<string, unknown>
+    >(
+      `UPDATE deliveries AS delivery
+       SET submission_claimed_until = $3, updated_at = now()
+       FROM source_documents AS source
+       WHERE delivery.id = $1
+         AND delivery.source_document_id = source.id
+         AND delivery.status = 'active'
+         AND delivery.submission_claim_owner = $2
+         AND delivery.submission_claimed_until > now()
+         AND NOT EXISTS (
+           SELECT 1 FROM source_approval_revocations AS revocation
+           WHERE revocation.source_system = source.source_system
+             AND revocation.source_id = source.source_id
+             AND revocation.source_version = source.source_version
+         )
+       RETURNING delivery.id::text AS id`,
+      [id, owner, leaseUntil],
+    );
+    return rows.length === 1;
+  }
+
+  async releaseSubmissionClaim(id: DbId, owner: string): Promise<void> {
     await this.database.execute(
       `UPDATE deliveries
+       SET submission_claim_owner = NULL, submission_claimed_until = NULL,
+           updated_at = now()
+       WHERE id = $1 AND submission_claim_owner = $2`,
+      [id, owner],
+    );
+  }
+
+  async deferSubmission(id: DbId): Promise<void> {
+    await this.database.execute(
+      `UPDATE deliveries
+       SET status = 'pending', submission_claim_owner = NULL,
+           submission_claimed_until = NULL, updated_at = now()
+       WHERE id = $1
+         AND (
+           status = 'pending'
+           OR (
+             status = 'active'
+             AND (
+               submission_claimed_until IS NULL
+               OR submission_claimed_until < now()
+             )
+           )
+         )`,
+      [id],
+    );
+  }
+
+  async listPendingForActivation(limit: number): Promise<DeliveryRecord[]> {
+    positiveInteger(limit, "limit", 500);
+    return await this.database.query<DeliveryRecord>(
+      `SELECT ${DELIVERY_COLUMNS}
+       FROM deliveries AS d
+       ${DELIVERY_JOINS}
+       WHERE d.status = 'pending'
+         AND NOT EXISTS (
+           SELECT 1 FROM source_approval_revocations AS revocation
+           WHERE revocation.source_system = sd.source_system
+             AND revocation.source_id = sd.source_id
+             AND revocation.source_version = sd.source_version
+         )
+       ORDER BY d.created_at, d.id
+       LIMIT $1`,
+      [limit],
+    );
+  }
+
+  async persistContent(input: DeliveryContentInput): Promise<void> {
+    const rows = await this.database.query<
+      { id: string } & Record<string, unknown>
+    >(
+      `UPDATE deliveries
        SET directory_id = $2, content_sha256 = $3, bytes = $4,
-           content_type = $5, upload_extension = $6, updated_at = now()
-       WHERE id = $1`,
+            content_type = $5, upload_extension = $6, updated_at = now()
+       WHERE id = $1
+         AND ($7::text IS NULL OR (
+           status = 'active'
+           AND submission_claim_owner = $7
+           AND submission_claimed_until > now()
+           AND NOT EXISTS (
+             SELECT 1
+             FROM source_documents AS source
+             JOIN source_approval_revocations AS revocation
+               ON revocation.source_system = source.source_system
+              AND revocation.source_id = source.source_id
+              AND revocation.source_version = source.source_version
+             WHERE source.id = deliveries.source_document_id
+           )
+         ))
+       RETURNING id::text AS id`,
       [
         input.deliveryId,
         input.directoryId,
@@ -1592,8 +1957,10 @@ export class DeliveryRepository {
         input.byteLength,
         input.contentType,
         input.uploadExtension,
+        input.claimOwner ?? null,
       ],
     );
+    one(rows, `Delivery ${input.deliveryId} submission claim was lost`);
   }
 
   async findExistingContent(
@@ -1618,29 +1985,66 @@ export class DeliveryRepository {
   }
 
   async persistDuplicateContent(input: DeliveryContentInput): Promise<void> {
-    await this.database.execute(
+    const rows = await this.database.query<
+      { id: string } & Record<string, unknown>
+    >(
       `UPDATE deliveries
        SET directory_id = $2, bytes = $3,
-           content_type = $4, upload_extension = $5,
-           updated_at = now()
-       WHERE id = $1`,
+            content_type = $4, upload_extension = $5,
+            updated_at = now()
+       WHERE id = $1
+         AND ($6::text IS NULL OR (
+           status = 'active'
+           AND submission_claim_owner = $6
+           AND submission_claimed_until > now()
+           AND NOT EXISTS (
+             SELECT 1
+             FROM source_documents AS source
+             JOIN source_approval_revocations AS revocation
+               ON revocation.source_system = source.source_system
+              AND revocation.source_id = source.source_id
+              AND revocation.source_version = source.source_version
+             WHERE source.id = deliveries.source_document_id
+           )
+         ))
+       RETURNING id::text AS id`,
       [
         input.deliveryId,
         input.directoryId,
         input.byteLength,
         input.contentType,
         input.uploadExtension,
+        input.claimOwner ?? null,
       ],
     );
+    one(rows, `Delivery ${input.deliveryId} submission claim was lost`);
   }
 
   async persistReusedEntryId(input: EntryMappingInput): Promise<void> {
-    await this.database.execute(
+    const rows = await this.database.query<
+      { id: string } & Record<string, unknown>
+    >(
       `UPDATE deliveries
        SET cws_entry_id = $2, updated_at = now()
-       WHERE id = $1`,
-      [input.deliveryId, input.entryId],
+       WHERE id = $1
+         AND ($3::text IS NULL OR (
+           status = 'active'
+           AND submission_claim_owner = $3
+           AND submission_claimed_until > now()
+           AND NOT EXISTS (
+             SELECT 1
+             FROM source_documents AS source
+             JOIN source_approval_revocations AS revocation
+               ON revocation.source_system = source.source_system
+              AND revocation.source_id = source.source_id
+              AND revocation.source_version = source.source_version
+             WHERE source.id = deliveries.source_document_id
+           )
+         ))
+       RETURNING id::text AS id`,
+      [input.deliveryId, input.entryId, input.claimOwner ?? null],
     );
+    one(rows, `Delivery ${input.deliveryId} submission claim was lost`);
   }
 
   async dashboardSummary(
@@ -1984,12 +2388,13 @@ export class DeliveryRepository {
     id: DbId,
     status: WorkflowStatus,
     result: JsonObject | null,
+    claimOwner?: string,
   ): Promise<DeliveryRecord> {
     const rows = await this.database.query<DeliveryRecord>(
       `
       WITH updated AS (
         UPDATE deliveries
-        SET status = $2,
+         SET status = $2,
             result = COALESCE($3::jsonb, result),
             started_at = CASE
               WHEN $2 = 'active' THEN COALESCE(started_at, now())
@@ -2003,16 +2408,41 @@ export class DeliveryRepository {
                 THEN COALESCE(finished_at, now())
               ELSE finished_at
             END,
-            updated_at = now()
-        WHERE id = $1
-          AND (status IN ('pending', 'active') OR status = $2)
+             submission_claim_owner = CASE WHEN $2 = 'active' THEN submission_claim_owner ELSE NULL END,
+             submission_claimed_until = CASE WHEN $2 = 'active' THEN submission_claimed_until ELSE NULL END,
+             updated_at = now()
+         WHERE id = $1
+           AND (status IN ('pending', 'active') OR status = $2)
+           AND ($4::text IS NULL OR (
+             status = 'active'
+             AND submission_claim_owner = $4
+             AND submission_claimed_until > now()
+             AND NOT EXISTS (
+               SELECT 1
+               FROM source_documents AS claimed_source
+               JOIN source_approval_revocations AS claimed_revocation
+                 ON claimed_revocation.source_system = claimed_source.source_system
+                AND claimed_revocation.source_id = claimed_source.source_id
+                AND claimed_revocation.source_version = claimed_source.source_version
+               WHERE claimed_source.id = deliveries.source_document_id
+             )
+           ))
+          AND ($2 <> 'active' OR NOT EXISTS (
+            SELECT 1
+            FROM source_documents AS source
+            JOIN source_approval_revocations AS revocation
+              ON revocation.source_system = source.source_system
+             AND revocation.source_id = source.source_id
+             AND revocation.source_version = source.source_version
+            WHERE source.id = deliveries.source_document_id
+          ))
         RETURNING *
       )
       SELECT ${DELIVERY_COLUMNS}
       FROM updated AS d
       ${DELIVERY_JOINS}
     `,
-      [id, status, result === null ? null : json(result)],
+      [id, status, result === null ? null : json(result), claimOwner ?? null],
     );
     return one(rows, `Delivery ${id} was not found`);
   }

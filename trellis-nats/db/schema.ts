@@ -12,18 +12,61 @@ import {
 } from "drizzle-orm/pg-core";
 
 type Json = Record<string, unknown> | string[];
-const json = <T extends Json = Record<string, unknown>>(name = "") => jsonb(name).$type<T>();
-const createdAt = () => timestamp("created_at", { withTimezone: true, precision: 3 }).notNull().defaultNow();
-const updatedAt = () => timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
+const json = <T extends Json = Record<string, unknown>>(name = "") =>
+  jsonb(name).$type<T>();
+const createdAt = () =>
+  timestamp("created_at", { withTimezone: true, precision: 3 }).notNull()
+    .defaultNow();
+const updatedAt = () =>
+  timestamp("updated_at", { withTimezone: true }).notNull().defaultNow();
 
-export const sourceDocumentStatus = pgEnum("source_document_status", ["received", "ready", "superseded"]);
-export const workflowStatus = pgEnum("workflow_status", ["pending", "active", "review-required", "approval-revoked", "completed", "partial", "failed"]);
+export const sourceDocumentStatus = pgEnum("source_document_status", [
+  "received",
+  "ready",
+  "superseded",
+]);
+export const workflowStatus = pgEnum("workflow_status", [
+  "pending",
+  "active",
+  "review-required",
+  "approval-revoked",
+  "completed",
+  "partial",
+  "failed",
+]);
 export const deliveryAction = pgEnum("delivery_action", ["create", "update"]);
-export const attemptOutcome = pgEnum("attempt_outcome", ["started", "succeeded", "failed"]);
-export const failureClass = pgEnum("failure_class", ["validation", "not-found", "timeout", "transient", "code-bug", "unknown"]);
-export const failureStatus = pgEnum("failure_status", ["open", "resolved", "dismissed"]);
-export const migrationStatus = pgEnum("migration_status", ["pending", "running", "completed", "partial", "failed", "skipped"]);
-export const reportStatus = pgEnum("report_status", ["pending", "running", "completed", "failed"]);
+export const attemptOutcome = pgEnum("attempt_outcome", [
+  "started",
+  "succeeded",
+  "failed",
+]);
+export const failureClass = pgEnum("failure_class", [
+  "validation",
+  "not-found",
+  "timeout",
+  "transient",
+  "code-bug",
+  "unknown",
+]);
+export const failureStatus = pgEnum("failure_status", [
+  "open",
+  "resolved",
+  "dismissed",
+]);
+export const migrationStatus = pgEnum("migration_status", [
+  "pending",
+  "running",
+  "completed",
+  "partial",
+  "failed",
+  "skipped",
+]);
+export const reportStatus = pgEnum("report_status", [
+  "pending",
+  "running",
+  "completed",
+  "failed",
+]);
 
 export const sourceDocuments = pgTable("source_documents", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
@@ -43,14 +86,19 @@ export const sourceDocuments = pgTable("source_documents", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (table) => [
-  uniqueIndex("source_documents_version_uq").on(table.sourceSystem, table.sourceId, table.sourceVersion),
+  uniqueIndex("source_documents_version_uq").on(
+    table.sourceSystem,
+    table.sourceId,
+    table.sourceVersion,
+  ),
   index("source_documents_readiness_hash_idx").on(table.readinessHash),
   index("source_documents_approved_idx").on(table.approvedAt, table.id),
 ]);
 
 export const sourceAttachments = pgTable("source_attachments", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  sourceDocumentId: bigint("source_document_id", { mode: "number" }).notNull().references(() => sourceDocuments.id),
+  sourceDocumentId: bigint("source_document_id", { mode: "number" }).notNull()
+    .references(() => sourceDocuments.id),
   sourceSystem: text("source_system").notNull(),
   sourceId: text("source_id").notNull(),
   sourceVersion: text("source_version").notNull(),
@@ -73,9 +121,40 @@ export const sourceAttachments = pgTable("source_attachments", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (table) => [
-  uniqueIndex("source_attachments_version_uq").on(table.sourceSystem, table.sourceId, table.sourceVersion, table.vdocKey),
-  index("source_attachments_document_idx").on(table.sourceDocumentId, table.vdocKey),
+  uniqueIndex("source_attachments_version_uq").on(
+    table.sourceSystem,
+    table.sourceId,
+    table.sourceVersion,
+    table.vdocKey,
+  ),
+  index("source_attachments_document_idx").on(
+    table.sourceDocumentId,
+    table.vdocKey,
+  ),
 ]);
+
+export const sourceApprovalRevocations = pgTable(
+  "source_approval_revocations",
+  {
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    sourceSystem: text("source_system").notNull(),
+    sourceId: text("source_id").notNull(),
+    sourceVersion: text("source_version").notNull(),
+    eventId: text("event_id").notNull(),
+    reason: text().notNull(),
+    provenance: json().notNull().default({}),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }).notNull()
+      .defaultNow(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("source_approval_revocations_version_uq").on(
+      table.sourceSystem,
+      table.sourceId,
+      table.sourceVersion,
+    ),
+  ],
+);
 
 export const laserficheDirectories = pgTable("laserfiche_directories", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
@@ -90,34 +169,53 @@ export const laserficheDirectories = pgTable("laserfiche_directories", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (table) => [
-  uniqueIndex("laserfiche_directories_path_uq").on(table.repository, table.canonicalPath),
-  uniqueIndex("laserfiche_directories_entry_uq").on(table.repository, table.cwsEntryId),
+  uniqueIndex("laserfiche_directories_path_uq").on(
+    table.repository,
+    table.canonicalPath,
+  ),
+  uniqueIndex("laserfiche_directories_entry_uq").on(
+    table.repository,
+    table.cwsEntryId,
+  ),
 ]);
 
-export const syncRequests = pgTable("sync_requests", {
-  id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  sourceDocumentId: bigint("source_document_id", { mode: "number" }).notNull().references(() => sourceDocuments.id),
-  requestKey: text("request_key").notNull(),
-  operationId: text("operation_id"),
-  requestedBy: text("requested_by"),
-  reason: text().notNull(),
-  status: workflowStatus().notNull().default("pending"),
-  requestedVdocKeys: json<string[]>("requested_vdoc_keys").notNull().default([]),
-  result: json(),
-  provenance: json().notNull().default({}),
-  requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-  startedAt: timestamp("started_at", { withTimezone: true }),
-  finishedAt: timestamp("finished_at", { withTimezone: true }),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-}, (table) => [uniqueIndex("sync_requests_request_key_uq").on(table.requestKey)]);
+export const syncRequests = pgTable(
+  "sync_requests",
+  {
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    sourceDocumentId: bigint("source_document_id", { mode: "number" }).notNull()
+      .references(() => sourceDocuments.id),
+    requestKey: text("request_key").notNull(),
+    operationId: text("operation_id"),
+    requestedBy: text("requested_by"),
+    reason: text().notNull(),
+    status: workflowStatus().notNull().default("pending"),
+    requestedVdocKeys: json<string[]>("requested_vdoc_keys").notNull().default(
+      [],
+    ),
+    result: json(),
+    provenance: json().notNull().default({}),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull()
+      .defaultNow(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [uniqueIndex("sync_requests_request_key_uq").on(table.requestKey)],
+);
 
 export const deliveries = pgTable("deliveries", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  syncRequestId: bigint("sync_request_id", { mode: "number" }).notNull().references(() => syncRequests.id),
-  sourceDocumentId: bigint("source_document_id", { mode: "number" }).notNull().references(() => sourceDocuments.id),
-  sourceAttachmentId: bigint("source_attachment_id", { mode: "number" }).notNull().references(() => sourceAttachments.id),
-  directoryId: bigint("directory_id", { mode: "number" }).references(() => laserficheDirectories.id),
+  syncRequestId: bigint("sync_request_id", { mode: "number" }).notNull()
+    .references(() => syncRequests.id),
+  sourceDocumentId: bigint("source_document_id", { mode: "number" }).notNull()
+    .references(() => sourceDocuments.id),
+  sourceAttachmentId: bigint("source_attachment_id", { mode: "number" })
+    .notNull().references(() => sourceAttachments.id),
+  directoryId: bigint("directory_id", { mode: "number" }).references(() =>
+    laserficheDirectories.id
+  ),
   idempotencyKey: text("idempotency_key").notNull(),
   sourceSyncId: text("source_sync_id"),
   payloadHash: text("payload_hash").notNull(),
@@ -138,18 +236,29 @@ export const deliveries = pgTable("deliveries", {
   maxAttempts: integer("max_attempts").notNull().default(5),
   nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
   lastRetryReason: text("last_retry_reason"),
+  uploadCompletedAt: timestamp("upload_completed_at", { withTimezone: true }),
+  submissionClaimOwner: text("submission_claim_owner"),
+  submissionClaimedUntil: timestamp("submission_claimed_until", {
+    withTimezone: true,
+  }),
   startedAt: timestamp("started_at", { withTimezone: true }),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (table) => [
   uniqueIndex("deliveries_idempotency_uq").on(table.idempotencyKey),
-  index("deliveries_status_created_idx").on(table.status, table.createdAt, table.id),
+  index("deliveries_status_created_idx").on(
+    table.status,
+    table.createdAt,
+    table.id,
+  ),
 ]);
 
 export const laserficheEntryMappings = pgTable("entry_mappings", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  deliveryId: bigint("delivery_id", { mode: "number" }).notNull().references(() => deliveries.id),
+  deliveryId: bigint("delivery_id", { mode: "number" }).notNull().references(
+    () => deliveries.id,
+  ),
   repository: text().notNull(),
   entryId: bigint("entry_id", { mode: "number" }).notNull(),
   idempotencyKey: text("idempotency_key").notNull(),
@@ -166,28 +275,49 @@ export const laserficheEntryMappings = pgTable("entry_mappings", {
   uniqueIndex("entry_mappings_entry_uq").on(table.repository, table.entryId),
 ]);
 
-export const deliveryAttempts = pgTable("delivery_attempts", {
-  id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  deliveryId: bigint("delivery_id", { mode: "number" }).notNull().references(() => deliveries.id),
-  stage: text().notNull(),
-  attemptNumber: integer("attempt_number").notNull(),
-  outcome: attemptOutcome().notNull().default("started"),
-  retryable: boolean(),
-  durationMs: integer("duration_ms"),
-  sanitizedError: json("sanitized_error"),
-  requestContext: json("request_context").notNull().default({}),
-  responseContext: json("response_context").notNull().default({}),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-  finishedAt: timestamp("finished_at", { withTimezone: true }),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-}, (table) => [uniqueIndex("delivery_attempts_stage_uq").on(table.deliveryId, table.stage, table.attemptNumber)]);
+export const deliveryAttempts = pgTable(
+  "delivery_attempts",
+  {
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    deliveryId: bigint("delivery_id", { mode: "number" }).notNull().references(
+      () => deliveries.id,
+    ),
+    stage: text().notNull(),
+    attemptNumber: integer("attempt_number").notNull(),
+    outcome: attemptOutcome().notNull().default("started"),
+    retryable: boolean(),
+    durationMs: integer("duration_ms"),
+    sanitizedError: json("sanitized_error"),
+    requestContext: json("request_context").notNull().default({}),
+    responseContext: json("response_context").notNull().default({}),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull()
+      .defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (
+    table,
+  ) => [
+    uniqueIndex("delivery_attempts_stage_uq").on(
+      table.deliveryId,
+      table.stage,
+      table.attemptNumber,
+    ),
+  ],
+);
 
 export const failureRecords = pgTable("failure_records", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  syncRequestId: bigint("sync_request_id", { mode: "number" }).references(() => syncRequests.id),
-  deliveryId: bigint("delivery_id", { mode: "number" }).references(() => deliveries.id),
-  sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(() => sourceDocuments.id),
+  syncRequestId: bigint("sync_request_id", { mode: "number" }).references(() =>
+    syncRequests.id
+  ),
+  deliveryId: bigint("delivery_id", { mode: "number" }).references(() =>
+    deliveries.id
+  ),
+  sourceDocumentId: bigint("source_document_id", { mode: "number" }).references(
+    () => sourceDocuments.id,
+  ),
   stage: text().notNull(),
   failureClass: failureClass("failure_class").notNull(),
   status: failureStatus().notNull().default("open"),
@@ -197,24 +327,38 @@ export const failureRecords = pgTable("failure_records", {
   attemptNumber: integer("attempt_number"),
   context: json().notNull().default({}),
   provenance: json().notNull().default({}),
-  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull()
+    .defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
-export const duplicateCandidates = pgTable("duplicate_candidates", {
-  id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  repository: text().notNull(),
-  directoryId: bigint("directory_id", { mode: "number" }).notNull().references(() => laserficheDirectories.id),
-  contentSha256: text("content_sha256").notNull(),
-  canonicalEntryId: bigint("canonical_entry_id", { mode: "number" }),
-  duplicateEntryId: bigint("duplicate_entry_id", { mode: "number" }),
-  evidence: json().notNull().default({}),
-  status: text().notNull(),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-}, (table) => [uniqueIndex("duplicate_candidates_hash_scope_uq").on(table.repository, table.directoryId, table.contentSha256)]);
+export const duplicateCandidates = pgTable(
+  "duplicate_candidates",
+  {
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    repository: text().notNull(),
+    directoryId: bigint("directory_id", { mode: "number" }).notNull()
+      .references(() => laserficheDirectories.id),
+    contentSha256: text("content_sha256").notNull(),
+    canonicalEntryId: bigint("canonical_entry_id", { mode: "number" }),
+    duplicateEntryId: bigint("duplicate_entry_id", { mode: "number" }),
+    evidence: json().notNull().default({}),
+    status: text().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (
+    table,
+  ) => [
+    uniqueIndex("duplicate_candidates_hash_scope_uq").on(
+      table.repository,
+      table.directoryId,
+      table.contentSha256,
+    ),
+  ],
+);
 
 export const migrationBatches = pgTable("migration_batches", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
@@ -232,23 +376,35 @@ export const migrationBatches = pgTable("migration_batches", {
   updatedAt: updatedAt(),
 }, (table) => [uniqueIndex("migration_batches_key_uq").on(table.batchKey)]);
 
-export const migrationItems = pgTable("migration_items", {
-  id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
-  migrationBatchId: bigint("migration_batch_id", { mode: "number" }).notNull().references(() => migrationBatches.id),
-  itemKey: text("item_key").notNull(),
-  sourceVersion: text("source_version"),
-  status: migrationStatus().notNull().default("pending"),
-  classification: text(),
-  checkpoint: json().notNull().default({}),
-  payload: json().notNull().default({}),
-  result: json(),
-  lastError: text("last_error"),
-  attemptCount: integer("attempt_count").notNull().default(0),
-  startedAt: timestamp("started_at", { withTimezone: true }),
-  finishedAt: timestamp("finished_at", { withTimezone: true }),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-}, (table) => [uniqueIndex("migration_items_key_uq").on(table.migrationBatchId, table.itemKey)]);
+export const migrationItems = pgTable(
+  "migration_items",
+  {
+    id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    migrationBatchId: bigint("migration_batch_id", { mode: "number" }).notNull()
+      .references(() => migrationBatches.id),
+    itemKey: text("item_key").notNull(),
+    sourceVersion: text("source_version"),
+    status: migrationStatus().notNull().default("pending"),
+    classification: text(),
+    checkpoint: json().notNull().default({}),
+    payload: json().notNull().default({}),
+    result: json(),
+    lastError: text("last_error"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (
+    table,
+  ) => [
+    uniqueIndex("migration_items_key_uq").on(
+      table.migrationBatchId,
+      table.itemKey,
+    ),
+  ],
+);
 
 export const reportRuns = pgTable("report_runs", {
   id: bigint({ mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
